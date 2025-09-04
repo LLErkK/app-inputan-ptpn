@@ -7,21 +7,15 @@ import (
 	"net/http"
 )
 
-type ResponseBaku struct {
-	ProduksiBaku       []models.ProduksiBaku       `json:"produksi_baku"`
-	ProduksiBakuDetail []models.ProduksibakuDetail `json:"produksi_baku_detail"`
-}
-
-func GetAllBaku(w http.ResponseWriter, r *http.Request) {
-	var produksiBaku []models.ProduksiBaku
-	var produksiBakuDetail []models.ProduksibakuDetail
-	config.DB.Order("created_at desc").Find(&produksiBaku)
-	config.DB.Order("created_at desc").Find(&produksiBakuDetail)
-
-	response := ResponseBaku{
-		ProduksiBaku:       produksiBaku,
-		ProduksiBakuDetail: produksiBakuDetail,
-	}
+func GetAllBakuPenyadap(w http.ResponseWriter, r *http.Request) {
+	var bakuPenyadap []models.BakuPenyadap
+	config.DB.Order("created_at desc").Find(&bakuPenyadap)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(bakuPenyadap)
+}
+func GetAllBakuMandor(w http.ResponseWriter, r *http.Request) {
+	var bakuMandor []models.BakuMandor
+	config.DB.Order("created_at desc").Find(&bakuMandor)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(bakuMandor)
 }

@@ -19,7 +19,6 @@ func SetupRoutes() {
 	ProtectedRoutes()
 }
 
-// ProtectedRoutes -> hanya bisa diakses jika sudah login
 func ProtectedRoutes() {
 	// Dashboard
 	http.HandleFunc("/dashboard", controllers.AuthMiddleware(controllers.ServeDashboardPage))

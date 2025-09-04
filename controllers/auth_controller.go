@@ -99,7 +99,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		Token:   token,
 		User:    user.Username,
 	})
-	ServeDashboardPage(w, r)
+
 }
 func Logout(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -113,10 +113,7 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 	})
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Logout berhasil",
-	})
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 func HashPassword(password string) string {
 	hash := sha256.Sum256([]byte(password))
