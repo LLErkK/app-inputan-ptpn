@@ -1,6 +1,10 @@
 package models
 
+import "time"
+
 type User struct {
-	Username string
-	Password string
+	ID        uint `gorm:"primary_key;auto_increment"`
+	Username  string
+	Password  string
+	LastLogin time.Time
 }
