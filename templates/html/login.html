@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - PTPN App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-header h1 {
+            color: #333;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-header p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e1e1e1;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group input.error {
+            border-color: #e74c3c;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+            display: none;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .login-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 0.75rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .alert.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .forgot-password {
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .forgot-password a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .forgot-password a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<div class="login-container">
+    <div class="login-header">
+        <h1>Login PTPN</h1>
+        <p>Sistem Inputan Data Produksi</p>
+    </div>
+
+    <div id="alert" class="alert"></div>
+
+    <form id="loginForm">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required>
+            <div class="error-message" id="usernameError">Username harus diisi</div>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+            <div class="error-message" id="passwordError">Password harus diisi</div>
+        </div>
+
+        <button type="submit" class="login-btn" id="loginBtn">
+            Masuk
+        </button>
+    </form>
+
+    <div class="loading" id="loading">
+        Sedang memproses...
+    </div>
+
+    <div class="forgot-password">
+        <a href="#" onclick="showForgotPassword()">Lupa Password?</a>
+    </div>
+</div>
+
+<script>
+    const loginForm = document.getElementById('loginForm');
+    const loginBtn = document.getElementById('loginBtn');
+    const loading = document.getElementById('loading');
+    const alert = document.getElementById('alert');
+
+    // Form validation
+    function validateForm() {
+        const username = document.getElementById('username');
+        const password = document.getElementById('password');
+        const usernameError = document.getElementById('usernameError');
+        const passwordError = document.getElementById('passwordError');
+
+        let isValid = true;
+
+        // Reset error states
+        username.classList.remove('error');
+        password.classList.remove('error');
+        usernameError.style.display = 'none';
+        passwordError.style.display = 'none';
+
+        // Validate username
+        if (!username.value.trim()) {
+            username.classList.add('error');
+            usernameError.style.display = 'block';
+            isValid = false;
+        }
+
+        // Validate password
+        if (!password.value.trim()) {
+            password.classList.add('error');
+            passwordError.style.display = 'block';
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    // Show alert message
+    function showAlert(message, type) {
+        alert.textContent = message;
+        alert.className = `alert ${type}`;
+        alert.style.display = 'block';
+
+        // Auto hide after 5 seconds
+        setTimeout(() => {
+            alert.style.display = 'none';
+        }, 5000);
+    }
+
+    // Handle form submission
+    loginForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        if (!validateForm()) {
+            return;
+        }
+
+        // Show loading state
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Memproses...';
+        loading.style.display = 'block';
+        alert.style.display = 'none';
+
+        const formData = new FormData(loginForm);
+        const loginData = {
+            username: formData.get('username'),
+            password: formData.get('password')
+        };
+
+        try {
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(loginData)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showAlert('Login berhasil! Mengalihkan...', 'success');
+
+                // Redirect after successful login
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 1500);
+            } else {
+                showAlert(result.message || 'Username atau password salah', 'error');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            showAlert('Terjadi kesalahan koneksi. Silakan coba lagi.', 'error');
+        } finally {
+            // Reset button state
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Masuk';
+            loading.style.display = 'none';
+        }
+    });
+
+    // Handle enter key press
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && e.target.type !== 'submit') {
+            e.preventDefault();
+            loginForm.dispatchEvent(new Event('submit'));
+        }
+    });
+
+    // Clear errors on input
+    document.getElementById('username').addEventListener('input', function() {
+        this.classList.remove('error');
+        document.getElementById('usernameError').style.display = 'none';
+    });
+
+    document.getElementById('password').addEventListener('input', function() {
+        this.classList.remove('error');
+        document.getElementById('passwordError').style.display = 'none';
+    });
+
+    // Forgot password handler
+    function showForgotPassword() {
+        alert('Fitur lupa password belum tersedia. Silakan hubungi administrator sistem.');
+    }
+
+    // Auto focus on username field
+    document.getElementById('username').focus();
+</script>
+</body>
+</html>
