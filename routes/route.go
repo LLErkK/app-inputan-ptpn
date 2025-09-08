@@ -7,8 +7,8 @@ import (
 
 // SetupRoutes mengatur semua routing aplikasi
 func SetupRoutes() {
-	// Static files
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
+	// Static files - pastikan path benar
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("templates/"))))
 
 	// Auth routes (tidak butuh middleware)
 	http.HandleFunc("/", controllers.ServeLoginPage)
@@ -23,8 +23,9 @@ func ProtectedRoutes() {
 	// Dashboard
 	http.HandleFunc("/dashboard", controllers.AuthMiddleware(controllers.ServeDashboardPage))
 
-	// API
-	http.HandleFunc("/api/baku", controllers.AuthMiddleware(controllers.GetAllBakuMandor))
+	// API endpoints
+	http.HandleFunc("/api/baku-mandor", controllers.AuthMiddleware(controllers.GetAllBakuMandor))
+	http.HandleFunc("/api/baku-penyadap", controllers.AuthMiddleware(controllers.GetAllBakuPenyadap))
 
 	// Catch-all untuk API yang tidak ditemukan
 	http.HandleFunc("/api/", controllers.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {

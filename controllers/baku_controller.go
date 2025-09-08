@@ -19,3 +19,25 @@ func GetAllBakuMandor(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(bakuMandor)
 }
+func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
+	/*
+		post baku mandor dan penyadap
+		siapa mandornya?
+		kemudian nama,basah latek,sheet. basah lump, brcr penyadap
+		untuk tanggal tergantung inputan dilakukan tanggal berapa
+	*/
+}
+
+func DeleteBakuPenyadap(w http.ResponseWriter, r *http.Request) {
+	/*manghapus salah satu data penyadap*/
+}
+
+func EditBakuPenyadap(w http.ResponseWriter, r *http.Request) {
+	/*Mengedit salah satu data terpilih*/
+}
+
+func HitungbakuDetail(w http.ResponseWriter, r *http.Request) {
+	/*
+		setiap kali menambahkan atau menghapus data, data detailnya dihitung lagi
+	*/
+}

@@ -4,18 +4,18 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Login - PTPN</title>
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
 <div class="container">
     <!-- LEFT: hanya Garuda (bg), logo BUMN, dan teks -->
     <aside class="left-panel">
         <!-- Garuda samar sebagai background -->
-        <img src="/asset/garuda.png" alt="" class="bg-garuda" />
+        <img src="/static/asset/garuda.png" alt="" class="bg-garuda" />
 
         <div class="left-content">
             <!-- Pastikan ini adalah logo BUMN (file bumn.png) -->
-            <img src="/asset/Logo_BUMN.png" alt="Logo BUMN" class="logo-bumn" />
+            <img src="/static/asset/Logo_BUMN.png" alt="Logo BUMN" class="logo-bumn" />
             <div class="left-text">
                 <div class="sub-title">PTPN I SUPPORTING CO REGIONAL 3</div>
             </div>
@@ -25,10 +25,10 @@
     <!-- RIGHT: logo PTPN + form -->
     <main class="right-panel">
         <div class="brand">
-            <img src="/asset/logoptpn.png" alt="PTPN Logo" class="logo-ptpn" />
+            <img src="/static/asset/logoptpn.png" alt="PTPN Logo" class="logo-ptpn" />
         </div>
 
-        <form id="loginForm" class="login-form" method="POST" action="/login" autocomplete="off" novalidate>
+        <form id="loginForm" class="login-form" autocomplete="off" novalidate>
             <label for="username">Username</label>
             <input id="username" name="username" type="text" placeholder="Masukkan username" required />
 
@@ -36,19 +36,18 @@
             <div class="password-wrapper">
                 <input id="password" name="password" type="password" placeholder="Masukkan password" required />
                 <span id="togglePassword" class="toggle-btn">
-      <!-- icon mata -->
-    </span>
+                    👁️
+                </span>
             </div>
 
             <button type="submit" class="btn-login">LOGIN</button>
             <a href="#" class="forgot">Lupa Password</a>
         </form>
 
+        <div id="errorMessage" style="color: red; margin-top: 10px; text-align: center; display: none;"></div>
     </main>
-
-
 </div>
 
-<script src="/js/script.js"></script>
+<script src="/static/js/script.js"></script>
 </body>
 </html>

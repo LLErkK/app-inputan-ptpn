@@ -1,10 +1,173 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - PTPN</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(255,255,255,0.95);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 1.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logout-btn {
+            background: #e53e3e;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #c53030;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .welcome-card {
+            background: rgba(255,255,255,0.95);
+            padding: 3rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .welcome-card h2 {
+            color: #2d3748;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .welcome-card p {
+            color: #4a5568;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .feature-card {
+            background: rgba(255,255,255,0.9);
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+
+        .feature-card h3 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card p {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .main-content {
+                padding: 1rem;
+            }
+
+            .welcome-card {
+                padding: 2rem 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-JANCOOKKKKKK
+<header class="header">
+    <h1>Dashboard PTPN I Supporting Co Regional 3</h1>
+    <div class="user-info">
+        <span>Selamat datang, <strong id="username">Admin</strong></span>
+        <a href="/logout" class="logout-btn">Logout</a>
+    </div>
+</header>
+
+<main class="main-content">
+    <div class="welcome-card">
+        <h2>🎉 Selamat Datang!</h2>
+        <p>Anda telah berhasil masuk ke sistem aplikasi input data produksi PTPN I Supporting Co Regional 3.</p>
+
+        <div class="features">
+            <div class="feature-card">
+                <h3>📊 Data Baku Mandor</h3>
+                <p>Kelola data mandor dan tahun tanam</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>👨‍🌾 Data Penyadap</h3>
+                <p>Input dan monitoring data penyadap</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>📈 Laporan Produksi</h3>
+                <p>Analisis data produksi harian</p>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // Get username dari cookie atau localStorage jika ada
+    // Untuk demo, kita bisa hardcode atau ambil dari server
+    document.addEventListener('DOMContentLoaded', function() {
+        // Bisa ditambahkan logic untuk mengambil username dari server
+        console.log('Dashboard loaded successfully');
+    });
+</script>
 </body>
 </html>
