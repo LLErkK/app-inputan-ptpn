@@ -24,7 +24,7 @@ func ProtectedRoutes() {
 	http.HandleFunc("/dashboard", controllers.AuthMiddleware(controllers.ServeDashboardPage))
 
 	// API
-	http.HandleFunc("/api/baku", controllers.AuthMiddleware(controllers.GetAllBaku))
+	http.HandleFunc("/api/baku", controllers.AuthMiddleware(controllers.GetAllBakuMandor))
 
 	// Catch-all untuk API yang tidak ditemukan
 	http.HandleFunc("/api/", controllers.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {

@@ -25,8 +25,9 @@ func InitDB() {
 	// Auto migrate tables
 	err = DB.AutoMigrate(
 		&models.User{},
-		&models.ProduksiBaku{},
-		&models.ProduksibakuDetail{},
+		&models.BakuPenyadap{},
+		&models.BakuMandor{},
+		&models.BakuDetail{},
 	)
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
