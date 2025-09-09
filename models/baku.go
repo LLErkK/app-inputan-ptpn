@@ -7,34 +7,50 @@ import (
 )
 
 type BakuMandor struct {
-	ID         uint   `gorm:"primaryKey;autoIncrement"`
+	ID         uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	TahunTanam uint   `gorm:"not null"`
-	Mandor     string `gorm:"size:100;not null"`
-	Afdeling   string `gorm:"size:100;not null"`
+	Mandor     string `gorm:"size:100;not null" json:"mandor"`
+	Afdeling   string `gorm:"size:100;not null" json:"afdeling"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 	DeletedAt  gorm.DeletedAt `gorm:"index"`
 
-	// Relasi: Mandor punya banyak penyadap
-	Penyadap []BakuPenyadap `gorm:"foreignKey:IdBakuMandor;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	// Relasi: Mandor punya banyak BakuPenyadap
+	BakuPenyadaps []BakuPenyadap `gorm:"foreignKey:IdBakuMandor;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+}
+
+type Penyadap struct {
+	ID           uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+	NamaPenyadap string `gorm:"size:100;not null" json:"nama_penyadap"`
+	NIK          string `gorm:"size:100;not null;uniqueIndex" json:"nik"`
+
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+
+	// Relasi: Penyadap punya banyak BakuPenyadap
+	BakuPenyadaps []BakuPenyadap `gorm:"foreignKey:IdPenyadap;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
 }
 
 type BakuPenyadap struct {
-	ID           uint      `gorm:"primaryKey;autoIncrement"`
-	IdBakuMandor uint64    `gorm:"not null;index"` // FK ke mandor
-	NIK          string    `gorm:"size:50;uniqueIndex;not null"`
-	NamaPenyadap string    `gorm:"size:100;not null"`
-	Tanggal      time.Time `gorm:"not null;index"`
-	BasahLatex   float64   `gorm:"default:0"`
-	Sheet        float64   `gorm:"default:0"`
-	BasahLump    float64   `gorm:"default:0"`
-	BrCr         float64   `gorm:"default:0"`
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	DeletedAt    gorm.DeletedAt `gorm:"index"`
+	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	IdBakuMandor uint64    `gorm:"not null;index" json:"idBakuMandor"` // FK ke Mandor
+	IdPenyadap   uint64    `gorm:"not null;index" json:"idPenyadap"`   // FK ke master Penyadap
+	Tanggal      time.Time `gorm:"not null;index" json:"tanggal"`
+
+	BasahLatex float64 `gorm:"default:0" json:"basahLatex"`
+	Sheet      float64 `gorm:"default:0" json:"sheet"`
+	BasahLump  float64 `gorm:"default:0" json:"basahLump"`
+	BrCr       float64 `gorm:"default:0" json:"brCr"`
+
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
 	// Relasi ke Mandor
-	Mandor BakuMandor `gorm:"foreignKey:IdBakuMandor;references:ID"`
+	Mandor BakuMandor `gorm:"foreignKey:IdBakuMandor;references:ID" json:"mandor"`
+	// Relasi ke Penyadap
+	Penyadap Penyadap `gorm:"foreignKey:IdPenyadap;references:ID" json:"penyadap"`
 }
 
 type BakuDetail struct {

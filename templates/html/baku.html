@@ -12,59 +12,62 @@
 <body>
 <div class="baku-container">
     <h1>INPUT PRODUKSI BAKU</h1>
-    <form class="baku-form">
+
+    <form class="baku-form" id="bakuForm">
         <div class="form-row">
             <div class="form-group">
                 <label for="mandor">Nama Mandor</label>
-
-                <select id="mandor" name="mandor">
+                <select id="mandor" name="idBakuMandor" required>
                     <option value="">-- Pilih Mandor --</option>
-                    <option value="Budi">Budi</option>
-                    <option value="Siti">Siti</option>
-                    <option value="Joko">Joko</option>
-                    <option value="Ayu">Ayu</option>
-                    <option value="Rudi">Rudi</option>
+                    {{range .MandorList}}
+                        <option value="{{.ID}}">{{.Mandor}} ({{.Afdeling}})</option>
+                    {{end}}
                 </select>
             </div>
         </div>
+
         <div class="form-row">
             <div class="form-group">
                 <label for="namaPenyadap">Nama Penyadap</label>
                 <div style="position:relative;">
-                    <input type="text" id="namaPenyadap" name="namaPenyadap" placeholder="Cari nama..." autocomplete="off">
+                    <input type="text" id="namaPenyadap" placeholder="Cari nama..." autocomplete="off" required>
+                    <input type="hidden" id="idPenyadap" name="idPenyadap" required>
                     <div id="namaDropdown" class="dropdown-list" style="display:none;"></div>
                 </div>
             </div>
             <div class="form-group">
                 <label for="nik">NIK</label>
-                <input type="text" id="nik" name="nik" readonly>
+                <input type="text" id="nik" readonly required>
             </div>
         </div>
 
         <div class="form-row">
             <div class="form-group">
                 <label for="latek">Basah Latek</label>
-                <input type="number" id="latek" name="latek">
+                <input type="number" id="latek" name="basahLatex" required>
             </div>
             <div class="form-group">
                 <label for="lump">Basah Lump</label>
-                <input type="number" id="lump" name="lump">
+                <input type="number" id="lump" name="basahLump" required>
             </div>
         </div>
+
         <div class="form-row">
             <div class="form-group">
                 <label for="sheet">Jumlah Sheet</label>
-                <input type="number" id="sheet" name="sheet">
+                <input type="number" id="sheet" name="sheet" required>
             </div>
             <div class="form-group">
                 <label for="brcr">Br.Cr</label>
-                <input type="number" id="brcr" name="brcr">
+                <input type="number" id="brcr" name="brcr" required>
             </div>
         </div>
+
         <div class="form-row">
             <button type="submit" class="save-btn">Save</button>
         </div>
     </form>
+
     <div class="baku-table-container">
         <h2>Data Produksi Baku</h2>
         <table class="baku-table" id="bakuTable">
@@ -77,11 +80,10 @@
                 <th>Basah Lump</th>
                 <th>Jumlah Sheet</th>
                 <th>Br.Cr</th>
-                <th>Action</th>
             </tr>
             </thead>
             <tbody>
-            <!-- Data akan ditambahkan di sini oleh JS -->
+            <!-- Data akan diisi oleh JS -->
             </tbody>
         </table>
     </div>

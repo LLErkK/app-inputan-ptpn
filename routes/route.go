@@ -36,21 +36,34 @@ func SetupRoutes() {
 	protected.HandleFunc("/dashboard", controllers.ServeDashboardPage).Methods("GET")
 
 	// Baku
+	// ================== BAKU PAGE (HTML) ==================
 	protected.HandleFunc("/baku", controllers.ServeBakuPage).Methods("GET")
-	protected.HandleFunc("/baku", controllers.CreateBakuPenyadap).Methods("POST")
 
+	// ================== BAKU API (CRUD JSON) ==================
+	protected.HandleFunc("/api/baku", controllers.GetAllBakuPenyadap).Methods("GET")
+	protected.HandleFunc("/api/baku/{id}", controllers.GetBakuPenyadapByID).Methods("GET")
+	protected.HandleFunc("/api/baku", controllers.CreateBakuPenyadap).Methods("POST")
+	protected.HandleFunc("/api/baku/{id}", controllers.UpdateBakuPenyadap).Methods("PUT")
+	protected.HandleFunc("/api/baku/{id}", controllers.DeleteBakuPenyadap).Methods("DELETE")
+
+	// Rekap / BakuDetail
+	protected.HandleFunc("/api/baku/detail", controllers.GetAllBakuDetail).Methods("GET")
+	protected.HandleFunc("/api/baku/detail/{tanggal}", controllers.GetBakuDetailByDate).Methods("GET")
 	// Mandor CRUD
 	protected.HandleFunc("/mandor", controllers.GetAllMandor).Methods("GET")
 	protected.HandleFunc("/mandor", controllers.CreateMandor).Methods("POST")
 	protected.HandleFunc("/mandor/{id}", controllers.UpdateMandor).Methods("PUT")
 	protected.HandleFunc("/mandor/{id}", controllers.DeleteMandor).Methods("DELETE")
 
-	// Penyadap CRUD
-	protected.HandleFunc("/penyadap", controllers.GetAllBakuPenyadap).Methods("GET")
-	protected.HandleFunc("/penyadap", controllers.CreateBakuPenyadap).Methods("POST")
-	protected.HandleFunc("/penyadap/{id}", controllers.GetBakuPenyadapByID).Methods("GET")
-	protected.HandleFunc("/penyadap/{id}", controllers.UpdateBakuPenyadap).Methods("PUT")
-	protected.HandleFunc("/penyadap/{id}", controllers.DeleteBakuPenyadap).Methods("DELETE")
+	// Penyadap CRUD + Search
+	protected.HandleFunc("/api/penyadap", controllers.GetAllPenyadap).Methods("GET")
+	protected.HandleFunc("/api/penyadap", controllers.CreatePenyadap).Methods("POST")
+	protected.HandleFunc("/api/penyadap/{id}", controllers.UpdatePenyadap).Methods("PUT")
+	protected.HandleFunc("/api/penyadap/{id}", controllers.DeletePenyadap).Methods("DELETE")
+	protected.HandleFunc("/api/penyadap/search", controllers.GetPenyadapByName).Methods("GET")
+
+	// Search Penyadap
+	protected.HandleFunc("/penyadap/search", controllers.GetPenyadapByName).Methods("GET")
 
 	// Catch-all untuk API yang tidak ditemukan
 	protected.PathPrefix("/api/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
