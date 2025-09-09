@@ -10,6 +10,7 @@ type BakuMandor struct {
 	ID         uint   `gorm:"primaryKey;autoIncrement"`
 	TahunTanam uint   `gorm:"not null"`
 	Mandor     string `gorm:"size:100;not null"`
+	Afdeling   string `gorm:"size:100;not null"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 	DeletedAt  gorm.DeletedAt `gorm:"index"`

@@ -110,3 +110,21 @@ func DeleteMandor(w http.ResponseWriter, r *http.Request) {
 		Message: "Data mandor berhasil ditambahkan",
 	})
 }
+func GetMandorByID(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	var mandor models.BakuMandor
+	if err := config.DB.First(&mandor, id).Error; err != nil {
+		respondJSON(w, http.StatusNotFound, APIResponse{
+			Success: false,
+			Message: "Data mandor tidak ditemukan",
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Message: "Data mandor berhasil ditemukan",
+		Data:    mandor,
+	})
+}
