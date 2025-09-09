@@ -13,11 +13,11 @@
 
     <!-- Form Input Penyadap -->
     <div class="baku-form">
-        <h2>Tambah Data Penyadap</h2>
+        <h2>📝 Tambah Data Penyadap</h2>
         <form id="penyadapForm">
             <div class="form-row">
                 <div class="form-group">
-                    <label for="mandor">Pilih Mandor:</label>
+                    <label for="mandor">👷 Pilih Mandor:</label>
                     <select id="mandor" name="id_baku_mandor" required>
                         <option value="">-- Pilih Mandor --</option>
                         {{range .MandorList}}
@@ -26,146 +26,70 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="nik">NIK:</label>
-                    <input type="text" id="nik" name="nik" required>
+                    <label for="nik">🆔 NIK:</label>
+                    <input type="text" id="nik" name="nik" required placeholder="Masukkan NIK">
                 </div>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="nama">Nama Penyadap:</label>
-                    <input type="text" id="nama" name="nama_penyadap" required>
+                    <label for="nama">👤 Nama Penyadap:</label>
+                    <input type="text" id="nama" name="nama_penyadap" required placeholder="Masukkan nama lengkap">
                 </div>
                 <div class="form-group">
-                    <label for="tanggal">Tanggal:</label>
+                    <label for="tanggal">📅 Tanggal:</label>
                     <input type="date" id="tanggal" name="tanggal" required>
                 </div>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="basah_latex">Basah Latex:</label>
-                    <input type="number" step="0.01" id="basah_latex" name="basah_latex" value="0">
+                    <label for="basah_latex">🥛 Basah Latex (kg):</label>
+                    <input type="number" step="0.01" id="basah_latex" name="basah_latex" value="0" placeholder="0.00">
                 </div>
                 <div class="form-group">
-                    <label for="sheet">Sheet:</label>
-                    <input type="number" step="0.01" id="sheet" name="sheet" value="0">
+                    <label for="sheet">📋 Sheet (kg):</label>
+                    <input type="number" step="0.01" id="sheet" name="sheet" value="0" placeholder="0.00">
                 </div>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="basah_lump">Basah Lump:</label>
-                    <input type="number" step="0.01" id="basah_lump" name="basah_lump" value="0">
+                    <label for="basah_lump">🧊 Basah Lump (kg):</label>
+                    <input type="number" step="0.01" id="basah_lump" name="basah_lump" value="0" placeholder="0.00">
                 </div>
                 <div class="form-group">
-                    <label for="br_cr">BR/CR:</label>
-                    <input type="number" step="0.01" id="br_cr" name="br_cr" value="0">
+                    <label for="br_cr">⚖️ BR/CR (kg):</label>
+                    <input type="number" step="0.01" id="br_cr" name="br_cr" value="0" placeholder="0.00">
                 </div>
             </div>
 
-            <button type="submit" class="save-btn">Simpan Data</button>
+            <button type="submit" class="save-btn">💾 Simpan Data</button>
         </form>
     </div>
 
     <!-- Tabel Data Penyadap -->
     <div class="baku-table-container">
-        <h2>Data Penyadap</h2>
-        <table class="baku-table">
-            <thead>
-            <tr>
-                <th>No</th>
-                <th>NIK</th>
-                <th>Nama</th>
-                <th>Mandor</th>
-                <th>Tanggal</th>
-                <th>Basah Latex</th>
-                <th>Sheet</th>
-                <th>Basah Lump</th>
-                <th>BR/CR</th>
-                <th>Aksi</th>
-            </tr>
-            </thead>
-            <tbody>
-            {{range $index, $penyadap := .PenyadapList}}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>📊 Data Penyadap</h2>
+            <div class="table-controls">
+                <input type="text" id="searchInput" class="search-box" placeholder="🔍 Cari data penyadap...">
+                <select id="filterMandor" class="filter-select">
+                    <option value="">Semua Mandor</option>
+                    {{range .MandorList}}
+                        <option value="{{.Mandor}}">{{.Mandor}}</option>
+                    {{end}}
+                </select>
+            </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="baku-table" id="penyadapTable">
+                <thead>
                 <tr>
-                    <td>{{add $index 1}}</td>
-                    <td>{{$penyadap.NIK}}</td>
-                    <td>{{$penyadap.NamaPenyadap}}</td>
-                    <td>{{$penyadap.Mandor.Mandor}}</td>
-                    <td>{{$penyadap.Tanggal.Format "02/01/2006"}}</td>
-                    <td>{{$penyadap.BasahLatex}}</td>
-                    <td>{{$penyadap.Sheet}}</td>
-                    <td>{{$penyadap.BasahLump}}</td>
-                    <td>{{$penyadap.BrCr}}</td>
-                    <td>
-                        <button class="action-btn update" onclick="editPenyadap({{$penyadap.ID}})">✏️</button>
-                        <button class="action-btn delete" onclick="deletePenyadap({{$penyadap.ID}})">🗑️</button>
-                    </td>
-                </tr>
-            {{end}}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<script>
-    // Submit form
-    document.getElementById('penyadapForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-
-        const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData.entries());
-
-        try {
-            const response = await fetch('/penyadap', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data)
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                alert('Data berhasil disimpan!');
-                location.reload();
-            } else {
-                alert('Error: ' + result.message);
-            }
-        } catch (error) {
-            alert('Terjadi kesalahan: ' + error.message);
-        }
-    });
-
-    // Delete penyadap
-    async function deletePenyadap(id) {
-        if (!confirm('Yakin ingin menghapus data ini?')) return;
-
-        try {
-            const response = await fetch(`/penyadap/${id}`, {
-                method: 'DELETE'
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                alert('Data berhasil dihapus!');
-                location.reload();
-            } else {
-                alert('Error: ' + result.message);
-            }
-        } catch (error) {
-            alert('Terjadi kesalahan: ' + error.message);
-        }
-    }
-
-    // Edit penyadap (simple version)
-    function editPenyadap(id) {
-        // Untuk sekarang, redirect ke halaman edit atau buka modal
-        alert('Fitur edit akan dibuat. ID: ' + id);
-    }
-</script>
-</body>
-</html>
+                    <th>No</th>
+                    <th>NIK</th>
+                    <th>Nama</th>
+                    <th>Mandor</th>
+                    <th>Tanggal</th>
+                    <th>Basah Latex</th>
