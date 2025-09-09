@@ -175,16 +175,28 @@ type BakuPageData struct {
 	PenyadapList []models.BakuPenyadap
 }
 
+// Tambahkan ini di bagian atas file baku_controller.go setelah import
+
+// Template functions
+var templateFuncs = template.FuncMap{
+	"add": func(a, b int) int {
+		return a + b
+	},
+}
+
+// Update fungsi ServeBakuPage
 func ServeBakuPage(w http.ResponseWriter, r *http.Request) {
 	var mandor []models.BakuMandor
 	var penyadap []models.BakuPenyadap
 
-	// Ambil data dari DB
+	// Ambil data dengan relasi
 	if err := config.DB.Order("created_at desc").Find(&mandor).Error; err != nil {
 		http.Error(w, "Gagal mengambil data mandor: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := config.DB.Order("created_at desc").Find(&penyadap).Error; err != nil {
+
+	// Preload relasi Mandor untuk penyadap
+	if err := config.DB.Preload("Mandor").Order("created_at desc").Find(&penyadap).Error; err != nil {
 		http.Error(w, "Gagal mengambil data penyadap: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -196,8 +208,8 @@ func ServeBakuPage(w http.ResponseWriter, r *http.Request) {
 		PenyadapList: penyadap,
 	}
 
-	// Parse file template
-	tmpl, err := template.ParseFiles("templates/html/baku.html")
+	// Parse file template dengan custom functions
+	tmpl, err := template.New("baku.html").Funcs(templateFuncs).ParseFiles("templates/html/baku.html")
 	if err != nil {
 		http.Error(w, "Gagal parse template: "+err.Error(), http.StatusInternalServerError)
 		return
