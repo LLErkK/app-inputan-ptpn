@@ -118,7 +118,7 @@
         const data = Object.fromEntries(formData.entries());
 
         try {
-            const response = await fetch('/api/penyadap', {
+            const response = await fetch('/penyadap', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -144,7 +144,7 @@
         if (!confirm('Yakin ingin menghapus data ini?')) return;
 
         try {
-            const response = await fetch(`/api/penyadap/${id}`, {
+            const response = await fetch(`/penyadap/${id}`, {
                 method: 'DELETE'
             });
 

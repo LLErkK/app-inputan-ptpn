@@ -3,6 +3,7 @@ package routes
 import (
 	"app-inputan-ptpn/controllers"
 	"net/http"
+	"path/filepath"
 
 	"github.com/gorilla/mux"
 )
@@ -11,8 +12,11 @@ import (
 func SetupRoutes() {
 	r := mux.NewRouter()
 
-	// Static files
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("templates/"))))
+	// Static files - PERBAIKAN UTAMA
+	// Pastikan path absolut ke templates directory
+	templatesDir := "./templates/"
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/",
+		http.FileServer(http.Dir(filepath.Join(templatesDir)))))
 
 	// Auth routes
 	r.HandleFunc("/", controllers.ServeLoginPage).Methods("GET")

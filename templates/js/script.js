@@ -16,7 +16,7 @@ document.getElementById("loginForm").addEventListener("submit", function(e) {
         alert("Password wajib diisi!");
     } else if (username === validUser && password === validPass) {
         alert("Login berhasil!");
-        window.location.href = "dashboard.html";
+        window.location.href = "/dashboard"; // Fixed: gunakan route yang benar
     } else if (username === validUser && password !== validPass) {
         alert("Password salah!");
     } else if (username !== validUser && password === validPass) {
@@ -29,16 +29,12 @@ document.getElementById("loginForm").addEventListener("submit", function(e) {
 // 👁️ Toggle Password
 document.getElementById("togglePassword").addEventListener("click", function() {
     const passwordField = document.getElementById("password");
-    const eyeOpen = document.getElementById("icon-eye");
-    const eyeOff = document.getElementById("icon-eye-off");
 
     if (passwordField.type === "password") {
         passwordField.type = "text";
-        eyeOpen.style.display = "none";
-        eyeOff.style.display = "block";
+        this.textContent = "🙈"; // Ubah icon saat password terlihat
     } else {
         passwordField.type = "password";
-        eyeOpen.style.display = "block";
-        eyeOff.style.display = "none";
+        this.textContent = "👁️"; // Kembalikan icon mata
     }
 });
