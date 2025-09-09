@@ -24,7 +24,7 @@ body {
 .left-panel {
   flex: 1;
   position: relative;
-  background: #d8f1f7;
+  background: linear-gradient(135deg, #d8f1f7, #b3e0f2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -51,13 +51,15 @@ body {
   object-fit: contain;
   margin: auto;
   margin-bottom: -50px;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
 }
 
 .left-text .sub-title {
   margin-bottom: 100px;
   font-size: 24px;
   font-weight: bold;
-  color: #3d3d3d;
+  color: #2c3e50;
+  text-shadow: 0 2px 4px rgba(255,255,255,0.8);
 }
 
 /* ---- RIGHT PANEL ---- */
@@ -67,58 +69,78 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(135deg, #0093E9, #80D0C7);
+  padding: 30px;
+  position: relative;
+}
+
+.right-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: url("/static/asset/background_login.png") no-repeat center center;
   background-size: cover;
-  padding: 30px;
+  opacity: 0.1;
+  z-index: 0;
 }
 
 .brand {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 18px;
+  margin-bottom: 25px;
   z-index: 1;
+  position: relative;
 }
 
 .logo-ptpn {
-  width: 400px;
+  width: 350px;
   max-width: 80%;
   height: auto;
   object-fit: contain;
-  margin-bottom: -30px;
-  margin-top: -100px;
+  margin-bottom: -20px;
+  margin-top: -80px;
+  filter: drop-shadow(0 4px 12px rgba(255,255,255,0.3));
 }
 
 .login-form {
   width: 400px;
-  max-width: 86%;
+  max-width: 90%;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 15px;
   align-items: stretch;
+  z-index: 1;
+  position: relative;
 }
 
 .login-form label {
-  font-size: 18px;
-  color: #083043;
+  font-size: 16px;
+  color: white;
   font-weight: 600;
-  margin-top: 6px;
+  margin-top: 5px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 
 .login-form input {
-  padding: 12px 40px 12px 15px;
-  border-radius: 13px;
-  border: 3px solid rgba(140, 181, 202, 0.3);
+  padding: 14px 40px 14px 16px;
+  border-radius: 12px;
+  border: none;
   outline: none;
   font-size: 16px;
   background: rgba(255,255,255,0.95);
-  transition: box-shadow .12s, border-color .12s;
+  transition: all 0.3s ease;
   width: 100%;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
 .login-form input:focus {
-  box-shadow: 0 4px 15px rgba(0, 147, 233, 0.15);
-  border-color: rgba(0, 147, 233, 0.5);
+  background: white;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
 }
 
 .password-wrapper {
@@ -132,48 +154,50 @@ body {
   right: 14px;
   transform: translateY(-50%);
   cursor: pointer;
-  color: #555;
+  color: #666;
   display: flex;
   align-items: center;
   font-size: 18px;
 }
 
 .btn-login {
-  margin-top: 15px;
-  padding: 14px;
-  border-radius: 14px;
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, #0093E9, #80D0C7);
-  color: white;
+  background: linear-gradient(135deg, #ffffff, #f8f9fa);
+  color: #0093E9;
   font-weight: 700;
   cursor: pointer;
   font-size: 18px;
-  transition: all 0.25s ease-in-out;
-  box-shadow: 0 6px 15px rgba(0, 147, 233, 0.3);
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
 }
 
 .btn-login:hover {
-  background: linear-gradient(135deg, #0077c7, #66b8af);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 147, 233, 0.4);
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
 }
 
 .btn-login:active {
-  transform: translateY(0) scale(0.98);
-  box-shadow: 0 4px 10px rgba(0, 147, 233, 0.3);
+  transform: translateY(0);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
 
 .forgot {
   display: inline-block;
   margin-top: 15px;
   text-align: center;
-  color: #0093E9;
+  color: rgba(255,255,255,0.9);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 
 .forgot:hover {
+  color: white;
   text-decoration: underline;
 }
 
@@ -194,7 +218,7 @@ body {
   display: flex;
   width: 100%;
   height: 100vh;
-  background: #f5f7fa;
+  background: #f8f9fa;
 }
 
 /* Sidebar */
@@ -210,7 +234,7 @@ body {
   left: 0;
   height: 100vh;
   z-index: 1000;
-  box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+  box-shadow: 4px 0 20px rgba(0,0,0,0.1);
 }
 
 .sidebar .logo {
@@ -225,7 +249,7 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 30px;
 }
 
@@ -233,35 +257,38 @@ body {
   text-decoration: none;
   color: white;
   font-size: 16px;
-  padding: 12px 15px;
-  border-radius: 8px;
-  transition: all 0.3s;
+  padding: 14px 18px;
+  border-radius: 10px;
+  transition: all 0.3s ease;
   font-weight: 500;
+  border: 1px solid transparent;
 }
 
 .sidebar .menu a:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateX(5px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateX(8px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
 .sidebar .logout {
   background: rgba(255, 59, 59, 0.9);
   color: white;
   border: none;
-  padding: 12px 20px;
-  border-radius: 8px;
+  padding: 14px 20px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
   font-size: 16px;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
   margin-bottom: 20px;
+  box-shadow: 0 4px 15px rgba(255, 59, 59, 0.2);
 }
 
 .sidebar .logout:hover {
   background: rgba(255, 59, 59, 1);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 59, 59, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(255, 59, 59, 0.3);
 }
 
 /* Konten */
@@ -269,14 +296,29 @@ body {
   margin-left: 280px;
   flex: 1;
   display: flex;
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  position: relative;
+}
+
+.content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: url('/static/asset/background web.png') no-repeat center center;
   background-size: cover;
+  opacity: 0.05;
+  z-index: 0;
 }
 
 .content iframe {
   width: 100%;
   height: 100%;
   border: none;
+  position: relative;
+  z-index: 1;
 }
 
 /* Responsif dashboard */
@@ -296,37 +338,42 @@ body {
 .baku-container {
   max-width: 1200px;
   margin: 20px auto;
-  padding: 30px 20px;
+  padding: 30px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  border: 1px solid rgba(255,255,255,0.8);
 }
 
 .baku-container h1 {
-  font-size: 2.2rem;
+  font-size: 2.5rem;
   font-weight: 700;
-  margin-bottom: 30px;
+  margin-bottom: 40px;
   color: #2c3e50;
   text-align: center;
+  background: linear-gradient(135deg, #0093E9, #80D0C7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   text-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .baku-form {
   background: rgba(255, 255, 255, 0.9);
-  padding: 25px;
-  border-radius: 12px;
+  padding: 30px;
+  border-radius: 16px;
   margin-bottom: 40px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
   border: 1px solid rgba(0, 147, 233, 0.1);
 }
 
 .baku-form h2 {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   margin-bottom: 25px;
-  color: #34495e;
-  border-bottom: 2px solid #0093E9;
-  padding-bottom: 10px;
+  color: #2c3e50;
+  border-left: 4px solid #0093E9;
+  padding-left: 15px;
 }
 
 .form-row {
@@ -345,58 +392,58 @@ body {
 .form-group label {
   font-size: 1rem;
   font-weight: 600;
-  color: #2c3e50;
+  color: #34495e;
 }
 
 .form-group input,
 .form-group select {
-  padding: 12px 15px;
+  padding: 14px 16px;
   border: 2px solid #e8f4f8;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 1rem;
   background: white;
   outline: none;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .form-group input:focus,
 .form-group select:focus {
   border-color: #0093E9;
-  box-shadow: 0 0 0 3px rgba(0, 147, 233, 0.1);
-  transform: translateY(-1px);
+  box-shadow: 0 0 0 4px rgba(0, 147, 233, 0.1);
+  transform: translateY(-2px);
 }
 
 .save-btn {
   background: linear-gradient(135deg, #0093E9, #80D0C7);
   color: white;
   border: none;
-  padding: 14px 30px;
-  border-radius: 8px;
+  padding: 16px 40px;
+  border-radius: 12px;
   font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 147, 233, 0.3);
+  box-shadow: 0 6px 20px rgba(0, 147, 233, 0.3);
   margin-left: auto;
   display: block;
-  margin-top: 20px;
+  margin-top: 25px;
 }
 
 .save-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 147, 233, 0.4);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 147, 233, 0.4);
 }
 
 .save-btn:active {
-  transform: translateY(0);
+  transform: translateY(-1px);
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .baku-container {
     margin: 10px;
-    padding: 20px 15px;
+    padding: 20px;
   }
 
   .form-row {
@@ -415,7 +462,7 @@ body {
 
 @media (max-width: 480px) {
   .baku-container h1 {
-    font-size: 1.8rem;
+    font-size: 2rem;
   }
 
   .sidebar {
@@ -426,11 +473,7 @@ body {
   .sidebar .menu a {
     font-size: 0;
     text-align: center;
-  }
-
-  .sidebar .menu a:before {
-    content: "📊";
-    font-size: 20px;
+    padding: 12px;
   }
 
   .content {

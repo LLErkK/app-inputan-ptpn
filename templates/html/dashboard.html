@@ -4,32 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - PTPN</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
 <div class="dashboard-container">
     <!-- Sidebar -->
     <div class="sidebar">
-        <img src="/static/asset/logoptpn.png" alt="Logo" class="logo">
+        <img src="/asset/logoptpn.png" alt="Logo" class="logo">
 
         <div class="menu">
             <a href="/dashboard" target="mainFrame">Dashboard</a>
             <a href="/baku" target="mainFrame">Baku</a>
-            <a href="#" target="mainFrame">Baku Borong</a>
-            <a href="#" target="mainFrame">Borong External</a>
-            <a href="#" target="mainFrame">Borong Minggu</a>
-            <a href="#" target="mainFrame">Borong Internal</a>
-            <a href="#" target="mainFrame">Tetes Lanjut</a>
-            <a href="#" target="mainFrame">Visualisasi</a>
+            <a href="baku_borong.html" target="mainFrame">Baku Borong</a>
+            <a href="borong_external.html" target="mainFrame">Borong External</a>
+            <a href="borong_minggu.html" target="mainFrame">Borong Minggu</a>
+            <a href="borong_internal.html" target="mainFrame">Borong Internal</a>
+            <a href="tetes_lanjut.html" target="mainFrame">Tetes Lanjut</a>
+            <a href="visualisasi.html" target="mainFrame">Visualisasi</a>
         </div>
 
-        <button class="logout" onclick="window.location.href='/logout'">Logout</button>
+
+        <div class="logout">Logout</div>
     </div>
 
     <!-- Content pakai iframe -->
     <div class="content">
-        <iframe name="mainFrame" src="/baku" frameborder="0"></iframe>
+        <iframe name="mainFrame" src="" frameborder="0"></iframe>
     </div>
 </div>
 </body>
-</html>
+</html><br>
