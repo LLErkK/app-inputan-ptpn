@@ -1,4 +1,54 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // === POPUP MANDOR ===
+    const tambahMandorBtn = document.getElementById("tambahMandor");
+    const popupMandor = document.getElementById("popupMandor");
+    const closePopupMandorBtn = document.getElementById("closePopupMandor");
+    const mandorTableBody = document.getElementById("mandorTableBody");
+
+    // Dummy data mandor, bisa diganti dengan data dari server
+    let mandorList = [
+        { nama: "Budi", tahun: "2015", afdeling: "A1" },
+        { nama: "Siti", tahun: "2017", afdeling: "A2" },
+        { nama: "Joko", tahun: "2016", afdeling: "A3" },
+        { nama: "Siti", tahun: "2017", afdeling: "A4" },
+        { nama: "Siti", tahun: "2017", afdeling: "A5" },
+        { nama: "Siti", tahun: "2017", afdeling: "A6" }
+    ];
+
+    tambahMandorBtn.addEventListener("click", function() {
+        popupMandor.style.display = "flex";
+        document.body.classList.add("popup-mandor-active");
+        renderMandorTable();
+    });
+    closePopupMandorBtn.addEventListener("click", function() {
+        popupMandor.style.display = "none";
+        document.body.classList.remove("popup-mandor-active");
+    });
+
+    function renderMandorTable() {
+        mandorTableBody.innerHTML = "";
+        mandorList.forEach((mandor, idx) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${mandor.nama}</td>
+                <td>${mandor.tahun}</td>
+                <td>${mandor.afdeling}</td>
+                <td>
+                        <button class="action-btn update update-btn" data-idx="${idx}" title="Update">
+                            <span class="action-icon"> 
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0093E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                            </span>
+                        </button>
+                        <button class="action-btn delete delete-btn" data-idx="${idx}" title="Delete">
+                            <span class="action-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            </span>
+                        </button>
+                    </td>
+            `;
+            mandorTableBody.appendChild(tr);
+        });
+    }
     const form = document.getElementById("bakuForm");
     const tableBody = document.querySelector("#bakuTable tbody");
 
@@ -100,20 +150,75 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            tableBody.innerHTML = "";
-            data.data.forEach(item => {
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-          <td>${item.mandor ? item.mandor.mandor : "-"}</td>
-          <td>${item.penyadap ? item.penyadap.nik : "-"}</td>
-          <td>${item.penyadap ? item.penyadap.nama_penyadap : "-"}</td>
-          <td>${item.basahLatex}</td>
-          <td>${item.basahLump}</td>
-          <td>${item.sheet}</td>
-          <td>${item.brCr}</td>
-        `;
-                tableBody.appendChild(tr);
-            });
+                        tableBody.innerHTML = "";
+                        data.data.forEach((item, idx) => {
+                                const tr = document.createElement("tr");
+                                tr.innerHTML = `
+                    <td>${item.mandor ? item.mandor.mandor : "-"}</td>
+                    <td>${item.penyadap ? item.penyadap.nik : "-"}</td>
+                    <td>${item.penyadap ? item.penyadap.nama_penyadap : "-"}</td>
+                    <td>${item.basahLatex}</td>
+                    <td>${item.basahLump}</td>
+                    <td>${item.sheet}</td>
+                    <td>${item.brCr}</td>
+                    <td>
+                        <button class="action-btn update update-btn" data-idx="${idx}" title="Update">
+                            <span class="action-icon"> 
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0093E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                            </span>
+                        </button>
+                        <button class="action-btn delete delete-btn" data-idx="${idx}" title="Delete">
+                            <span class="action-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            </span>
+                        </button>
+                    </td>
+                `;
+                                tableBody.appendChild(tr);
+                        });
+                        addActionListeners(data.data);
+    // Tambahkan event handler untuk tombol update dan delete
+    function addActionListeners(dataArr) {
+        document.querySelectorAll('.update-btn').forEach(btn => {
+            btn.onclick = function() {
+                const idx = btn.getAttribute('data-idx');
+                const item = dataArr[idx];
+                // Isi form dengan data yang dipilih
+                document.getElementById("mandor").value = item.mandor ? item.mandor.id : "";
+                document.getElementById("namaPenyadap").value = item.penyadap ? item.penyadap.nama_penyadap : "";
+                document.getElementById("nik").value = item.penyadap ? item.penyadap.nik : "";
+                document.getElementById("idPenyadap").value = item.penyadap ? item.penyadap.id : "";
+                document.getElementById("latek").value = item.basahLatex;
+                document.getElementById("lump").value = item.basahLump;
+                document.getElementById("sheet").value = item.sheet;
+                document.getElementById("brcr").value = item.brCr;
+                // Simpan index edit ke window (atau variabel global jika perlu)
+                window.editBakuIndex = idx;
+                form.querySelector('.save-btn').textContent = 'Update';
+            };
+        });
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.onclick = async function() {
+                const idx = btn.getAttribute('data-idx');
+                if (confirm('Hapus data ini?')) {
+                    // Hapus data via API
+                    const item = dataArr[idx];
+                    try {
+                        const res = await fetch(`/api/baku/${item.id}`, { method: "DELETE" });
+                        const data = await res.json();
+                        if (data.success) {
+                            alert("Data berhasil dihapus");
+                            loadTable();
+                        } else {
+                            alert("Gagal hapus: " + data.message);
+                        }
+                    } catch (err) {
+                        console.error("Error delete:", err);
+                    }
+                }
+            };
+        });
+    }
         } catch (err) {
             console.error("Error loadTable:", err);
         }
