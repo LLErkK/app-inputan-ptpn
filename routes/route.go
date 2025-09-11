@@ -35,34 +35,62 @@ func SetupRoutes() {
 	// Dashboard
 	protected.HandleFunc("/dashboard", controllers.ServeDashboardPage).Methods("GET")
 
-	// Baku
 	// ================== BAKU PAGE (HTML) ==================
 	protected.HandleFunc("/baku", controllers.ServeBakuPage).Methods("GET")
 
 	// ================== BAKU API (CRUD JSON) ==================
+	// PENTING: Route spesifik HARUS didefinisikan SEBELUM route dengan parameter!
+
+	// BAKU DETAIL API - HARUS SEBELUM /api/baku/{id}
+	protected.HandleFunc("/api/baku/detail", controllers.GetAllBakuDetail).Methods("GET")
+	protected.HandleFunc("/api/baku/detail/{tanggal}", controllers.GetBakuDetailByDate).Methods("GET")
+
+	// BAKU PENYADAP CRUD - Setelah route detail
 	protected.HandleFunc("/api/baku", controllers.GetAllBakuPenyadap).Methods("GET")
-	protected.HandleFunc("/api/baku/{id}", controllers.GetBakuPenyadapByID).Methods("GET")
 	protected.HandleFunc("/api/baku", controllers.CreateBakuPenyadap).Methods("POST")
+	protected.HandleFunc("/api/baku/{id}", controllers.GetBakuPenyadapByID).Methods("GET")
 	protected.HandleFunc("/api/baku/{id}", controllers.UpdateBakuPenyadap).Methods("PUT")
 	protected.HandleFunc("/api/baku/{id}", controllers.DeleteBakuPenyadap).Methods("DELETE")
 
-	// Rekap / BakuDetail
-	protected.HandleFunc("/api/baku/detail", controllers.GetAllBakuDetail).Methods("GET")
-	protected.HandleFunc("/api/baku/detail/{tanggal}", controllers.GetBakuDetailByDate).Methods("GET")
-	// Mandor CRUD
-	protected.HandleFunc("/mandor", controllers.GetAllMandor).Methods("GET")
-	protected.HandleFunc("/mandor", controllers.CreateMandor).Methods("POST")
-	protected.HandleFunc("/mandor/{id}", controllers.UpdateMandor).Methods("PUT")
-	protected.HandleFunc("/mandor/{id}", controllers.DeleteMandor).Methods("DELETE")
+	// ================== MANDOR API (CRUD) ==================
+	protected.HandleFunc("/api/mandor", controllers.GetAllMandor).Methods("GET")
+	protected.HandleFunc("/api/mandor", controllers.CreateMandor).Methods("POST")
+	protected.HandleFunc("/api/mandor/{id}", controllers.GetMandorByID).Methods("GET")
+	protected.HandleFunc("/api/mandor/{id}", controllers.UpdateMandor).Methods("PUT")
+	protected.HandleFunc("/api/mandor/{id}", controllers.DeleteMandor).Methods("DELETE")
 
-	// Penyadap CRUD + Search
+	// ================== REPORTING API ==================
+	// Summary Mandor (total dari semua penyadap)
+	protected.HandleFunc("/api/reporting/mandor", controllers.GetMandorSummaryAll).Methods("GET")
+	protected.HandleFunc("/api/reporting/mandor/{tanggal}", controllers.GetMandorSummaryByDate).Methods("GET")
+
+	// Detail individual penyadap
+	protected.HandleFunc("/api/reporting/penyadap", controllers.GetPenyadapDetailAll).Methods("GET")
+	protected.HandleFunc("/api/reporting/penyadap/{tanggal}", controllers.GetPenyadapDetailByDate).Methods("GET")
+
+	// ================== SEARCH API ==================
+	// Pencarian mandor berdasarkan nama dengan filter tanggal opsional
+	protected.HandleFunc("/api/search/mandor", controllers.SearchMandorByName).Methods("GET")
+
+	// Pencarian penyadap berdasarkan nama dengan filter tanggal opsional
+	protected.HandleFunc("/api/search/penyadap", controllers.SearchPenyadapByName).Methods("GET")
+
+	// Detail mandor beserta semua penyadapnya
+	protected.HandleFunc("/api/search/mandor/detail", controllers.GetMandorWithPenyadapDetail).Methods("GET")
+
+	// ================== PENYADAP API (CRUD + Search) ==================
+	// Search HARUS sebelum route dengan parameter {id}
+	protected.HandleFunc("/api/penyadap/search", controllers.GetPenyadapByName).Methods("GET")
 	protected.HandleFunc("/api/penyadap", controllers.GetAllPenyadap).Methods("GET")
 	protected.HandleFunc("/api/penyadap", controllers.CreatePenyadap).Methods("POST")
 	protected.HandleFunc("/api/penyadap/{id}", controllers.UpdatePenyadap).Methods("PUT")
 	protected.HandleFunc("/api/penyadap/{id}", controllers.DeletePenyadap).Methods("DELETE")
-	protected.HandleFunc("/api/penyadap/search", controllers.GetPenyadapByName).Methods("GET")
 
-	// Search Penyadap
+	// Backward compatibility - keep old routes if needed
+	protected.HandleFunc("/mandor", controllers.GetAllMandor).Methods("GET")
+	protected.HandleFunc("/mandor", controllers.CreateMandor).Methods("POST")
+	protected.HandleFunc("/mandor/{id}", controllers.UpdateMandor).Methods("PUT")
+	protected.HandleFunc("/mandor/{id}", controllers.DeleteMandor).Methods("DELETE")
 	protected.HandleFunc("/penyadap/search", controllers.GetPenyadapByName).Methods("GET")
 
 	// Catch-all untuk API yang tidak ditemukan
