@@ -1,278 +1,257 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // Tampilkan tabel data produksi baku saat tombol diklik
-    setTimeout(function() {
-        const showBakuTableBtn = document.getElementById("showBakuTableBtn");
-        const bakuTableWrapper = document.getElementById("bakuTableWrapper");
-        if (showBakuTableBtn && bakuTableWrapper) {
-            showBakuTableBtn.addEventListener("click", function() {
-                if (bakuTableWrapper.style.display === "none" || bakuTableWrapper.style.display === "") {
-                    bakuTableWrapper.style.display = "block";
-                    showBakuTableBtn.textContent = "Sembunyikan Data Produksi Baku";
-                } else {
-                    bakuTableWrapper.style.display = "none";
-                    showBakuTableBtn.textContent = "Tampilkan Data Produksi Baku";
-                }
-            });
-        }
-    }, 0);
-    // === POPUP MANDOR ===
+    let allBakuData = [];
+    let editingId = null;
+
+    // ========= Popup Mandor =========
     const tambahMandorBtn = document.getElementById("tambahMandor");
     const popupMandor = document.getElementById("popupMandor");
     const closePopupMandorBtn = document.getElementById("closePopupMandor");
     const mandorTableBody = document.getElementById("mandorTableBody");
+    const formMandorBaru = document.getElementById("formMandorBaru");
 
-    // Dummy data mandor, bisa diganti dengan data dari server
-    let mandorList = [
-        { nama: "Budi", tahun: "2015", afdeling: "A1" },
-        { nama: "Siti", tahun: "2017", afdeling: "A2" },
-        { nama: "Joko", tahun: "2016", afdeling: "A3" },
-        { nama: "Siti", tahun: "2017", afdeling: "A4" },
-        { nama: "Siti", tahun: "2017", afdeling: "A5" },
-        { nama: "Siti", tahun: "2017", afdeling: "A6" }
-    ];
-
-    tambahMandorBtn.addEventListener("click", function() {
-        popupMandor.style.display = "flex";
-        document.body.classList.add("popup-mandor-active");
-        renderMandorTable();
-    });
-    closePopupMandorBtn.addEventListener("click", function() {
-        popupMandor.style.display = "none";
-        document.body.classList.remove("popup-mandor-active");
-    });
-
-    function renderMandorTable() {
-        mandorTableBody.innerHTML = "";
-        mandorList.forEach((mandor, idx) => {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td>${mandor.nama}</td>
-                <td>${mandor.tahun}</td>
-                <td>${mandor.afdeling}</td>
-                <td>
-                        <button class="action-btn update update-btn" data-idx="${idx}" title="Update">
-                            <span class="action-icon"> 
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0093E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
-                            </span>
-                        </button>
-                        <button class="action-btn delete delete-btn" data-idx="${idx}" title="Delete">
-                            <span class="action-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                            </span>
-                        </button>
-                    </td>
-            `;
-            mandorTableBody.appendChild(tr);
+    if (tambahMandorBtn) {
+        tambahMandorBtn.addEventListener("click", () => {
+            popupMandor.style.display = "flex";
+            loadMandorList();
         });
     }
-    const form = document.getElementById("bakuForm");
-    const tableBody = document.querySelector("#bakuTableData tbody");
-    // Fungsi untuk menampilkan tabel sesuai mandor yang dipilih
-    function renderMandorTables(dataArr) {
-        const wrapper = document.getElementById('bakuTableWrapper');
-        wrapper.innerHTML = '';
-        // Kelompokkan data berdasarkan mandor
-        const mandorGroups = {};
-        dataArr.forEach(item => {
-            const mandorName = item.mandor ? item.mandor.mandor : '-';
-            if (!mandorGroups[mandorName]) mandorGroups[mandorName] = [];
-            mandorGroups[mandorName].push(item);
+    if (closePopupMandorBtn) {
+        closePopupMandorBtn.addEventListener("click", () => {
+            popupMandor.style.display = "none";
         });
-        Object.keys(mandorGroups).forEach(mandorName => {
-            const table = document.createElement('table');
-            table.className = 'baku-table';
-            table.innerHTML = `
-                <caption style="font-weight:bold; text-align:left; margin-bottom:8px; color:#0093E9;">Mandor: ${mandorName}</caption>
-                <thead>
-                    <tr>
-                        <th>NIK</th>
-                        <th>Penyadap</th>
-                        <th>Basah Latek</th>
-                        <th>Basah Lump</th>
-                        <th>Sheet</th>
-                        <th>Br.Cr</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            `;
-            const tbody = table.querySelector('tbody');
-            mandorGroups[mandorName].forEach((item, idx) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${item.penyadap ? item.penyadap.nik : '-'}</td>
-                    <td>${item.penyadap ? item.penyadap.nama_penyadap : '-'}</td>
-                    <td>${item.basahLatex}</td>
-                    <td>${item.basahLump}</td>
-                    <td>${item.sheet}</td>
-                    <td>${item.brCr}</td>
-                    <td>
-                        <button class="action-btn update update-btn" data-idx="${idx}" title="Update">
-                            <span class="action-icon"> 
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0093E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
-                            </span>
-                        </button>
-                        <button class="action-btn delete delete-btn" data-idx="${idx}" title="Delete">
-                            <span class="action-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                            </span>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+    }
+    if (formMandorBaru) {
+        formMandorBaru.addEventListener("submit", async e => {
+            e.preventDefault();
+            const payload = {
+                mandor: document.getElementById("inputNamaMandor").value.trim(),
+                tahun_tanam: parseInt(document.getElementById("inputTahunTanam").value) || 0,
+                afdeling: document.getElementById("inputAfdeling").value.trim()
+            };
+            const res = await fetch("/api/mandor", {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
             });
-            wrapper.appendChild(table);
+            const data = await res.json();
+            if (data.success) {
+                alert("Mandor ditambahkan!");
+                formMandorBaru.reset();
+                loadMandorList();
+                loadMandorOptions();
+            } else alert("Gagal: " + data.message);
         });
     }
 
+    async function loadMandorList() {
+        const res = await fetch("/api/mandor");
+        const data = await res.json();
+        mandorTableBody.innerHTML = "";
+        if (data.success) {
+            data.data.forEach(m => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td>${m.mandor}</td><td>${m.tahun_tanam}</td><td>${m.afdeling}</td>
+          <td><button data-id="${m.id}" class="delete-mandor-btn">Hapus</button></td>`;
+                mandorTableBody.appendChild(tr);
+            });
+            document.querySelectorAll(".delete-mandor-btn").forEach(btn => {
+                btn.addEventListener("click", async () => {
+                    const id = btn.getAttribute("data-id");
+                    if (confirm("Hapus mandor?")) {
+                        await fetch(`/api/mandor/${id}`, { method: "DELETE" });
+                        loadMandorList(); loadMandorOptions();
+                    }
+                });
+            });
+        }
+    }
+    async function loadMandorOptions() {
+        const res = await fetch("/api/mandor");
+        const data = await res.json();
+        const select = document.getElementById("mandor");
+        select.innerHTML = '<option value="">-- Pilih Mandor --</option>';
+        if (data.success) {
+            data.data.forEach(m => {
+                const opt = document.createElement("option");
+                opt.value = m.id;
+                opt.textContent = `${m.mandor} (${m.afdeling}) ${m.tahun_tanam}`;
+                select.appendChild(opt);
+            });
+        }
+    }
+
+    // ========= Autocomplete Penyadap =========
     const inputNama = document.getElementById("namaPenyadap");
     const inputNik = document.getElementById("nik");
     const inputIdPenyadap = document.getElementById("idPenyadap");
     const dropdown = document.getElementById("namaDropdown");
 
-    // ================== AUTOCOMPLETE PENYADAP ==================
-    inputNama.addEventListener("input", async () => {
-        const query = inputNama.value.trim();
-        if (query.length < 2) {
-            dropdown.style.display = "none";
-            return;
-        }
-
-        try {
-            // 🔥 update endpoint ke /api/penyadap/search
-            const res = await fetch(`/api/penyadap/search?nama=${encodeURIComponent(query)}`);
+    if (inputNama) {
+        inputNama.addEventListener("input", async () => {
+            const q = inputNama.value.trim();
+            if (q.length < 2) { dropdown.style.display = "none"; return; }
+            const res = await fetch(`/api/penyadap/search?nama=${encodeURIComponent(q)}`);
             const data = await res.json();
-
-            if (!data.success || !data.data || data.data.length === 0) {
-                dropdown.innerHTML = "<div style='padding:5px;'>Tidak ditemukan</div>";
-                dropdown.style.display = "block";
-                return;
-            }
-
             dropdown.innerHTML = "";
+            if (!data.success || !data.data.length) {
+                dropdown.innerHTML = "<div style='padding:8px'>Tidak ditemukan</div>";
+                dropdown.style.display = "block"; return;
+            }
             data.data.forEach(item => {
-                const option = document.createElement("div");
-                option.textContent = `${item.nama_penyadap} (${item.nik})`;
-                option.style.padding = "5px";
-                option.style.cursor = "pointer";
-
-                option.addEventListener("click", () => {
+                const opt = document.createElement("div");
+                opt.textContent = `${item.nama_penyadap} (${item.nik})`;
+                opt.className = "dropdown-item";
+                opt.addEventListener("click", () => {
                     inputNama.value = item.nama_penyadap;
                     inputNik.value = item.nik;
-                    inputIdPenyadap.value = item.id; // simpan ID penyadap
+                    inputIdPenyadap.value = item.id;
                     dropdown.style.display = "none";
                 });
-
-                dropdown.appendChild(option);
+                dropdown.appendChild(opt);
             });
             dropdown.style.display = "block";
-        } catch (err) {
-            console.error("Error fetching penyadap:", err);
-        }
-    });
+        });
+        document.addEventListener("click", e => {
+            if (!dropdown.contains(e.target) && e.target !== inputNama) dropdown.style.display = "none";
+        });
+    }
 
-    document.addEventListener("click", (e) => {
-        if (!dropdown.contains(e.target) && e.target !== inputNama) {
-            dropdown.style.display = "none";
-        }
-    });
-
-    // ================== SUBMIT FORM ==================
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const payload = {
-            idBakuMandor: parseInt(document.getElementById("mandor").value) || 0,
-            idPenyadap: parseInt(inputIdPenyadap.value) || 0,
-            tipe: document.getElementById("jenis").value,  // ✅ tambahkan ini
-            basahLatex: parseFloat(document.getElementById("latek").value) || 0,
-            basahLump: parseFloat(document.getElementById("lump").value) || 0,
-            sheet: parseFloat(document.getElementById("sheet").value) || 0,
-            brCr: parseFloat(document.getElementById("brcr").value) || 0,
-        };
-
-
-        try {
-            const res = await fetch("/api/baku", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
+    // ========= Submit Form =========
+    const form = document.getElementById("bakuForm");
+    if (form) {
+        form.addEventListener("submit", async e => {
+            e.preventDefault();
+            const payload = {
+                idBakuMandor: parseInt(document.getElementById("mandor").value),
+                idPenyadap: parseInt(inputIdPenyadap.value),
+                tipe: document.getElementById("jenis").value,
+                basahLatex: parseFloat(document.getElementById("latek").value),
+                basahLump: parseFloat(document.getElementById("lump").value),
+                sheet: parseFloat(document.getElementById("sheet").value),
+                brCr: parseFloat(document.getElementById("brcr").value),
+            };
+            const url = editingId ? `/api/baku/${editingId}` : "/api/baku";
+            const method = editingId ? "PUT" : "POST";
+            const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
             const data = await res.json();
             if (data.success) {
-                alert("Data berhasil disimpan");
-                form.reset();
-                inputNik.value = "";
-                inputIdPenyadap.value = "";
-                loadTable();
-            } else {
-                alert("Gagal simpan: " + data.message);
-            }
-        } catch (err) {
-            console.error("Error submit:", err);
-        }
-    });
+                alert(editingId ? "Data diperbarui" : "Data disimpan");
+                editingId = null; form.reset(); inputNik.value = ""; inputIdPenyadap.value = "";
+                loadSummaryTable(); loadBakuTable();
+            } else alert("Gagal: " + data.message);
+        });
+    }
 
-    // ================== LOAD TABLE ==================
-    async function loadTable() {
-        try {
-            const res = await fetch("/api/baku");
-            const data = await res.json();
-
-            if (!data.success) {
-                console.error("Gagal load data:", data.message);
-                return;
-            }
-
-            renderMandorTables(data.data);
-            addActionListeners(data.data);
-            // Tambahkan event handler untuk tombol update dan delete
-            function addActionListeners(dataArr) {
-                document.querySelectorAll('.update-btn').forEach(btn => {
-                    btn.onclick = function() {
-                        const idx = btn.getAttribute('data-idx');
-                        const item = dataArr[idx];
-                        // Isi form dengan data yang dipilih
-                        document.getElementById("mandor").value = item.mandor ? item.mandor.id : "";
-                        document.getElementById("namaPenyadap").value = item.penyadap ? item.penyadap.nama_penyadap : "";
-                        document.getElementById("nik").value = item.penyadap ? item.penyadap.nik : "";
-                        document.getElementById("idPenyadap").value = item.penyadap ? item.penyadap.id : "";
-                        document.getElementById("latek").value = item.basahLatex;
-                        document.getElementById("lump").value = item.basahLump;
-                        document.getElementById("sheet").value = item.sheet;
-                        document.getElementById("brcr").value = item.brCr;
-                        // Simpan index edit ke window (atau variabel global jika perlu)
-                        window.editBakuIndex = idx;
-                        form.querySelector('.save-btn').textContent = 'Update';
-                    };
-                });
-                document.querySelectorAll('.delete-btn').forEach(btn => {
-                    btn.onclick = async function() {
-                        const idx = btn.getAttribute('data-idx');
-                        if (confirm('Hapus data ini?')) {
-                            // Hapus data via API
-                            const item = dataArr[idx];
-                            try {
-                                const res = await fetch(`/api/baku/${item.id}`, { method: "DELETE" });
-                                const data = await res.json();
-                                if (data.success) {
-                                    alert("Data berhasil dihapus");
-                                    loadTable();
-                                } else {
-                                    alert("Gagal hapus: " + data.message);
-                                }
-                            } catch (err) {
-                                console.error("Error delete:", err);
-                            }
-                        }
-                    };
-                });
-            }
-        } catch (err) {
-            console.error("Error loadTable:", err);
+    // ========= Summary Table =========
+    async function loadSummaryTable() {
+        const today = new Date().toISOString().split("T")[0];
+        const res = await fetch(`/api/reporting/mandor/${today}`);
+        const data = await res.json();
+        const body = document.querySelector("#summaryTable tbody");
+        body.innerHTML = "";
+        if (data.success && data.data.length) {
+            data.data.forEach(it => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td>${it.mandor}</td><td>${it.jumlah_pabrik_basah_latek}</td>
+          <td>${it.jumlah_kebun_basah_latek}</td><td>${it.jumlah_sheet}</td>
+          <td>${it.k3_sheet}</td><td>${it.jumlah_pabrik_basah_lump}</td>
+          <td>${it.jumlah_kebun_basah_lump}</td><td>${it.jumlah_br_cr}</td><td>${it.k3_br_cr}</td>`;
+                body.appendChild(tr);
+            });
+        } else {
+            body.innerHTML = `<tr><td colspan="9">Belum ada data hari ini (${today})</td></tr>`;
         }
     }
 
-    // Initial load
-    loadTable();
+    // ========= Render Detail Per Mandor & Penyadap =========
+    function renderMandorTables(dataArr) {
+        const wrapper = document.getElementById("bakuTableWrapper");
+        wrapper.innerHTML = "";
+        const groups = {};
+        dataArr.forEach(it => {
+            const key = it.mandor ? it.mandor.mandor : "Unknown";
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(it);
+        });
+        Object.keys(groups).forEach(mandor => {
+            const table = document.createElement("table");
+            table.className = "baku-table";
+            table.innerHTML = `<caption>Mandor: ${mandor}</caption>
+        <thead><tr><th>NIK</th><th>Penyadap</th><th>Latek</th><th>Lump</th><th>Sheet</th><th>Br.Cr</th><th>Action</th></tr></thead>
+        <tbody></tbody>`;
+            const tbody = table.querySelector("tbody");
+            groups[mandor].forEach(it => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td>${it.penyadap?.nik || "-"}</td><td>${it.penyadap?.nama_penyadap || "-"}</td>
+          <td>${it.basahLatex}</td><td>${it.basahLump}</td><td>${it.sheet}</td><td>${it.brCr}</td>
+          <td><button class="edit-btn" data-id="${it.id}">Edit</button>
+              <button class="delete-btn" data-id="${it.id}">Delete</button></td>`;
+                tbody.appendChild(tr);
+            });
+            wrapper.appendChild(table);
+        });
+        addBakuActionListeners();
+    }
+
+    function addBakuActionListeners() {
+        document.querySelectorAll(".edit-btn").forEach(btn => {
+            btn.onclick = () => {
+                const id = parseInt(btn.dataset.id);
+                const item = allBakuData.find(d => d.id === id);
+                if (item) {
+                    document.getElementById("mandor").value = item.idBakuMandor;
+                    document.getElementById("jenis").value = item.tipe;
+                    if (item.penyadap) {
+                        inputNama.value = item.penyadap.nama_penyadap;
+                        inputNik.value = item.penyadap.nik;
+                        inputIdPenyadap.value = item.penyadap.id;
+                    }
+                    document.getElementById("latek").value = item.basahLatex;
+                    document.getElementById("lump").value = item.basahLump;
+                    document.getElementById("sheet").value = item.sheet;
+                    document.getElementById("brcr").value = item.brCr;
+                    editingId = id;
+                }
+            };
+        });
+        document.querySelectorAll(".delete-btn").forEach(btn => {
+            btn.onclick = async () => {
+                const id = btn.dataset.id;
+                if (confirm("Hapus data?")) {
+                    await fetch(`/api/baku/${id}`, { method: "DELETE" });
+                    loadBakuTable(); loadSummaryTable();
+                }
+            };
+        });
+    }
+
+    // ========= Load Detail =========
+    async function loadBakuTable() {
+        const today = new Date().toISOString().split("T")[0];
+        const res = await fetch(`/api/baku?tanggal=${today}`);
+        const data = await res.json();
+        if (data.success) {
+            allBakuData = data.data;
+            renderMandorTables(allBakuData);
+        }
+    }
+
+    // ========= Toggle Button =========
+    const showBtn = document.getElementById("showBakuTableBtn");
+    if (showBtn) {
+        showBtn.addEventListener("click", () => {
+            const wrapper = document.getElementById("bakuTableWrapper");
+            if (wrapper.style.display === "none" || wrapper.style.display === "") {
+                wrapper.style.display = "block";
+                showBtn.textContent = "Sembunyikan Data Produksi Baku";
+                loadBakuTable();
+            } else {
+                wrapper.style.display = "none";
+                showBtn.textContent = "Tampilkan Data Produksi Baku";
+            }
+        });
+    }
+
+    // ========= Init =========
+    loadMandorOptions();
+    loadSummaryTable();
+    setInterval(loadSummaryTable, 30000);
 });

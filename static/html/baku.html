@@ -3,93 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Baku - PTPN</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/baku-table.css">
+
+    <title>Input Produksi Baku</title>
+    <!-- ✅ perbaikan path -->
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/input-baku.css">
+    <link rel="stylesheet" href="/css/baku-table.css">
 </head>
 <body>
 <div class="baku-container">
-    <h1>{{.Title}}</h1>
+    <h1>INPUT PRODUKSI BAKU</h1>
 
-    <!-- Form Input Penyadap -->
-    <div class="baku-form">
-        <h2>📝 Tambah Data Penyadap</h2>
-        <form id="penyadapForm">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="mandor">👷 Pilih Mandor:</label>
-                    <select id="mandor" name="id_baku_mandor" required>
-                        <option value="">-- Pilih Mandor --</option>
-                        {{range .MandorList}}
-                            <option value="{{.ID}}">{{.Mandor}} ({{.TahunTanam}})</option>
-                        {{end}}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="nik">🆔 NIK:</label>
-                    <input type="text" id="nik" name="nik" required placeholder="Masukkan NIK">
-                </div>
+    <!-- Popup Mandor -->
+    <div id="popupMandor" class="popup-mandor" style="display:none;">
+        <div class="popup-mandor-content" style="display:flex; flex-direction:row; gap:32px; align-items:flex-start; justify-content:center;">
+            <div style="flex:1; min-width:260px;">
+                <h3>TAMBAH MANDOR</h3>
+                <form id="formMandorBaru" class="baku-form" style="box-shadow:none; border:none; padding:0;">
+                    <div class="form-row" style="grid-template-columns: 1fr;">
+                        <div class="form-group">
+                            <label for="inputNamaMandor">Nama Mandor</label>
+                            <input type="text" id="inputNamaMandor"  required>
+                        </div>
+                    </div>
+                    <div class="form-row" style="grid-template-columns: 1fr;">
+                        <div class="form-group">
+                            <label for="inputTahunTanam">Tahun Tanam</label>
+                            <input type="text" id="inputTahunTanam" required>
+                        </div>
+                    </div>
+                    <div class="form-row" style="grid-template-columns: 1fr;">
+                        <div class="form-group">
+                            <label for="inputAfdeling">Afdeling</label>
+                            <input type="text" id="inputAfdeling" required>
+                        </div>
+                    </div>
+                    <div class="form-row" style="grid-template-columns: 1fr;">
+                        <div class="form-group" style="display:flex; align-items:flex-end;">
+                            <button type="submit" class="save-btn" style="margin-bottom:0;">Save</button>
+                        </div>
+                    </div>
+                </form>
             </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="nama">👤 Nama Penyadap:</label>
-                    <input type="text" id="nama" name="nama_penyadap" required placeholder="Masukkan nama lengkap">
-                </div>
-                <div class="form-group">
-                    <label for="tanggal">📅 Tanggal:</label>
-                    <input type="date" id="tanggal" name="tanggal" required>
-                </div>
+            <div style="flex:2; min-width:320px;">
+                <h3>DAFTAR MANDOR</h3>
+                <table class="mandor-table baku-table">
+                    <thead>
+                    <tr>
+                        <th>Nama Mandor</th>
+                        <th>Tahun Tanam</th>
+                        <th>Afdeling</th>
+                        <th>Action</th>
+                    </tr>
+                    </thead>
+                    <tbody id="mandorTableBody">
+                    <!-- Data mandor akan diisi JS -->
+                    </tbody>
+                </table>
             </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="basah_latex">🥛 Basah Latex (kg):</label>
-                    <input type="number" step="0.01" id="basah_latex" name="basah_latex" value="0" placeholder="0.00">
-                </div>
-                <div class="form-group">
-                    <label for="sheet">📋 Sheet (kg):</label>
-                    <input type="number" step="0.01" id="sheet" name="sheet" value="0" placeholder="0.00">
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="basah_lump">🧊 Basah Lump (kg):</label>
-                    <input type="number" step="0.01" id="basah_lump" name="basah_lump" value="0" placeholder="0.00">
-                </div>
-                <div class="form-group">
-                    <label for="br_cr">⚖️ BR/CR (kg):</label>
-                    <input type="number" step="0.01" id="br_cr" name="br_cr" value="0" placeholder="0.00">
-                </div>
-            </div>
-
-            <button type="submit" class="save-btn">💾 Simpan Data</button>
-        </form>
+            <button type="button" id="closePopupMandor" class="close-popup-btn" style="position:absolute; top:24px; right:24px;">X</button>
+        </div>
     </div>
 
-    <!-- Tabel Data Penyadap -->
-    <div class="baku-table-container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2>📊 Data Penyadap</h2>
-            <div class="table-controls">
-                <input type="text" id="searchInput" class="search-box" placeholder="🔍 Cari data penyadap...">
-                <select id="filterMandor" class="filter-select">
-                    <option value="">Semua Mandor</option>
-                    {{range .MandorList}}
-                        <option value="{{.Mandor}}">{{.Mandor}}</option>
-                    {{end}}
+    <form class="baku-form" id="bakuForm">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="mandor">NAMA Mandor</label>
+                <div style="display:flex; flex-direction:row; gap:8px; align-items:center;">
+                    <select id="mandor" name="idBakuMandor" required style="width:100%;">
+                        <option value="">-- Pilih Mandor --</option>
+                        {{range .MandorList}}
+                            <option value="{{.ID}}">{{.Mandor}} ({{.Afdeling}}) {{.TahunTanam}}</option>
+                        {{end}}
+                    </select>
+                    <button type="button" id="tambahMandor" class="tambah-mandor-btn">
+                        <span class="tambah-mandor-icon">+</span>
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="jenis">Jenis</label>
+                <select id="jenis" name="tipe" required style="width:100%;">
+                    <option value="">-- Pilih Jenis --</option>
+                    <option value="BAKU">Baku</option>
+                    <option value="BAKU_BORONG">Baku Borong</option>
+                    <option value="BORONG_EXTERNAL">Borong Eksternal</option>
+                    <option value="BORONG_INTERNAL">Borong Internal</option>
+                    <option value="BORONG_MINGGU">Borong Minggu</option>
+                    <option value="TETES_LANJUT">Tetes Lanjut</option>
                 </select>
+            </div>
+            <div></div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="namaPenyadap">Nama Penyadap</label>
+                <input type="text" id="namaPenyadap" placeholder="Cari nama..." autocomplete="off" required>
+                <input type="hidden" id="idPenyadap" name="idPenyadap" required>
+                <div id="namaDropdown" class="dropdown-list" style="display:none;"></div>
+            </div>
+            <div class="form-group">
+                <label for="nik">NIK</label>
+                <input type="text" id="nik" readonly required>
             </div>
         </div>
 
-        <div style="overflow-x: auto;">
-            <table class="baku-table" id="penyadapTable">
-                <thead>
-                <tr>
-                    <th>No</th>
-                    <th>NIK</th>
-                    <th>Nama</th>
-                    <th>Mandor</th>
-                    <th>Tanggal</th>
-                    <th>Basah Latex</th>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="latek">Basah Latek</label>
+                <input type="number" id="latek" name="basahLatex" step="any" required>
+            </div>
+            <div class="form-group">
+                <label for="lump">Basah Lump</label>
+                <input type="number" id="lump" name="basahLump" step="any" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="sheet">Jumlah Sheet</label>
+                <input type="number" id="sheet" name="sheet" step="any" required>
+            </div>
+            <div class="form-group">
+                <label for="brcr">Br.Cr</label>
+                <input type="number" id="brcr" name="brcr" step="any" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <button type="submit" class="save-btn">Save</button>
+        </div>
+    </form>
+
+    <div class="baku-table-container">
+        <h2>Ringkasan Mandor & Kebun</h2>
+        <table class="baku-table" id="summaryTable">
+            <thead>
+            <tr>
+                <th>Mandor</th>
+                <th>Jumlah Pabrik Basah Latek</th>
+                <th>Jumlah Kebun Basah Latek</th>
+                <th>Jumlah Sheet</th>
+                <th>K3 Sheet</th>
+                <th>Jumlah Pabrik Basah Lump</th>
+                <th>Jumlah Kebun Basah Lump</th>
+                <th>Jumlah Br_Cr</th>
+                <th>K3 Br_Cr</th>
+            </tr>
+            </thead>
+            <tbody>
+            <!-- Data ringkasan mandor akan diisi oleh JS -->
+            </tbody>
+        </table>
+        <button id="showBakuTableBtn" style="margin:16px 0; background:#0093E9; color:#fff; border:none; border-radius:6px; padding:8px 20px; font-weight:600; cursor:pointer;">Tampilkan Data Produksi Baku</button>
+        <div id="bakuTableWrapper" style="display:none;">
+        </div>
+    </div>
+</div>
+</body>
+<!-- ✅ perbaikan path -->
+<script src="/js/baku.js"></script>
+<script src="/js/script.js"></script>
+</html>
