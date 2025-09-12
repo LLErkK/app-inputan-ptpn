@@ -167,7 +167,7 @@ func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update detail harian
+	// Update detail harian berdasarkan tanggal dan mandor
 	updateBakuDetail(penyadap, "create", nil)
 
 	respondJSON(w, http.StatusCreated, APIResponse{
@@ -199,7 +199,7 @@ func UpdateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Simpan selisih untuk update detail
+	// Simpan copy untuk update detail
 	oldCopy := existing
 
 	if err := config.DB.Model(&existing).Updates(updates).Error; err != nil {
@@ -210,7 +210,7 @@ func UpdateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update detail
+	// Update detail berdasarkan tanggal dan mandor
 	updateBakuDetail(existing, "update", &oldCopy)
 
 	respondJSON(w, http.StatusOK, APIResponse{
@@ -240,6 +240,7 @@ func DeleteBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update detail berdasarkan tanggal dan mandor
 	updateBakuDetail(penyadap, "delete", nil)
 
 	respondJSON(w, http.StatusOK, APIResponse{
@@ -255,7 +256,7 @@ func GetAllBakuDetail(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("DEBUG: GetAllBakuDetail called - Method: %s, URL: %s\n", r.Method, r.URL.Path)
 
 	var details []models.BakuDetail
-	if err := config.DB.Order("tanggal desc").Find(&details).Error; err != nil {
+	if err := config.DB.Order("tanggal desc, mandor asc").Find(&details).Error; err != nil {
 		fmt.Printf("DEBUG: Database error: %v\n", err)
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
@@ -296,16 +297,60 @@ func GetBakuDetailByDate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var detail models.BakuDetail
+	var details []models.BakuDetail
 
-	// Query dengan range tanggal untuk menangani timestamp
-	startOfDay := tanggal
-	endOfDay := tanggal.Add(24 * time.Hour)
+	// Query untuk mendapatkan semua detail untuk tanggal tersebut (semua mandor)
+	if err := config.DB.Where("DATE(tanggal) = DATE(?)", tanggal).Order("mandor asc").Find(&details).Error; err != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Message: "Gagal mengambil detail: " + err.Error(),
+		})
+		return
+	}
 
-	if err := config.DB.Where("tanggal >= ? AND tanggal < ?", startOfDay, endOfDay).First(&detail).Error; err != nil {
+	if len(details) == 0 {
 		respondJSON(w, http.StatusNotFound, APIResponse{
 			Success: false,
 			Message: "Detail untuk tanggal " + tanggalStr + " tidak ditemukan",
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Message: "Detail berhasil ditemukan",
+		Data:    details,
+	})
+}
+
+// GetBakuDetailByDateAndMandor - Get detail by date and mandor
+func GetBakuDetailByDateAndMandor(w http.ResponseWriter, r *http.Request) {
+	tanggalStr := r.URL.Query().Get("tanggal")
+	mandor := r.URL.Query().Get("mandor")
+
+	if tanggalStr == "" || mandor == "" {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Parameter tanggal dan mandor wajib diisi",
+		})
+		return
+	}
+
+	// Parse tanggal
+	tanggal, err := time.Parse("2006-01-02", tanggalStr)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Format tanggal tidak valid. Gunakan format YYYY-MM-DD",
+		})
+		return
+	}
+
+	var detail models.BakuDetail
+	if err := config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ?", tanggal, mandor).First(&detail).Error; err != nil {
+		respondJSON(w, http.StatusNotFound, APIResponse{
+			Success: false,
+			Message: fmt.Sprintf("Detail untuk tanggal %s dan mandor %s tidak ditemukan", tanggalStr, mandor),
 		})
 		return
 	}
@@ -318,39 +363,180 @@ func GetBakuDetailByDate(w http.ResponseWriter, r *http.Request) {
 }
 
 // updateBakuDetail - Helper function to update daily summary
+// Mencari berdasarkan kombinasi tanggal DAN mandor
 func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models.BakuPenyadap) {
+	// Ambil tanggal tanpa jam untuk konsistensi
+	targetDate := entry.Tanggal.Truncate(24 * time.Hour)
+
+	// Ambil data mandor
+	var mandor models.BakuMandor
+	if err := config.DB.First(&mandor, entry.IdBakuMandor).Error; err != nil {
+		fmt.Printf("ERROR: Tidak dapat menemukan mandor dengan ID %d: %v\n", entry.IdBakuMandor, err)
+		return
+	}
+
 	var detail models.BakuDetail
-	err := config.DB.Where("tanggal = ?", entry.Tanggal).First(&detail).Error
+	err := config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ?", targetDate, mandor.Mandor).First(&detail).Error
+
 	if err != nil {
-		// kalau belum ada & action create → buat baru
+		// Jika belum ada detail untuk kombinasi ini → buat baru
 		if action == "create" {
-			detail = models.BakuDetail{Tanggal: entry.Tanggal}
+			detail = models.BakuDetail{
+				Tanggal:  targetDate,
+				Mandor:   mandor.Mandor,
+				Afdeling: mandor.Afdeling,
+				// semua field default 0
+			}
 		} else {
+			fmt.Printf("WARNING: Tidak ada BakuDetail untuk tanggal %s mandor %s pada action %s\n",
+				targetDate.Format("2006-01-02"), mandor.Mandor, action)
 			return
 		}
 	}
 
+	// ================== Update nilai berdasarkan action ==================
 	switch action {
 	case "create":
-		detail.JumlahKebunBasahLatek += entry.BasahLatex
+		fmt.Printf("CREATE: Menambah data untuk %s mandor %s\n", targetDate.Format("2006-01-02"), mandor.Mandor)
+		detail.JumlahPabrikBasahLatek += entry.BasahLatex
+		detail.JumlahPabrikBasahLump += entry.BasahLump
 		detail.JumlahSheet += entry.Sheet
-		detail.JumlahKebunBasahLump += entry.BasahLump
 		detail.JumlahBrCr += entry.BrCr
+
 	case "update":
 		if oldEntry != nil {
-			detail.JumlahKebunBasahLatek += entry.BasahLatex - oldEntry.BasahLatex
-			detail.JumlahSheet += entry.Sheet - oldEntry.Sheet
-			detail.JumlahKebunBasahLump += entry.BasahLump - oldEntry.BasahLump
-			detail.JumlahBrCr += entry.BrCr - oldEntry.BrCr
+			fmt.Printf("UPDATE: Mengupdate data untuk %s mandor %s\n", targetDate.Format("2006-01-02"), mandor.Mandor)
+
+			// hitung selisih antara nilai baru dan lama
+			deltaBasahLatex := entry.BasahLatex - oldEntry.BasahLatex
+			deltaBasahLump := entry.BasahLump - oldEntry.BasahLump
+			deltaSheet := entry.Sheet - oldEntry.Sheet
+			deltaBrCr := entry.BrCr - oldEntry.BrCr
+
+			detail.JumlahPabrikBasahLatek += deltaBasahLatex
+			detail.JumlahPabrikBasahLump += deltaBasahLump
+			detail.JumlahSheet += deltaSheet
+			detail.JumlahBrCr += deltaBrCr
+
+			fmt.Printf("  Delta - BasahLatex: %.2f, BasahLump: %.2f, Sheet: %.2f, BrCr: %.2f\n",
+				deltaBasahLatex, deltaBasahLump, deltaSheet, deltaBrCr)
 		}
+
 	case "delete":
-		detail.JumlahKebunBasahLatek -= entry.BasahLatex
+		fmt.Printf("DELETE: Mengurangi data untuk %s mandor %s\n", targetDate.Format("2006-01-02"), mandor.Mandor)
+		detail.JumlahPabrikBasahLatek -= entry.BasahLatex
+		detail.JumlahPabrikBasahLump -= entry.BasahLump
 		detail.JumlahSheet -= entry.Sheet
-		detail.JumlahKebunBasahLump -= entry.BasahLump
 		detail.JumlahBrCr -= entry.BrCr
+
+		// jaga jangan sampai negatif
+		if detail.JumlahPabrikBasahLatek < 0 {
+			detail.JumlahPabrikBasahLatek = 0
+		}
+		if detail.JumlahPabrikBasahLump < 0 {
+			detail.JumlahPabrikBasahLump = 0
+		}
+		if detail.JumlahSheet < 0 {
+			detail.JumlahSheet = 0
+		}
+		if detail.JumlahBrCr < 0 {
+			detail.JumlahBrCr = 0
+		}
 	}
 
-	config.DB.Save(&detail)
+	// ================== Hitung Selisih & Persentase ==================
+	detail.SelisihBasahLatek = detail.JumlahPabrikBasahLatek - detail.JumlahKebunBasahLatek
+	if detail.JumlahKebunBasahLatek > 0 {
+		detail.PersentaseSelisihBasahLatek = (detail.SelisihBasahLatek / detail.JumlahKebunBasahLatek) * 100
+	} else {
+		detail.PersentaseSelisihBasahLatek = 0
+	}
+
+	detail.SelisihBasahLump = detail.JumlahPabrikBasahLump - detail.JumlahKebunBasahLump
+	if detail.JumlahKebunBasahLump > 0 {
+		detail.PersentaseSelisihBasahLump = (detail.SelisihBasahLump / detail.JumlahKebunBasahLump) * 100
+	} else {
+		detail.PersentaseSelisihBasahLump = 0
+	}
+
+	// ================== Simpan ke DB ==================
+	if err := config.DB.Save(&detail).Error; err != nil {
+		fmt.Printf("ERROR: Gagal menyimpan BakuDetail: %v\n", err)
+	} else {
+		fmt.Printf("SUCCESS: BakuDetail %s mandor %s terupdate\n",
+			targetDate.Format("2006-01-02"), mandor.Mandor)
+		fmt.Printf("  - Pabrik Latex: %.2f | Kebun Latex: %.2f\n", detail.JumlahPabrikBasahLatek, detail.JumlahKebunBasahLatek)
+		fmt.Printf("  - Pabrik Lump: %.2f | Kebun Lump: %.2f\n", detail.JumlahPabrikBasahLump, detail.JumlahKebunBasahLump)
+	}
+}
+
+// RecalculateBakuDetail - Fungsi untuk hitung ulang BakuDetail berdasarkan tanggal dan mandor
+func RecalculateBakuDetail(tanggal time.Time, mandorID uint) error {
+	targetDate := tanggal.Truncate(24 * time.Hour)
+
+	// Ambil data mandor
+	var mandor models.BakuMandor
+	if err := config.DB.First(&mandor, mandorID).Error; err != nil {
+		return fmt.Errorf("mandor tidak ditemukan: %v", err)
+	}
+
+	// Hitung ulang total dari semua BakuPenyadap untuk tanggal dan mandor tersebut
+	var totals struct {
+		TotalBasahLatex float64
+		TotalSheet      float64
+		TotalBasahLump  float64
+		TotalBrCr       float64
+	}
+
+	err := config.DB.Model(&models.BakuPenyadap{}).
+		Where("DATE(tanggal) = DATE(?) AND id_baku_mandor = ?", targetDate, mandorID).
+		Select(`
+			COALESCE(SUM(basah_latex), 0) as total_basah_latex,
+			COALESCE(SUM(sheet), 0) as total_sheet,
+			COALESCE(SUM(basah_lump), 0) as total_basah_lump,
+			COALESCE(SUM(br_cr), 0) as total_br_cr
+		`).
+		Scan(&totals).Error
+
+	if err != nil {
+		return err
+	}
+
+	// Update atau create BakuDetail
+	var detail models.BakuDetail
+	err = config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ?", targetDate, mandor.Mandor).First(&detail).Error
+
+	if err != nil {
+		// Buat baru
+		detail = models.BakuDetail{
+			Tanggal:  targetDate,
+			Mandor:   mandor.Mandor,
+			Afdeling: mandor.Afdeling,
+		}
+	}
+
+	// Set nilai yang dihitung ulang
+	detail.JumlahKebunBasahLatek = totals.TotalBasahLatex
+	detail.JumlahSheet = totals.TotalSheet
+	detail.JumlahKebunBasahLump = totals.TotalBasahLump
+	detail.JumlahBrCr = totals.TotalBrCr
+
+	// Hitung ulang selisih
+	detail.SelisihBasahLatek = detail.JumlahPabrikBasahLatek - detail.JumlahKebunBasahLatek
+	if detail.JumlahKebunBasahLatek > 0 {
+		detail.PersentaseSelisihBasahLatek = (detail.SelisihBasahLatek / detail.JumlahKebunBasahLatek) * 100
+	} else {
+		detail.PersentaseSelisihBasahLatek = 0
+	}
+
+	detail.SelisihBasahLump = detail.JumlahPabrikBasahLump - detail.JumlahKebunBasahLump
+	if detail.JumlahKebunBasahLump > 0 {
+		detail.PersentaseSelisihBasahLump = (detail.SelisihBasahLump / detail.JumlahKebunBasahLump) * 100
+	} else {
+		detail.PersentaseSelisihBasahLump = 0
+	}
+
+	return config.DB.Save(&detail).Error
 }
 
 // ======== PAGE RENDERING ========
@@ -734,7 +920,7 @@ func getMandorSummaries(tanggal string) ([]MandorSummary, error) {
 			Where("id_baku_mandor = ?", mandor.ID)
 
 		if tanggal != "" {
-			query = query.Where("tanggal LIKE ?", tanggal+"%")
+			query = query.Where("DATE(tanggal) = DATE(?)", tanggal)
 		}
 
 		var results []struct {
@@ -771,13 +957,81 @@ func getMandorSummaries(tanggal string) ([]MandorSummary, error) {
 	return summaries, nil
 }
 
+// getPenyadapDetails - DIPERBAIKI: Menggunakan BakuDetail yang sudah akurat
 func getPenyadapDetails(tanggal string) ([]PenyadapDetail, error) {
+	// Jika ada filter tanggal, ambil dari baku_detail berdasarkan tanggal dan mandor
+	if tanggal != "" {
+		targetDate, err := time.Parse("2006-01-02", tanggal)
+		if err != nil {
+			return nil, err
+		}
+
+		// Ambil semua BakuDetail untuk tanggal tersebut (semua mandor)
+		var bakuDetails []models.BakuDetail
+		err = config.DB.Where("DATE(tanggal) = DATE(?)", targetDate).Find(&bakuDetails).Error
+		if err != nil {
+			return nil, err
+		}
+
+		if len(bakuDetails) == 0 {
+			// Tidak ada data untuk tanggal ini
+			return []PenyadapDetail{}, nil
+		}
+
+		var allDetails []PenyadapDetail
+
+		// Untuk setiap mandor yang ada di BakuDetail
+		for _, bakuDetail := range bakuDetails {
+			// Ambil daftar penyadap yang aktif untuk mandor dan tanggal tersebut
+			query := `
+				SELECT DISTINCT
+					p.id,
+					p.nama_penyadap,
+					p.nik,
+					bm.mandor,
+					bm.afdeling,
+					COUNT(bp.id) as jumlah_hari_kerja
+				FROM penyadaps p
+				INNER JOIN baku_penyadaps bp ON p.id = bp.id_penyadap
+				INNER JOIN baku_mandors bm ON bp.id_baku_mandor = bm.id
+				WHERE bp.deleted_at IS NULL 
+				AND DATE(bp.tanggal) = DATE(?)
+				AND bm.mandor = ?
+				GROUP BY p.id, p.nama_penyadap, p.nik, bm.mandor, bm.afdeling
+				ORDER BY p.nama_penyadap
+			`
+
+			var mandorDetails []PenyadapDetail
+			err = config.DB.Raw(query, targetDate, bakuDetail.Mandor).Scan(&mandorDetails).Error
+			if err != nil {
+				return nil, err
+			}
+
+			// Distribusikan total dari BakuDetail ke semua penyadap mandor tersebut
+			totalPenyadap := len(mandorDetails)
+			if totalPenyadap > 0 {
+				for i := range mandorDetails {
+					// Bagi rata sesuai jumlah penyadap per mandor
+					mandorDetails[i].TotalBasahLatex = bakuDetail.JumlahKebunBasahLatek / float64(totalPenyadap)
+					mandorDetails[i].TotalSheet = bakuDetail.JumlahSheet / float64(totalPenyadap)
+					mandorDetails[i].TotalBasahLump = bakuDetail.JumlahKebunBasahLump / float64(totalPenyadap)
+					mandorDetails[i].TotalBrCr = bakuDetail.JumlahBrCr / float64(totalPenyadap)
+					mandorDetails[i].JumlahHariKerja = 1 // Untuk tanggal spesifik, hari kerja = 1
+				}
+			}
+
+			allDetails = append(allDetails, mandorDetails...)
+		}
+
+		return allDetails, nil
+	}
+
+	// Untuk semua waktu (tanpa filter tanggal), menggunakan agregasi dari baku_penyadaps
 	query := `
 		SELECT 
 			p.id,
 			p.nama_penyadap,
 			p.nik,
-			
 			COALESCE(SUM(bp.basah_latex), 0) as total_basah_latex,
 			COALESCE(SUM(bp.sheet), 0) as total_sheet,
 			COALESCE(SUM(bp.basah_lump), 0) as total_basah_lump,
@@ -786,18 +1040,12 @@ func getPenyadapDetails(tanggal string) ([]PenyadapDetail, error) {
 		FROM penyadaps p
 		LEFT JOIN baku_penyadaps bp ON p.id = bp.id_penyadap
 		WHERE bp.deleted_at IS NULL
+		GROUP BY p.id, p.nama_penyadap, p.nik 
+		ORDER BY p.nama_penyadap
 	`
 
-	args := []interface{}{}
-	if tanggal != "" {
-		query += " AND bp.tanggal LIKE ?"
-		args = append(args, tanggal+"%")
-	}
-
-	query += " GROUP BY p.id, p.nama_penyadap, p.nik ORDER BY p.nama_penyadap"
-
 	var details []PenyadapDetail
-	if err := config.DB.Raw(query, args...).Scan(&details).Error; err != nil {
+	if err := config.DB.Raw(query).Scan(&details).Error; err != nil {
 		return nil, err
 	}
 
@@ -827,7 +1075,7 @@ func searchMandorSummaries(namaMandor, tanggal string) ([]MandorSummary, error) 
 			Where("id_baku_mandor = ?", mandor.ID)
 
 		if tanggal != "" {
-			bakuQuery = bakuQuery.Where("tanggal LIKE ?", tanggal+"%")
+			bakuQuery = bakuQuery.Where("DATE(tanggal) = DATE(?)", tanggal)
 		}
 
 		var results []struct {
@@ -885,8 +1133,8 @@ func searchPenyadapDetails(namaPenyadap, tanggal string) ([]PenyadapDetail, erro
 
 	args := []interface{}{"%" + namaPenyadap + "%"}
 	if tanggal != "" {
-		query += " AND bp.tanggal LIKE ?"
-		args = append(args, tanggal+"%")
+		query += " AND DATE(bp.tanggal) = DATE(?)"
+		args = append(args, tanggal)
 	}
 
 	query += " GROUP BY p.id, p.nama_penyadap, p.nik, bm.mandor, bm.afdeling ORDER BY p.nama_penyadap"
@@ -922,7 +1170,7 @@ func searchMandorWithDetails(namaMandor, tanggal string) ([]MandorSummary, error
 			Where("id_baku_mandor = ?", mandor.ID)
 
 		if tanggal != "" {
-			bakuQuery = bakuQuery.Where("tanggal LIKE ?", tanggal+"%")
+			bakuQuery = bakuQuery.Where("DATE(tanggal) = DATE(?)", tanggal)
 		}
 
 		var results []struct {
@@ -971,8 +1219,8 @@ func searchMandorWithDetails(namaMandor, tanggal string) ([]MandorSummary, error
 
 		penyadapArgs := []interface{}{mandor.ID}
 		if tanggal != "" {
-			penyadapQuery += " AND bp.tanggal LIKE ?"
-			penyadapArgs = append(penyadapArgs, tanggal+"%")
+			penyadapQuery += " AND DATE(bp.tanggal) = DATE(?)"
+			penyadapArgs = append(penyadapArgs, tanggal)
 		}
 
 		penyadapQuery += " GROUP BY p.id, p.nama_penyadap, p.nik ORDER BY p.nama_penyadap"
@@ -1014,14 +1262,15 @@ func advancedSearchMandor(nama, tanggal, afdeling, tahunTanam string) ([]MandorS
 			Afdeling:   mandor.Afdeling,
 		}
 
+		// Hitung total penyadap + produksi
 		bakuQuery := config.DB.Model(&models.BakuPenyadap{}).
 			Where("id_baku_mandor = ?", mandor.ID)
 
 		if tanggal != "" {
-			bakuQuery = bakuQuery.Where("tanggal LIKE ?", tanggal+"%")
+			bakuQuery = bakuQuery.Where("DATE(tanggal) = DATE(?)", tanggal)
 		}
 
-		var results []struct {
+		var result struct {
 			TotalBasahLatex float64
 			TotalSheet      float64
 			TotalBasahLump  float64
@@ -1029,32 +1278,63 @@ func advancedSearchMandor(nama, tanggal, afdeling, tahunTanam string) ([]MandorS
 			JumlahPenyadap  int64
 		}
 
-		err := bakuQuery.Select(`
+		if err := bakuQuery.Select(`
 			COALESCE(SUM(basah_latex), 0) as total_basah_latex,
 			COALESCE(SUM(sheet), 0) as total_sheet,
 			COALESCE(SUM(basah_lump), 0) as total_basah_lump,
 			COALESCE(SUM(br_cr), 0) as total_br_cr,
 			COUNT(DISTINCT id_penyadap) as jumlah_penyadap
-		`).Find(&results).Error
-
-		if err != nil {
+		`).Scan(&result).Error; err != nil {
 			return nil, err
 		}
 
-		if len(results) > 0 {
-			summary.TotalBasahLatex = results[0].TotalBasahLatex
-			summary.TotalSheet = results[0].TotalSheet
-			summary.TotalBasahLump = results[0].TotalBasahLump
-			summary.TotalBrCr = results[0].TotalBrCr
-			summary.JumlahPenyadap = int(results[0].JumlahPenyadap)
+		summary.TotalBasahLatex = result.TotalBasahLatex
+		summary.TotalSheet = result.TotalSheet
+		summary.TotalBasahLump = result.TotalBasahLump
+		summary.TotalBrCr = result.TotalBrCr
+		summary.JumlahPenyadap = int(result.JumlahPenyadap)
+
+		// Ambil detail per penyadap
+		penyadapQuery := `
+			SELECT 
+				p.id,
+				p.nama_penyadap,
+				p.nik,
+				COALESCE(SUM(bp.basah_latex), 0) as total_basah_latex,
+				COALESCE(SUM(bp.sheet), 0) as total_sheet,
+				COALESCE(SUM(bp.basah_lump), 0) as total_basah_lump,
+				COALESCE(SUM(bp.br_cr), 0) as total_br_cr,
+				COUNT(bp.id) as jumlah_hari_kerja
+			FROM penyadaps p
+			LEFT JOIN baku_penyadaps bp ON p.id = bp.id_penyadap
+			WHERE bp.deleted_at IS NULL AND bp.id_baku_mandor = ?
+		`
+
+		args := []interface{}{mandor.ID}
+		if tanggal != "" {
+			penyadapQuery += " AND DATE(bp.tanggal) = DATE(?)"
+			args = append(args, tanggal)
 		}
 
+		penyadapQuery += " GROUP BY p.id, p.nama_penyadap, p.nik ORDER BY p.nama_penyadap"
+
+		var penyadapDetails []PenyadapDetail
+		if err := config.DB.Raw(penyadapQuery, args...).Scan(&penyadapDetails).Error; err != nil {
+			return nil, err
+		}
+
+		// Tambahkan mandor & afdeling ke detail
+		for i := range penyadapDetails {
+			penyadapDetails[i].Mandor = mandor.Mandor
+			penyadapDetails[i].Afdeling = mandor.Afdeling
+		}
+
+		summary.DetailPenyadap = penyadapDetails
 		summaries = append(summaries, summary)
 	}
 
 	return summaries, nil
 }
-
 func advancedSearchPenyadap(nama, tanggal, afdeling string) ([]PenyadapDetail, error) {
 	query := `
 		SELECT 
@@ -1071,16 +1351,19 @@ func advancedSearchPenyadap(nama, tanggal, afdeling string) ([]PenyadapDetail, e
 		FROM penyadaps p
 		LEFT JOIN baku_penyadaps bp ON p.id = bp.id_penyadap
 		LEFT JOIN baku_mandors bm ON bp.id_baku_mandor = bm.id
-		WHERE bp.deleted_at IS NULL AND p.nama_penyadap LIKE ?
+		WHERE bp.deleted_at IS NULL 
+		AND p.nama_penyadap LIKE ? 
 	`
 
 	args := []interface{}{"%" + nama + "%"}
 
+	// Filter tanggal
 	if tanggal != "" {
-		query += " AND bp.tanggal LIKE ?"
-		args = append(args, tanggal+"%")
+		query += " AND DATE(bp.tanggal) = DATE(?)"
+		args = append(args, tanggal)
 	}
 
+	// Filter afdeling
 	if afdeling != "" {
 		query += " AND bm.afdeling LIKE ?"
 		args = append(args, "%"+afdeling+"%")
