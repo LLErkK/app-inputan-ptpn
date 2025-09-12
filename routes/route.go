@@ -38,19 +38,24 @@ func SetupRoutes() {
 	// ================== BAKU PAGE (HTML) ==================
 	protected.HandleFunc("/baku", controllers.ServeBakuPage).Methods("GET")
 
+	// ================== NEW: TIPE PRODUKSI API ==================
+	protected.HandleFunc("/api/tipe-produksi", controllers.GetTipeProduksiList).Methods("GET")
+
 	// ================== BAKU API (CRUD JSON) ==================
 	// PENTING: Route spesifik HARUS didefinisikan SEBELUM route dengan parameter!
 
 	// BAKU DETAIL API - HARUS SEBELUM /api/baku/{id}
+	// Support query parameter: ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT
 	protected.HandleFunc("/api/baku/detail", controllers.GetAllBakuDetail).Methods("GET")
 	protected.HandleFunc("/api/baku/detail/{tanggal}", controllers.GetBakuDetailByDate).Methods("GET")
 
-	// BAKU PENYADAP CRUD - Setelah route detail
+	// ================== BAKU PENYADAP CRUD - Setelah route detail ==================
+	// Support query parameter: ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT
 	protected.HandleFunc("/api/baku", controllers.GetAllBakuPenyadap).Methods("GET")
 	protected.HandleFunc("/api/baku", controllers.CreateBakuPenyadap).Methods("POST")
-	protected.HandleFunc("/api/baku/{id}", controllers.GetBakuPenyadapByID).Methods("GET")
+	protected.HandleFunc("/api/baku/{id}", controllers.GetBakuPenyadapByID).Methods("GET") // pastikan ada di controller
 	protected.HandleFunc("/api/baku/{id}", controllers.UpdateBakuPenyadap).Methods("PUT")
-	protected.HandleFunc("/api/baku/{id}", controllers.DeleteBakuPenyadap).Methods("DELETE")
+	protected.HandleFunc("/api/baku/{id}", controllers.DeleteBakuPenyadap).Methods("DELETE") // ganti Delete -> DeleteBakuPenyadap
 
 	// ================== MANDOR API (CRUD) ==================
 	protected.HandleFunc("/api/mandor", controllers.GetAllMandor).Methods("GET")
@@ -59,24 +64,33 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/mandor/{id}", controllers.UpdateMandor).Methods("PUT")
 	protected.HandleFunc("/api/mandor/{id}", controllers.DeleteMandor).Methods("DELETE")
 
-	// ================== REPORTING API ==================
+	// ================== REPORTING API WITH TIPE SUPPORT ==================
 	// Summary Mandor (total dari semua penyadap)
+	// Support query parameter: ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT
 	protected.HandleFunc("/api/reporting/mandor", controllers.GetMandorSummaryAll).Methods("GET")
 	protected.HandleFunc("/api/reporting/mandor/{tanggal}", controllers.GetMandorSummaryByDate).Methods("GET")
 
 	// Detail individual penyadap
+	// Support query parameter: ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT
 	protected.HandleFunc("/api/reporting/penyadap", controllers.GetPenyadapDetailAll).Methods("GET")
 	protected.HandleFunc("/api/reporting/penyadap/{tanggal}", controllers.GetPenyadapDetailByDate).Methods("GET")
 
-	// ================== SEARCH API ==================
-	// Pencarian mandor berdasarkan nama dengan filter tanggal opsional
+	// ================== SEARCH API WITH TIPE SUPPORT ==================
+	// Pencarian mandor berdasarkan nama dengan filter tanggal dan tipe opsional
+	// Query parameters: ?nama=xxx&tanggal=YYYY-MM-DD&tipe=BAKU
 	protected.HandleFunc("/api/search/mandor", controllers.SearchMandorByName).Methods("GET")
 
-	// Pencarian penyadap berdasarkan nama dengan filter tanggal opsional
+	// Pencarian penyadap berdasarkan nama dengan filter tanggal dan tipe opsional
+	// Query parameters: ?nama=xxx&tanggal=YYYY-MM-DD&tipe=BAKU
 	protected.HandleFunc("/api/search/penyadap", controllers.SearchPenyadapByName).Methods("GET")
 
-	// Detail mandor beserta semua penyadapnya
+	// Detail mandor beserta semua penyadapnya dengan filter tipe
+	// Query parameters: ?nama=xxx&tanggal=YYYY-MM-DD&tipe=BAKU
 	protected.HandleFunc("/api/search/mandor/detail", controllers.GetMandorWithPenyadapDetail).Methods("GET")
+
+	// Global search dengan berbagai filter termasuk tipe
+	// Query parameters: ?type=mandor|penyadap&nama=xxx&tanggal=YYYY-MM-DD&afdeling=xxx&tahun=2024&tipe=BAKU
+	protected.HandleFunc("/api/search/all", controllers.SearchAll).Methods("GET")
 
 	// ================== PENYADAP API (CRUD + Search) ==================
 	// Search HARUS sebelum route dengan parameter {id}
@@ -86,13 +100,15 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/penyadap/{id}", controllers.UpdatePenyadap).Methods("PUT")
 	protected.HandleFunc("/api/penyadap/{id}", controllers.DeletePenyadap).Methods("DELETE")
 
-	// Backward compatibility - keep old routes if needed
+	// ================== BACKWARD COMPATIBILITY ==================
+	// Keep old routes if needed
 	protected.HandleFunc("/mandor", controllers.GetAllMandor).Methods("GET")
 	protected.HandleFunc("/mandor", controllers.CreateMandor).Methods("POST")
 	protected.HandleFunc("/mandor/{id}", controllers.UpdateMandor).Methods("PUT")
 	protected.HandleFunc("/mandor/{id}", controllers.DeleteMandor).Methods("DELETE")
 	protected.HandleFunc("/penyadap/search", controllers.GetPenyadapByName).Methods("GET")
 
+	// ================== ERROR HANDLING ==================
 	// Catch-all untuk API yang tidak ditemukan
 	protected.PathPrefix("/api/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

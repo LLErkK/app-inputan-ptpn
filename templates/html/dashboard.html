@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - PTPN</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/input-baku.css">
 </head>
 <body>
 <div class="dashboard-container">
@@ -13,18 +14,13 @@
         <img src="/asset/logoptpn.png" alt="Logo" class="logo">
 
         <div class="menu">
-            <a href="/dashboard" target="mainFrame">Dashboard</a>
-            <a href="/baku" target="mainFrame">Baku</a>
-            <a href="baku_borong.html" target="mainFrame">Baku Borong</a>
-            <a href="borong_external.html" target="mainFrame">Borong External</a>
-            <a href="borong_minggu.html" target="mainFrame">Borong Minggu</a>
-            <a href="borong_internal.html" target="mainFrame">Borong Internal</a>
-            <a href="tetes_lanjut.html" target="mainFrame">Tetes Lanjut</a>
-            <a href="visualisasi.html" target="mainFrame">Visualisasi</a>
+            <a href="/home" target="mainFrame">Dashboard</a>
+            <a href="/baku" target="mainFrame">Input</a>
+            <a href="baku_borong.html" target="mainFrame">Monitoring</a>
+            <a href="borong_external.html" target="mainFrame">Visualisasi</a>
+
         </div>
-
-
-        <div class="logout">Logout </div>
+        <div class="logout" id="btn-logout" style="cursor: pointer;">Logout</div>
     </div>
 
     <!-- Content pakai iframe -->
@@ -32,5 +28,9 @@
         <iframe name="mainFrame" src="" frameborder="0"></iframe>
     </div>
 </div>
+<script src="/../js/script.js"></script>
+<script>
+
+</script>
 </body>
-</html><br>
+</html>

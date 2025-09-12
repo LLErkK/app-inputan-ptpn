@@ -20,29 +20,31 @@ type APIResponse struct {
 }
 
 type MandorSummary struct {
-	ID              uint             `json:"id"`
-	TahunTanam      uint             `json:"tahunTanam"`
-	Mandor          string           `json:"mandor"`
-	Afdeling        string           `json:"afdeling"`
-	TotalBasahLatex float64          `json:"totalBasahLatex"`
-	TotalSheet      float64          `json:"totalSheet"`
-	TotalBasahLump  float64          `json:"totalBasahLump"`
-	TotalBrCr       float64          `json:"totalBrCr"`
-	JumlahPenyadap  int              `json:"jumlahPenyadap"`
-	DetailPenyadap  []PenyadapDetail `json:"detailPenyadap,omitempty"`
+	ID              uint                `json:"id"`
+	TahunTanam      uint                `json:"tahunTanam"`
+	Mandor          string              `json:"mandor"`
+	Afdeling        string              `json:"afdeling"`
+	Tipe            models.TipeProduksi `json:"tipe"`
+	TotalBasahLatex float64             `json:"totalBasahLatex"`
+	TotalSheet      float64             `json:"totalSheet"`
+	TotalBasahLump  float64             `json:"totalBasahLump"`
+	TotalBrCr       float64             `json:"totalBrCr"`
+	JumlahPenyadap  int                 `json:"jumlahPenyadap"`
+	DetailPenyadap  []PenyadapDetail    `json:"detailPenyadap,omitempty"`
 }
 
 type PenyadapDetail struct {
-	ID              uint    `json:"id"`
-	NamaPenyadap    string  `json:"namaPenyadap"`
-	NIK             string  `json:"nik"`
-	TotalBasahLatex float64 `json:"totalBasahLatex"`
-	TotalSheet      float64 `json:"totalSheet"`
-	TotalBasahLump  float64 `json:"totalBasahLump"`
-	TotalBrCr       float64 `json:"totalBrCr"`
-	JumlahHariKerja int     `json:"jumlahHariKerja"`
-	Mandor          string  `json:"mandor,omitempty"`
-	Afdeling        string  `json:"afdeling,omitempty"`
+	ID              uint                `json:"id"`
+	NamaPenyadap    string              `json:"namaPenyadap"`
+	NIK             string              `json:"nik"`
+	Tipe            models.TipeProduksi `json:"tipe"`
+	TotalBasahLatex float64             `json:"totalBasahLatex"`
+	TotalSheet      float64             `json:"totalSheet"`
+	TotalBasahLump  float64             `json:"totalBasahLump"`
+	TotalBrCr       float64             `json:"totalBrCr"`
+	JumlahHariKerja int                 `json:"jumlahHariKerja"`
+	Mandor          string              `json:"mandor,omitempty"`
+	Afdeling        string              `json:"afdeling,omitempty"`
 }
 
 type ReportingResponse struct {
@@ -53,15 +55,17 @@ type ReportingResponse struct {
 }
 
 type FilterInfo struct {
-	Tanggal     string `json:"tanggal,omitempty"`
-	TotalRecord int    `json:"totalRecord"`
-	Periode     string `json:"periode"`
+	Tanggal     string              `json:"tanggal,omitempty"`
+	Tipe        models.TipeProduksi `json:"tipe,omitempty"`
+	TotalRecord int                 `json:"totalRecord"`
+	Periode     string              `json:"periode"`
 }
 
 type BakuPageData struct {
 	Title        string
 	MandorList   []models.BakuMandor
 	PenyadapList []models.BakuPenyadap
+	TipeList     []models.TipeProduksi // BARU: List tipe produksi
 }
 
 // ======== UTILITY FUNCTIONS ========
@@ -76,13 +80,37 @@ var templateFuncs = template.FuncMap{
 	"add": func(a, b int) int { return a + b },
 }
 
+// ======== NEW: Get Available Production Types ========
+func GetTipeProduksiList(w http.ResponseWriter, r *http.Request) {
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Message: "Daftar tipe produksi berhasil diambil",
+		Data:    models.GetAllTipeProduksi(),
+	})
+}
+
 // ======== CRUD OPERATIONS ========
 
-// GetAllBakuPenyadap - Get all penyadap records
+// GetAllBakuPenyadap - Get all penyadap records with optional tipe filter
 func GetAllBakuPenyadap(w http.ResponseWriter, r *http.Request) {
+	tipeFilter := r.URL.Query().Get("tipe")
+
 	var penyadap []models.BakuPenyadap
+	query := config.DB.Preload("Mandor").Preload("Penyadap").Order("created_at desc")
 
-	if err := config.DB.Preload("Mandor").Preload("Penyadap").Order("created_at desc").Find(&penyadap).Error; err != nil {
+	// Filter by tipe if provided
+	if tipeFilter != "" {
+		if !models.IsValidTipeProduksi(models.TipeProduksi(tipeFilter)) {
+			respondJSON(w, http.StatusBadRequest, APIResponse{
+				Success: false,
+				Message: "Tipe produksi tidak valid",
+			})
+			return
+		}
+		query = query.Where("tipe = ?", tipeFilter)
+	}
+
+	if err := query.Find(&penyadap).Error; err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
 			Message: "Gagal mengambil data: " + err.Error(),
@@ -93,44 +121,6 @@ func GetAllBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Message: "Data berhasil diambil",
-		Data:    penyadap,
-	})
-}
-
-// GetAllBakuMandor - Get all mandor records
-func GetAllBakuMandor(w http.ResponseWriter, r *http.Request) {
-	var mandor []models.BakuMandor
-	if err := config.DB.Order("created_at desc").Find(&mandor).Error; err != nil {
-		respondJSON(w, http.StatusInternalServerError, APIResponse{
-			Success: false,
-			Message: "Gagal mengambil data: " + err.Error(),
-		})
-		return
-	}
-
-	respondJSON(w, http.StatusOK, APIResponse{
-		Success: true,
-		Message: "Data berhasil diambil",
-		Data:    mandor,
-	})
-}
-
-// GetBakuPenyadapByID - Get penyadap by ID
-func GetBakuPenyadapByID(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
-	var penyadap models.BakuPenyadap
-	if err := config.DB.Preload("Mandor").Preload("Penyadap").First(&penyadap, id).Error; err != nil {
-		respondJSON(w, http.StatusNotFound, APIResponse{
-			Success: false,
-			Message: "Data tidak ditemukan",
-		})
-		return
-	}
-
-	respondJSON(w, http.StatusOK, APIResponse{
-		Success: true,
-		Message: "Data berhasil ditemukan",
 		Data:    penyadap,
 	})
 }
@@ -154,6 +144,21 @@ func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	// Validasi tipe produksi
+	if penyadap.Tipe != "" && !models.IsValidTipeProduksi(penyadap.Tipe) {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Tipe produksi tidak valid. Gunakan: BAKU, BAKU_BORONG, BORONG_EXTERNAL, BORONG_INTERNAL, atau TETES_LANJUT",
+		})
+		return
+	}
+
+	// Set default tipe jika kosong
+	if penyadap.Tipe == "" {
+		penyadap.Tipe = models.TipeBaku
+	}
+
 	if penyadap.Tanggal.IsZero() {
 		penyadap.Tanggal = time.Now()
 	}
@@ -167,7 +172,7 @@ func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update detail harian berdasarkan tanggal dan mandor
+	// Update detail harian berdasarkan tanggal, mandor, dan tipe
 	updateBakuDetail(penyadap, "create", nil)
 
 	respondJSON(w, http.StatusCreated, APIResponse{
@@ -199,6 +204,15 @@ func UpdateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validasi tipe produksi jika diubah
+	if updates.Tipe != "" && !models.IsValidTipeProduksi(updates.Tipe) {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Tipe produksi tidak valid",
+		})
+		return
+	}
+
 	// Simpan copy untuk update detail
 	oldCopy := existing
 
@@ -210,7 +224,7 @@ func UpdateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update detail berdasarkan tanggal dan mandor
+	// Update detail berdasarkan tanggal, mandor, dan tipe
 	updateBakuDetail(existing, "update", &oldCopy)
 
 	respondJSON(w, http.StatusOK, APIResponse{
@@ -219,44 +233,30 @@ func UpdateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// DeleteBakuPenyadap - Delete penyadap record
-func DeleteBakuPenyadap(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+// ======== DETAIL OPERATIONS WITH TIPE SUPPORT ========
 
-	var penyadap models.BakuPenyadap
-	if err := config.DB.First(&penyadap, id).Error; err != nil {
-		respondJSON(w, http.StatusNotFound, APIResponse{
-			Success: false,
-			Message: "Data penyadap tidak ditemukan",
-		})
-		return
-	}
-
-	if err := config.DB.Delete(&penyadap).Error; err != nil {
-		respondJSON(w, http.StatusInternalServerError, APIResponse{
-			Success: false,
-			Message: "Gagal menghapus data penyadap: " + err.Error(),
-		})
-		return
-	}
-
-	// Update detail berdasarkan tanggal dan mandor
-	updateBakuDetail(penyadap, "delete", nil)
-
-	respondJSON(w, http.StatusOK, APIResponse{
-		Success: true,
-		Message: "Data penyadap berhasil dihapus",
-	})
-}
-
-// ======== DETAIL OPERATIONS ========
-
-// GetAllBakuDetail - Get all detail records
+// GetAllBakuDetail - Get all detail records with optional tipe filter
 func GetAllBakuDetail(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("DEBUG: GetAllBakuDetail called - Method: %s, URL: %s\n", r.Method, r.URL.Path)
 
+	tipeFilter := r.URL.Query().Get("tipe")
+
 	var details []models.BakuDetail
-	if err := config.DB.Order("tanggal desc, mandor asc").Find(&details).Error; err != nil {
+	query := config.DB.Order("tanggal desc, mandor asc")
+
+	// Filter by tipe if provided
+	if tipeFilter != "" {
+		if !models.IsValidTipeProduksi(models.TipeProduksi(tipeFilter)) {
+			respondJSON(w, http.StatusBadRequest, APIResponse{
+				Success: false,
+				Message: "Tipe produksi tidak valid",
+			})
+			return
+		}
+		query = query.Where("tipe = ?", tipeFilter)
+	}
+
+	if err := query.Find(&details).Error; err != nil {
 		fmt.Printf("DEBUG: Database error: %v\n", err)
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
@@ -274,9 +274,10 @@ func GetAllBakuDetail(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetBakuDetailByDate - Get detail by specific date
+// GetBakuDetailByDate - Get detail by specific date with optional tipe filter
 func GetBakuDetailByDate(w http.ResponseWriter, r *http.Request) {
 	tanggalStr := mux.Vars(r)["tanggal"]
+	tipeFilter := r.URL.Query().Get("tipe")
 
 	// Validasi format tanggal
 	if tanggalStr == "" {
@@ -298,9 +299,21 @@ func GetBakuDetailByDate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var details []models.BakuDetail
+	query := config.DB.Where("DATE(tanggal) = DATE(?)", tanggal).Order("mandor asc")
 
-	// Query untuk mendapatkan semua detail untuk tanggal tersebut (semua mandor)
-	if err := config.DB.Where("DATE(tanggal) = DATE(?)", tanggal).Order("mandor asc").Find(&details).Error; err != nil {
+	// Filter by tipe if provided
+	if tipeFilter != "" {
+		if !models.IsValidTipeProduksi(models.TipeProduksi(tipeFilter)) {
+			respondJSON(w, http.StatusBadRequest, APIResponse{
+				Success: false,
+				Message: "Tipe produksi tidak valid",
+			})
+			return
+		}
+		query = query.Where("tipe = ?", tipeFilter)
+	}
+
+	if err := query.Find(&details).Error; err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
 			Message: "Gagal mengambil detail: " + err.Error(),
@@ -309,9 +322,15 @@ func GetBakuDetailByDate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(details) == 0 {
+		message := "Detail untuk tanggal " + tanggalStr
+		if tipeFilter != "" {
+			message += " dengan tipe " + tipeFilter
+		}
+		message += " tidak ditemukan"
+
 		respondJSON(w, http.StatusNotFound, APIResponse{
 			Success: false,
-			Message: "Detail untuk tanggal " + tanggalStr + " tidak ditemukan",
+			Message: message,
 		})
 		return
 	}
@@ -323,10 +342,11 @@ func GetBakuDetailByDate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetBakuDetailByDateAndMandor - Get detail by date and mandor
+// GetBakuDetailByDateAndMandor - Get detail by date, mandor, and optional tipe
 func GetBakuDetailByDateAndMandor(w http.ResponseWriter, r *http.Request) {
 	tanggalStr := r.URL.Query().Get("tanggal")
 	mandor := r.URL.Query().Get("mandor")
+	tipeFilter := r.URL.Query().Get("tipe")
 
 	if tanggalStr == "" || mandor == "" {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
@@ -347,10 +367,30 @@ func GetBakuDetailByDateAndMandor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var detail models.BakuDetail
-	if err := config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ?", tanggal, mandor).First(&detail).Error; err != nil {
+	query := config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ?", tanggal, mandor)
+
+	// Filter by tipe if provided
+	if tipeFilter != "" {
+		if !models.IsValidTipeProduksi(models.TipeProduksi(tipeFilter)) {
+			respondJSON(w, http.StatusBadRequest, APIResponse{
+				Success: false,
+				Message: "Tipe produksi tidak valid",
+			})
+			return
+		}
+		query = query.Where("tipe = ?", tipeFilter)
+	}
+
+	if err := query.First(&detail).Error; err != nil {
+		message := fmt.Sprintf("Detail untuk tanggal %s dan mandor %s", tanggalStr, mandor)
+		if tipeFilter != "" {
+			message += " dengan tipe " + tipeFilter
+		}
+		message += " tidak ditemukan"
+
 		respondJSON(w, http.StatusNotFound, APIResponse{
 			Success: false,
-			Message: fmt.Sprintf("Detail untuk tanggal %s dan mandor %s tidak ditemukan", tanggalStr, mandor),
+			Message: message,
 		})
 		return
 	}
@@ -362,8 +402,8 @@ func GetBakuDetailByDateAndMandor(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// updateBakuDetail - Helper function to update daily summary
-// Mencari berdasarkan kombinasi tanggal DAN mandor
+// updateBakuDetail - Helper function to update daily summary with tipe support
+// Mencari berdasarkan kombinasi tanggal, mandor, DAN tipe
 func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models.BakuPenyadap) {
 	// Ambil tanggal tanpa jam untuk konsistensi
 	targetDate := entry.Tanggal.Truncate(24 * time.Hour)
@@ -376,20 +416,21 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 	}
 
 	var detail models.BakuDetail
-	err := config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ?", targetDate, mandor.Mandor).First(&detail).Error
+	err := config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ? AND tipe = ?", targetDate, mandor.Mandor, entry.Tipe).First(&detail).Error
 
 	if err != nil {
-		// Jika belum ada detail untuk kombinasi ini → buat baru
+		// Jika belum ada detail untuk kombinasi tanggal + mandor + tipe → buat baru
 		if action == "create" {
 			detail = models.BakuDetail{
 				Tanggal:  targetDate,
 				Mandor:   mandor.Mandor,
 				Afdeling: mandor.Afdeling,
+				Tipe:     entry.Tipe,
 				// semua field default 0
 			}
 		} else {
-			fmt.Printf("WARNING: Tidak ada BakuDetail untuk tanggal %s mandor %s pada action %s\n",
-				targetDate.Format("2006-01-02"), mandor.Mandor, action)
+			fmt.Printf("WARNING: Tidak ada BakuDetail untuk tanggal %s mandor %s tipe %s pada action %s\n",
+				targetDate.Format("2006-01-02"), mandor.Mandor, entry.Tipe, action)
 			return
 		}
 	}
@@ -397,7 +438,7 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 	// ================== Update nilai berdasarkan action ==================
 	switch action {
 	case "create":
-		fmt.Printf("CREATE: Menambah data untuk %s mandor %s\n", targetDate.Format("2006-01-02"), mandor.Mandor)
+		fmt.Printf("CREATE: Menambah data untuk %s mandor %s tipe %s\n", targetDate.Format("2006-01-02"), mandor.Mandor, entry.Tipe)
 		detail.JumlahPabrikBasahLatek += entry.BasahLatex
 		detail.JumlahPabrikBasahLump += entry.BasahLump
 		detail.JumlahSheet += entry.Sheet
@@ -405,25 +446,59 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 
 	case "update":
 		if oldEntry != nil {
-			fmt.Printf("UPDATE: Mengupdate data untuk %s mandor %s\n", targetDate.Format("2006-01-02"), mandor.Mandor)
+			fmt.Printf("UPDATE: Mengupdate data untuk %s mandor %s tipe %s\n", targetDate.Format("2006-01-02"), mandor.Mandor, entry.Tipe)
 
-			// hitung selisih antara nilai baru dan lama
-			deltaBasahLatex := entry.BasahLatex - oldEntry.BasahLatex
-			deltaBasahLump := entry.BasahLump - oldEntry.BasahLump
-			deltaSheet := entry.Sheet - oldEntry.Sheet
-			deltaBrCr := entry.BrCr - oldEntry.BrCr
+			// Jika tipe berubah, perlu update 2 detail berbeda
+			if oldEntry.Tipe != entry.Tipe {
+				// Kurangi dari detail lama
+				var oldDetail models.BakuDetail
+				if err := config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ? AND tipe = ?", targetDate, mandor.Mandor, oldEntry.Tipe).First(&oldDetail).Error; err == nil {
+					oldDetail.JumlahPabrikBasahLatek -= oldEntry.BasahLatex
+					oldDetail.JumlahPabrikBasahLump -= oldEntry.BasahLump
+					oldDetail.JumlahSheet -= oldEntry.Sheet
+					oldDetail.JumlahBrCr -= oldEntry.BrCr
 
-			detail.JumlahPabrikBasahLatek += deltaBasahLatex
-			detail.JumlahPabrikBasahLump += deltaBasahLump
-			detail.JumlahSheet += deltaSheet
-			detail.JumlahBrCr += deltaBrCr
+					// Prevent negative values
+					if oldDetail.JumlahPabrikBasahLatek < 0 {
+						oldDetail.JumlahPabrikBasahLatek = 0
+					}
+					if oldDetail.JumlahPabrikBasahLump < 0 {
+						oldDetail.JumlahPabrikBasahLump = 0
+					}
+					if oldDetail.JumlahSheet < 0 {
+						oldDetail.JumlahSheet = 0
+					}
+					if oldDetail.JumlahBrCr < 0 {
+						oldDetail.JumlahBrCr = 0
+					}
 
-			fmt.Printf("  Delta - BasahLatex: %.2f, BasahLump: %.2f, Sheet: %.2f, BrCr: %.2f\n",
-				deltaBasahLatex, deltaBasahLump, deltaSheet, deltaBrCr)
+					config.DB.Save(&oldDetail)
+				}
+
+				// Tambah ke detail baru
+				detail.JumlahPabrikBasahLatek += entry.BasahLatex
+				detail.JumlahPabrikBasahLump += entry.BasahLump
+				detail.JumlahSheet += entry.Sheet
+				detail.JumlahBrCr += entry.BrCr
+			} else {
+				// Tipe sama, hitung selisih
+				deltaBasahLatex := entry.BasahLatex - oldEntry.BasahLatex
+				deltaBasahLump := entry.BasahLump - oldEntry.BasahLump
+				deltaSheet := entry.Sheet - oldEntry.Sheet
+				deltaBrCr := entry.BrCr - oldEntry.BrCr
+
+				detail.JumlahPabrikBasahLatek += deltaBasahLatex
+				detail.JumlahPabrikBasahLump += deltaBasahLump
+				detail.JumlahSheet += deltaSheet
+				detail.JumlahBrCr += deltaBrCr
+
+				fmt.Printf("  Delta - BasahLatex: %.2f, BasahLump: %.2f, Sheet: %.2f, BrCr: %.2f\n",
+					deltaBasahLatex, deltaBasahLump, deltaSheet, deltaBrCr)
+			}
 		}
 
 	case "delete":
-		fmt.Printf("DELETE: Mengurangi data untuk %s mandor %s\n", targetDate.Format("2006-01-02"), mandor.Mandor)
+		fmt.Printf("DELETE: Mengurangi data untuk %s mandor %s tipe %s\n", targetDate.Format("2006-01-02"), mandor.Mandor, entry.Tipe)
 		detail.JumlahPabrikBasahLatek -= entry.BasahLatex
 		detail.JumlahPabrikBasahLump -= entry.BasahLump
 		detail.JumlahSheet -= entry.Sheet
@@ -463,15 +538,15 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 	if err := config.DB.Save(&detail).Error; err != nil {
 		fmt.Printf("ERROR: Gagal menyimpan BakuDetail: %v\n", err)
 	} else {
-		fmt.Printf("SUCCESS: BakuDetail %s mandor %s terupdate\n",
-			targetDate.Format("2006-01-02"), mandor.Mandor)
+		fmt.Printf("SUCCESS: BakuDetail %s mandor %s tipe %s terupdate\n",
+			targetDate.Format("2006-01-02"), mandor.Mandor, detail.Tipe)
 		fmt.Printf("  - Pabrik Latex: %.2f | Kebun Latex: %.2f\n", detail.JumlahPabrikBasahLatek, detail.JumlahKebunBasahLatek)
 		fmt.Printf("  - Pabrik Lump: %.2f | Kebun Lump: %.2f\n", detail.JumlahPabrikBasahLump, detail.JumlahKebunBasahLump)
 	}
 }
 
-// RecalculateBakuDetail - Fungsi untuk hitung ulang BakuDetail berdasarkan tanggal dan mandor
-func RecalculateBakuDetail(tanggal time.Time, mandorID uint) error {
+// RecalculateBakuDetail - Fungsi untuk hitung ulang BakuDetail berdasarkan tanggal, mandor, dan tipe
+func RecalculateBakuDetail(tanggal time.Time, mandorID uint, tipe models.TipeProduksi) error {
 	targetDate := tanggal.Truncate(24 * time.Hour)
 
 	// Ambil data mandor
@@ -480,7 +555,7 @@ func RecalculateBakuDetail(tanggal time.Time, mandorID uint) error {
 		return fmt.Errorf("mandor tidak ditemukan: %v", err)
 	}
 
-	// Hitung ulang total dari semua BakuPenyadap untuk tanggal dan mandor tersebut
+	// Hitung ulang total dari semua BakuPenyadap untuk tanggal, mandor, dan tipe tersebut
 	var totals struct {
 		TotalBasahLatex float64
 		TotalSheet      float64
@@ -489,7 +564,7 @@ func RecalculateBakuDetail(tanggal time.Time, mandorID uint) error {
 	}
 
 	err := config.DB.Model(&models.BakuPenyadap{}).
-		Where("DATE(tanggal) = DATE(?) AND id_baku_mandor = ?", targetDate, mandorID).
+		Where("DATE(tanggal) = DATE(?) AND id_baku_mandor = ? AND tipe = ?", targetDate, mandorID, tipe).
 		Select(`
 			COALESCE(SUM(basah_latex), 0) as total_basah_latex,
 			COALESCE(SUM(sheet), 0) as total_sheet,
@@ -504,7 +579,7 @@ func RecalculateBakuDetail(tanggal time.Time, mandorID uint) error {
 
 	// Update atau create BakuDetail
 	var detail models.BakuDetail
-	err = config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ?", targetDate, mandor.Mandor).First(&detail).Error
+	err = config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ? AND tipe = ?", targetDate, mandor.Mandor, tipe).First(&detail).Error
 
 	if err != nil {
 		// Buat baru
@@ -512,6 +587,7 @@ func RecalculateBakuDetail(tanggal time.Time, mandorID uint) error {
 			Tanggal:  targetDate,
 			Mandor:   mandor.Mandor,
 			Afdeling: mandor.Afdeling,
+			Tipe:     tipe,
 		}
 	}
 
@@ -560,6 +636,7 @@ func ServeBakuPage(w http.ResponseWriter, r *http.Request) {
 		Title:        "Data Mandor & Penyadap",
 		MandorList:   mandor,
 		PenyadapList: penyadap,
+		TipeList:     models.GetAllTipeProduksi(), // BARU: Tambahkan list tipe
 	}
 
 	tmpl, err := template.New("baku.html").Funcs(templateFuncs).ParseFiles("templates/html/baku.html")
@@ -573,11 +650,13 @@ func ServeBakuPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ======== REPORTING FUNCTIONS ========
+// ======== REPORTING FUNCTIONS WITH TIPE SUPPORT ========
 
-// GetMandorSummaryAll - Get summary of all mandors for all time
+// GetMandorSummaryAll - Get summary of all mandors for all time with optional tipe filter
 func GetMandorSummaryAll(w http.ResponseWriter, r *http.Request) {
-	summaries, err := getMandorSummaries("")
+	tipeFilter := r.URL.Query().Get("tipe")
+
+	summaries, err := getMandorSummaries("", tipeFilter)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
@@ -586,13 +665,19 @@ func GetMandorSummaryAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	periode := "Semua waktu"
+	if tipeFilter != "" {
+		periode += " - Tipe: " + tipeFilter
+	}
+
 	response := ReportingResponse{
 		Success: true,
 		Message: "Data summary mandor berhasil diambil",
 		Data:    summaries,
 		FilterInfo: FilterInfo{
 			TotalRecord: len(summaries),
-			Periode:     "Semua waktu",
+			Periode:     periode,
+			Tipe:        models.TipeProduksi(tipeFilter),
 		},
 	}
 
@@ -600,9 +685,10 @@ func GetMandorSummaryAll(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// GetMandorSummaryByDate - Get mandor summary for specific date
+// GetMandorSummaryByDate - Get mandor summary for specific date with optional tipe filter
 func GetMandorSummaryByDate(w http.ResponseWriter, r *http.Request) {
 	tanggalStr := mux.Vars(r)["tanggal"]
+	tipeFilter := r.URL.Query().Get("tipe")
 
 	// Validasi format tanggal
 	if _, err := time.Parse("2006-01-02", tanggalStr); err != nil {
@@ -613,13 +699,18 @@ func GetMandorSummaryByDate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summaries, err := getMandorSummaries(tanggalStr)
+	summaries, err := getMandorSummaries(tanggalStr, tipeFilter)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
 			Message: "Gagal mengambil data summary: " + err.Error(),
 		})
 		return
+	}
+
+	periode := "Tanggal: " + tanggalStr
+	if tipeFilter != "" {
+		periode += " - Tipe: " + tipeFilter
 	}
 
 	response := ReportingResponse{
@@ -629,7 +720,8 @@ func GetMandorSummaryByDate(w http.ResponseWriter, r *http.Request) {
 		FilterInfo: FilterInfo{
 			Tanggal:     tanggalStr,
 			TotalRecord: len(summaries),
-			Periode:     "Tanggal: " + tanggalStr,
+			Periode:     periode,
+			Tipe:        models.TipeProduksi(tipeFilter),
 		},
 	}
 
@@ -637,9 +729,11 @@ func GetMandorSummaryByDate(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// GetPenyadapDetailAll - Get details of all penyadap for all time
+// GetPenyadapDetailAll - Get details of all penyadap for all time with optional tipe filter
 func GetPenyadapDetailAll(w http.ResponseWriter, r *http.Request) {
-	details, err := getPenyadapDetails("")
+	tipeFilter := r.URL.Query().Get("tipe")
+
+	details, err := getPenyadapDetails("", tipeFilter)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
@@ -655,9 +749,10 @@ func GetPenyadapDetailAll(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetPenyadapDetailByDate - Get penyadap details for specific date
+// GetPenyadapDetailByDate - Get penyadap details for specific date with optional tipe filter
 func GetPenyadapDetailByDate(w http.ResponseWriter, r *http.Request) {
 	tanggalStr := mux.Vars(r)["tanggal"]
+	tipeFilter := r.URL.Query().Get("tipe")
 
 	if _, err := time.Parse("2006-01-02", tanggalStr); err != nil {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
@@ -667,7 +762,7 @@ func GetPenyadapDetailByDate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	details, err := getPenyadapDetails(tanggalStr)
+	details, err := getPenyadapDetails(tanggalStr, tipeFilter)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
@@ -683,13 +778,14 @@ func GetPenyadapDetailByDate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ======== SEARCH FUNCTIONS ========
+// ======== SEARCH FUNCTIONS WITH TIPE SUPPORT ========
 
-// SearchMandorByName - Search mandor by name with optional date filter
+// SearchMandorByName - Search mandor by name with optional date and tipe filter
 func SearchMandorByName(w http.ResponseWriter, r *http.Request) {
 	// Query parameters
 	namaMandor := r.URL.Query().Get("nama")
 	tanggal := r.URL.Query().Get("tanggal")
+	tipeFilter := r.URL.Query().Get("tipe")
 
 	if namaMandor == "" {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
@@ -710,7 +806,16 @@ func SearchMandorByName(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	summaries, err := searchMandorSummaries(namaMandor, tanggal)
+	// Validasi tipe jika ada
+	if tipeFilter != "" && !models.IsValidTipeProduksi(models.TipeProduksi(tipeFilter)) {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Tipe produksi tidak valid",
+		})
+		return
+	}
+
+	summaries, err := searchMandorSummaries(namaMandor, tanggal, tipeFilter)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
@@ -723,6 +828,9 @@ func SearchMandorByName(w http.ResponseWriter, r *http.Request) {
 	if tanggal != "" {
 		periode = "Tanggal: " + tanggal
 	}
+	if tipeFilter != "" {
+		periode += " - Tipe: " + tipeFilter
+	}
 
 	response := ReportingResponse{
 		Success: true,
@@ -732,6 +840,7 @@ func SearchMandorByName(w http.ResponseWriter, r *http.Request) {
 			Tanggal:     tanggal,
 			TotalRecord: len(summaries),
 			Periode:     periode,
+			Tipe:        models.TipeProduksi(tipeFilter),
 		},
 	}
 
@@ -739,10 +848,11 @@ func SearchMandorByName(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// SearchPenyadapByName - Search penyadap by name with optional date filter
+// SearchPenyadapByName - Search penyadap by name with optional date and tipe filter
 func SearchPenyadapByName(w http.ResponseWriter, r *http.Request) {
 	namaPenyadap := r.URL.Query().Get("nama")
 	tanggal := r.URL.Query().Get("tanggal")
+	tipeFilter := r.URL.Query().Get("tipe")
 
 	if namaPenyadap == "" {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
@@ -763,7 +873,16 @@ func SearchPenyadapByName(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	details, err := searchPenyadapDetails(namaPenyadap, tanggal)
+	// Validasi tipe jika ada
+	if tipeFilter != "" && !models.IsValidTipeProduksi(models.TipeProduksi(tipeFilter)) {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Tipe produksi tidak valid",
+		})
+		return
+	}
+
+	details, err := searchPenyadapDetails(namaPenyadap, tanggal, tipeFilter)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
@@ -776,6 +895,9 @@ func SearchPenyadapByName(w http.ResponseWriter, r *http.Request) {
 	if tanggal != "" {
 		periode = "Tanggal: " + tanggal
 	}
+	if tipeFilter != "" {
+		periode += " - Tipe: " + tipeFilter
+	}
 
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
@@ -784,10 +906,11 @@ func SearchPenyadapByName(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetMandorWithPenyadapDetail - Get mandor details with all penyadap
+// GetMandorWithPenyadapDetail - Get mandor details with all penyadap, with optional tipe filter
 func GetMandorWithPenyadapDetail(w http.ResponseWriter, r *http.Request) {
 	namaMandor := r.URL.Query().Get("nama")
 	tanggal := r.URL.Query().Get("tanggal")
+	tipeFilter := r.URL.Query().Get("tipe")
 
 	if namaMandor == "" {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
@@ -807,7 +930,15 @@ func GetMandorWithPenyadapDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	summaries, err := searchMandorWithDetails(namaMandor, tanggal)
+	if tipeFilter != "" && !models.IsValidTipeProduksi(models.TipeProduksi(tipeFilter)) {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Tipe produksi tidak valid",
+		})
+		return
+	}
+
+	summaries, err := searchMandorWithDetails(namaMandor, tanggal, tipeFilter)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
@@ -820,6 +951,9 @@ func GetMandorWithPenyadapDetail(w http.ResponseWriter, r *http.Request) {
 	if tanggal != "" {
 		periode = "Tanggal: " + tanggal
 	}
+	if tipeFilter != "" {
+		periode += " - Tipe: " + tipeFilter
+	}
 
 	response := ReportingResponse{
 		Success: true,
@@ -829,6 +963,7 @@ func GetMandorWithPenyadapDetail(w http.ResponseWriter, r *http.Request) {
 			Tanggal:     tanggal,
 			TotalRecord: len(summaries),
 			Periode:     periode,
+			Tipe:        models.TipeProduksi(tipeFilter),
 		},
 	}
 
@@ -836,70 +971,9 @@ func GetMandorWithPenyadapDetail(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// SearchAll - Global search with various filters
-func SearchAll(w http.ResponseWriter, r *http.Request) {
-	searchType := r.URL.Query().Get("type") // "mandor" atau "penyadap"
-	nama := r.URL.Query().Get("nama")
-	tanggal := r.URL.Query().Get("tanggal")
-	afdeling := r.URL.Query().Get("afdeling")
-	tahunTanam := r.URL.Query().Get("tahun")
+// ======== HELPER FUNCTIONS WITH TIPE SUPPORT ========
 
-	if nama == "" {
-		respondJSON(w, http.StatusBadRequest, APIResponse{
-			Success: false,
-			Message: "Parameter 'nama' wajib diisi",
-		})
-		return
-	}
-
-	// Validasi tanggal jika ada
-	if tanggal != "" {
-		if _, err := time.Parse("2006-01-02", tanggal); err != nil {
-			respondJSON(w, http.StatusBadRequest, APIResponse{
-				Success: false,
-				Message: "Format tanggal tidak valid. Gunakan format YYYY-MM-DD",
-			})
-			return
-		}
-	}
-
-	var result interface{}
-	var err error
-
-	switch searchType {
-	case "mandor":
-		result, err = advancedSearchMandor(nama, tanggal, afdeling, tahunTanam)
-	case "penyadap":
-		result, err = advancedSearchPenyadap(nama, tanggal, afdeling)
-	default:
-		// Auto detect berdasarkan hasil pencarian
-		mandorResult, _ := advancedSearchMandor(nama, tanggal, afdeling, tahunTanam)
-		penyadapResult, _ := advancedSearchPenyadap(nama, tanggal, afdeling)
-
-		result = map[string]interface{}{
-			"mandor":   mandorResult,
-			"penyadap": penyadapResult,
-		}
-	}
-
-	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, APIResponse{
-			Success: false,
-			Message: "Gagal melakukan pencarian: " + err.Error(),
-		})
-		return
-	}
-
-	respondJSON(w, http.StatusOK, APIResponse{
-		Success: true,
-		Message: "Pencarian berhasil",
-		Data:    result,
-	})
-}
-
-// ======== HELPER FUNCTIONS ========
-
-func getMandorSummaries(tanggal string) ([]MandorSummary, error) {
+func getMandorSummaries(tanggal, tipeFilter string) ([]MandorSummary, error) {
 	var mandors []models.BakuMandor
 	if err := config.DB.Find(&mandors).Error; err != nil {
 		return nil, err
@@ -921,6 +995,11 @@ func getMandorSummaries(tanggal string) ([]MandorSummary, error) {
 
 		if tanggal != "" {
 			query = query.Where("DATE(tanggal) = DATE(?)", tanggal)
+		}
+
+		if tipeFilter != "" {
+			query = query.Where("tipe = ?", tipeFilter)
+			summary.Tipe = models.TipeProduksi(tipeFilter)
 		}
 
 		var results []struct {
@@ -957,24 +1036,29 @@ func getMandorSummaries(tanggal string) ([]MandorSummary, error) {
 	return summaries, nil
 }
 
-// getPenyadapDetails - DIPERBAIKI: Menggunakan BakuDetail yang sudah akurat
-func getPenyadapDetails(tanggal string) ([]PenyadapDetail, error) {
-	// Jika ada filter tanggal, ambil dari baku_detail berdasarkan tanggal dan mandor
+// getPenyadapDetails - Updated with tipe support
+func getPenyadapDetails(tanggal, tipeFilter string) ([]PenyadapDetail, error) {
+	// Jika ada filter tanggal, ambil dari baku_detail berdasarkan tanggal, mandor, dan tipe
 	if tanggal != "" {
 		targetDate, err := time.Parse("2006-01-02", tanggal)
 		if err != nil {
 			return nil, err
 		}
 
-		// Ambil semua BakuDetail untuk tanggal tersebut (semua mandor)
+		// Ambil semua BakuDetail untuk tanggal tersebut
 		var bakuDetails []models.BakuDetail
-		err = config.DB.Where("DATE(tanggal) = DATE(?)", targetDate).Find(&bakuDetails).Error
+		query := config.DB.Where("DATE(tanggal) = DATE(?)", targetDate)
+
+		if tipeFilter != "" {
+			query = query.Where("tipe = ?", tipeFilter)
+		}
+
+		err = query.Find(&bakuDetails).Error
 		if err != nil {
 			return nil, err
 		}
 
 		if len(bakuDetails) == 0 {
-			// Tidak ada data untuk tanggal ini
 			return []PenyadapDetail{}, nil
 		}
 
@@ -982,14 +1066,15 @@ func getPenyadapDetails(tanggal string) ([]PenyadapDetail, error) {
 
 		// Untuk setiap mandor yang ada di BakuDetail
 		for _, bakuDetail := range bakuDetails {
-			// Ambil daftar penyadap yang aktif untuk mandor dan tanggal tersebut
-			query := `
+			// Ambil daftar penyadap yang aktif untuk mandor, tanggal, dan tipe tersebut
+			queryPenyadap := `
 				SELECT DISTINCT
 					p.id,
 					p.nama_penyadap,
 					p.nik,
 					bm.mandor,
 					bm.afdeling,
+					bp.tipe,
 					COUNT(bp.id) as jumlah_hari_kerja
 				FROM penyadaps p
 				INNER JOIN baku_penyadaps bp ON p.id = bp.id_penyadap
@@ -997,12 +1082,13 @@ func getPenyadapDetails(tanggal string) ([]PenyadapDetail, error) {
 				WHERE bp.deleted_at IS NULL 
 				AND DATE(bp.tanggal) = DATE(?)
 				AND bm.mandor = ?
-				GROUP BY p.id, p.nama_penyadap, p.nik, bm.mandor, bm.afdeling
+				AND bp.tipe = ?
+				GROUP BY p.id, p.nama_penyadap, p.nik, bm.mandor, bm.afdeling, bp.tipe
 				ORDER BY p.nama_penyadap
 			`
 
 			var mandorDetails []PenyadapDetail
-			err = config.DB.Raw(query, targetDate, bakuDetail.Mandor).Scan(&mandorDetails).Error
+			err = config.DB.Raw(queryPenyadap, targetDate, bakuDetail.Mandor, bakuDetail.Tipe).Scan(&mandorDetails).Error
 			if err != nil {
 				return nil, err
 			}
@@ -1032,6 +1118,7 @@ func getPenyadapDetails(tanggal string) ([]PenyadapDetail, error) {
 			p.id,
 			p.nama_penyadap,
 			p.nik,
+			bp.tipe,
 			COALESCE(SUM(bp.basah_latex), 0) as total_basah_latex,
 			COALESCE(SUM(bp.sheet), 0) as total_sheet,
 			COALESCE(SUM(bp.basah_lump), 0) as total_basah_lump,
@@ -1040,19 +1127,25 @@ func getPenyadapDetails(tanggal string) ([]PenyadapDetail, error) {
 		FROM penyadaps p
 		LEFT JOIN baku_penyadaps bp ON p.id = bp.id_penyadap
 		WHERE bp.deleted_at IS NULL
-		GROUP BY p.id, p.nama_penyadap, p.nik 
-		ORDER BY p.nama_penyadap
 	`
 
+	args := []interface{}{}
+	if tipeFilter != "" {
+		query += " AND bp.tipe = ?"
+		args = append(args, tipeFilter)
+	}
+
+	query += " GROUP BY p.id, p.nama_penyadap, p.nik, bp.tipe ORDER BY p.nama_penyadap"
+
 	var details []PenyadapDetail
-	if err := config.DB.Raw(query).Scan(&details).Error; err != nil {
+	if err := config.DB.Raw(query, args...).Scan(&details).Error; err != nil {
 		return nil, err
 	}
 
 	return details, nil
 }
 
-func searchMandorSummaries(namaMandor, tanggal string) ([]MandorSummary, error) {
+func searchMandorSummaries(namaMandor, tanggal, tipeFilter string) ([]MandorSummary, error) {
 	var mandors []models.BakuMandor
 	query := config.DB.Where("mandor LIKE ?", "%"+namaMandor+"%")
 
@@ -1076,6 +1169,11 @@ func searchMandorSummaries(namaMandor, tanggal string) ([]MandorSummary, error) 
 
 		if tanggal != "" {
 			bakuQuery = bakuQuery.Where("DATE(tanggal) = DATE(?)", tanggal)
+		}
+
+		if tipeFilter != "" {
+			bakuQuery = bakuQuery.Where("tipe = ?", tipeFilter)
+			summary.Tipe = models.TipeProduksi(tipeFilter)
 		}
 
 		var results []struct {
@@ -1112,7 +1210,7 @@ func searchMandorSummaries(namaMandor, tanggal string) ([]MandorSummary, error) 
 	return summaries, nil
 }
 
-func searchPenyadapDetails(namaPenyadap, tanggal string) ([]PenyadapDetail, error) {
+func searchPenyadapDetails(namaPenyadap, tanggal, tipeFilter string) ([]PenyadapDetail, error) {
 	query := `
 		SELECT 
 			p.id,
@@ -1120,6 +1218,7 @@ func searchPenyadapDetails(namaPenyadap, tanggal string) ([]PenyadapDetail, erro
 			p.nik,
 			bm.mandor,
 			bm.afdeling,
+			bp.tipe,
 			COALESCE(SUM(bp.basah_latex), 0) as total_basah_latex,
 			COALESCE(SUM(bp.sheet), 0) as total_sheet,
 			COALESCE(SUM(bp.basah_lump), 0) as total_basah_lump,
@@ -1132,12 +1231,18 @@ func searchPenyadapDetails(namaPenyadap, tanggal string) ([]PenyadapDetail, erro
 	`
 
 	args := []interface{}{"%" + namaPenyadap + "%"}
+
 	if tanggal != "" {
 		query += " AND DATE(bp.tanggal) = DATE(?)"
 		args = append(args, tanggal)
 	}
 
-	query += " GROUP BY p.id, p.nama_penyadap, p.nik, bm.mandor, bm.afdeling ORDER BY p.nama_penyadap"
+	if tipeFilter != "" {
+		query += " AND bp.tipe = ?"
+		args = append(args, tipeFilter)
+	}
+
+	query += " GROUP BY p.id, p.nama_penyadap, p.nik, bm.mandor, bm.afdeling, bp.tipe ORDER BY p.nama_penyadap"
 
 	var details []PenyadapDetail
 	if err := config.DB.Raw(query, args...).Scan(&details).Error; err != nil {
@@ -1147,7 +1252,7 @@ func searchPenyadapDetails(namaPenyadap, tanggal string) ([]PenyadapDetail, erro
 	return details, nil
 }
 
-func searchMandorWithDetails(namaMandor, tanggal string) ([]MandorSummary, error) {
+func searchMandorWithDetails(namaMandor, tanggal, tipeFilter string) ([]MandorSummary, error) {
 	var mandors []models.BakuMandor
 	query := config.DB.Where("mandor LIKE ?", "%"+namaMandor+"%")
 
@@ -1171,6 +1276,11 @@ func searchMandorWithDetails(namaMandor, tanggal string) ([]MandorSummary, error
 
 		if tanggal != "" {
 			bakuQuery = bakuQuery.Where("DATE(tanggal) = DATE(?)", tanggal)
+		}
+
+		if tipeFilter != "" {
+			bakuQuery = bakuQuery.Where("tipe = ?", tipeFilter)
+			summary.Tipe = models.TipeProduksi(tipeFilter)
 		}
 
 		var results []struct {
@@ -1207,6 +1317,7 @@ func searchMandorWithDetails(namaMandor, tanggal string) ([]MandorSummary, error
 				p.id,
 				p.nama_penyadap,
 				p.nik,
+				bp.tipe,
 				COALESCE(SUM(bp.basah_latex), 0) as total_basah_latex,
 				COALESCE(SUM(bp.sheet), 0) as total_sheet,
 				COALESCE(SUM(bp.basah_lump), 0) as total_basah_lump,
@@ -1218,12 +1329,18 @@ func searchMandorWithDetails(namaMandor, tanggal string) ([]MandorSummary, error
 		`
 
 		penyadapArgs := []interface{}{mandor.ID}
+
 		if tanggal != "" {
 			penyadapQuery += " AND DATE(bp.tanggal) = DATE(?)"
 			penyadapArgs = append(penyadapArgs, tanggal)
 		}
 
-		penyadapQuery += " GROUP BY p.id, p.nama_penyadap, p.nik ORDER BY p.nama_penyadap"
+		if tipeFilter != "" {
+			penyadapQuery += " AND bp.tipe = ?"
+			penyadapArgs = append(penyadapArgs, tipeFilter)
+		}
+
+		penyadapQuery += " GROUP BY p.id, p.nama_penyadap, p.nik, bp.tipe ORDER BY p.nama_penyadap"
 
 		var penyadapDetails []PenyadapDetail
 		if err := config.DB.Raw(penyadapQuery, penyadapArgs...).Scan(&penyadapDetails).Error; err != nil {
@@ -1237,7 +1354,8 @@ func searchMandorWithDetails(namaMandor, tanggal string) ([]MandorSummary, error
 	return summaries, nil
 }
 
-func advancedSearchMandor(nama, tanggal, afdeling, tahunTanam string) ([]MandorSummary, error) {
+// Advanced search functions with tipe support
+func advancedSearchMandor(nama, tanggal, afdeling, tahunTanam, tipeFilter string) ([]MandorSummary, error) {
 	query := config.DB.Where("mandor LIKE ?", "%"+nama+"%")
 
 	if afdeling != "" {
@@ -1270,6 +1388,11 @@ func advancedSearchMandor(nama, tanggal, afdeling, tahunTanam string) ([]MandorS
 			bakuQuery = bakuQuery.Where("DATE(tanggal) = DATE(?)", tanggal)
 		}
 
+		if tipeFilter != "" {
+			bakuQuery = bakuQuery.Where("tipe = ?", tipeFilter)
+			summary.Tipe = models.TipeProduksi(tipeFilter)
+		}
+
 		var result struct {
 			TotalBasahLatex float64
 			TotalSheet      float64
@@ -1300,6 +1423,7 @@ func advancedSearchMandor(nama, tanggal, afdeling, tahunTanam string) ([]MandorS
 				p.id,
 				p.nama_penyadap,
 				p.nik,
+				bp.tipe,
 				COALESCE(SUM(bp.basah_latex), 0) as total_basah_latex,
 				COALESCE(SUM(bp.sheet), 0) as total_sheet,
 				COALESCE(SUM(bp.basah_lump), 0) as total_basah_lump,
@@ -1311,12 +1435,18 @@ func advancedSearchMandor(nama, tanggal, afdeling, tahunTanam string) ([]MandorS
 		`
 
 		args := []interface{}{mandor.ID}
+
 		if tanggal != "" {
 			penyadapQuery += " AND DATE(bp.tanggal) = DATE(?)"
 			args = append(args, tanggal)
 		}
 
-		penyadapQuery += " GROUP BY p.id, p.nama_penyadap, p.nik ORDER BY p.nama_penyadap"
+		if tipeFilter != "" {
+			penyadapQuery += " AND bp.tipe = ?"
+			args = append(args, tipeFilter)
+		}
+
+		penyadapQuery += " GROUP BY p.id, p.nama_penyadap, p.nik, bp.tipe ORDER BY p.nama_penyadap"
 
 		var penyadapDetails []PenyadapDetail
 		if err := config.DB.Raw(penyadapQuery, args...).Scan(&penyadapDetails).Error; err != nil {
@@ -1335,7 +1465,8 @@ func advancedSearchMandor(nama, tanggal, afdeling, tahunTanam string) ([]MandorS
 
 	return summaries, nil
 }
-func advancedSearchPenyadap(nama, tanggal, afdeling string) ([]PenyadapDetail, error) {
+
+func advancedSearchPenyadap(nama, tanggal, afdeling, tipeFilter string) ([]PenyadapDetail, error) {
 	query := `
 		SELECT 
 			p.id,
@@ -1343,6 +1474,7 @@ func advancedSearchPenyadap(nama, tanggal, afdeling string) ([]PenyadapDetail, e
 			p.nik,
 			bm.mandor,
 			bm.afdeling,
+			bp.tipe,
 			COALESCE(SUM(bp.basah_latex), 0) as total_basah_latex,
 			COALESCE(SUM(bp.sheet), 0) as total_sheet,
 			COALESCE(SUM(bp.basah_lump), 0) as total_basah_lump,
@@ -1369,7 +1501,13 @@ func advancedSearchPenyadap(nama, tanggal, afdeling string) ([]PenyadapDetail, e
 		args = append(args, "%"+afdeling+"%")
 	}
 
-	query += " GROUP BY p.id, p.nama_penyadap, p.nik, bm.mandor, bm.afdeling ORDER BY p.nama_penyadap"
+	// Filter tipe
+	if tipeFilter != "" {
+		query += " AND bp.tipe = ?"
+		args = append(args, tipeFilter)
+	}
+
+	query += " GROUP BY p.id, p.nama_penyadap, p.nik, bm.mandor, bm.afdeling, bp.tipe ORDER BY p.nama_penyadap"
 
 	var details []PenyadapDetail
 	if err := config.DB.Raw(query, args...).Scan(&details).Error; err != nil {
@@ -1377,4 +1515,125 @@ func advancedSearchPenyadap(nama, tanggal, afdeling string) ([]PenyadapDetail, e
 	}
 
 	return details, nil
+}
+
+// SearchAll - Global search with tipe support
+func SearchAll(w http.ResponseWriter, r *http.Request) {
+	searchType := r.URL.Query().Get("type") // "mandor" atau "penyadap"
+	nama := r.URL.Query().Get("nama")
+	tanggal := r.URL.Query().Get("tanggal")
+	afdeling := r.URL.Query().Get("afdeling")
+	tahunTanam := r.URL.Query().Get("tahun")
+	tipeFilter := r.URL.Query().Get("tipe")
+
+	if nama == "" {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Parameter 'nama' wajib diisi",
+		})
+		return
+	}
+
+	// Validasi tanggal jika ada
+	if tanggal != "" {
+		if _, err := time.Parse("2006-01-02", tanggal); err != nil {
+			respondJSON(w, http.StatusBadRequest, APIResponse{
+				Success: false,
+				Message: "Format tanggal tidak valid. Gunakan format YYYY-MM-DD",
+			})
+			return
+		}
+	}
+
+	// Validasi tipe jika ada
+	if tipeFilter != "" && !models.IsValidTipeProduksi(models.TipeProduksi(tipeFilter)) {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Tipe produksi tidak valid",
+		})
+		return
+	}
+
+	var result interface{}
+	var err error
+
+	switch searchType {
+	case "mandor":
+		result, err = advancedSearchMandor(nama, tanggal, afdeling, tahunTanam, tipeFilter)
+	case "penyadap":
+		result, err = advancedSearchPenyadap(nama, tanggal, afdeling, tipeFilter)
+	default:
+		// Auto detect berdasarkan hasil pencarian
+		mandorResult, _ := advancedSearchMandor(nama, tanggal, afdeling, tahunTanam, tipeFilter)
+		penyadapResult, _ := advancedSearchPenyadap(nama, tanggal, afdeling, tipeFilter)
+
+		result = map[string]interface{}{
+			"mandor":   mandorResult,
+			"penyadap": penyadapResult,
+		}
+	}
+
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Message: "Gagal melakukan pencarian: " + err.Error(),
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Message: "Pencarian berhasil",
+		Data:    result,
+	})
+}
+
+// GetBakuPenyadapByID - Get single penyadap record by ID
+func GetBakuPenyadapByID(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	var penyadap models.BakuPenyadap
+	if err := config.DB.First(&penyadap, id).Error; err != nil {
+		respondJSON(w, http.StatusNotFound, APIResponse{
+			Success: false,
+			Message: "Data penyadap tidak ditemukan",
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Message: "Data penyadap berhasil ditemukan",
+		Data:    penyadap,
+	})
+}
+
+// DeleteBakuPenyadap - Delete penyadap record by ID
+func DeleteBakuPenyadap(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	var penyadap models.BakuPenyadap
+	if err := config.DB.First(&penyadap, id).Error; err != nil {
+		respondJSON(w, http.StatusNotFound, APIResponse{
+			Success: false,
+			Message: "Data penyadap tidak ditemukan",
+		})
+		return
+	}
+
+	if err := config.DB.Delete(&penyadap).Error; err != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Message: "Gagal menghapus data penyadap: " + err.Error(),
+		})
+		return
+	}
+
+	// Update detail harian setelah delete
+	updateBakuDetail(penyadap, "delete", nil)
+
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Message: "Data penyadap berhasil dihapus",
+	})
 }

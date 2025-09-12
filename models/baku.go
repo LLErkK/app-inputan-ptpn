@@ -6,6 +6,41 @@ import (
 	"gorm.io/gorm"
 )
 
+// Enum untuk tipe produksi
+type TipeProduksi string
+
+const (
+	TipeBaku         TipeProduksi = "BAKU"
+	TipeBakuBorong   TipeProduksi = "BAKU_BORONG"
+	TipeBorgExternal TipeProduksi = "BORONG_EXTERNAL"
+	TipeBorgInternal TipeProduksi = "BORONG_INTERNAL"
+	TipeTetesLanjut  TipeProduksi = "TETES_LANJUT"
+	TipeBorgMinggu   TipeProduksi = "BORONG_MINGGU"
+)
+
+// GetAllTipeProduksi returns all available production types
+func GetAllTipeProduksi() []TipeProduksi {
+	return []TipeProduksi{
+		TipeBaku,
+		TipeBakuBorong,
+		TipeBorgExternal,
+		TipeBorgInternal,
+		TipeTetesLanjut,
+		TipeBorgMinggu,
+	}
+}
+
+// IsValidTipeProduksi checks if the given type is valid
+func IsValidTipeProduksi(tipe TipeProduksi) bool {
+	validTypes := GetAllTipeProduksi()
+	for _, validType := range validTypes {
+		if tipe == validType {
+			return true
+		}
+	}
+	return false
+}
+
 type BakuMandor struct {
 	ID         uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	TahunTanam uint   `gorm:"not null" json:"tahun_tanam"`
@@ -33,10 +68,11 @@ type Penyadap struct {
 }
 
 type BakuPenyadap struct {
-	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	IdBakuMandor uint64    `gorm:"not null;index" json:"idBakuMandor"` // FK ke Mandor
-	IdPenyadap   uint64    `gorm:"not null;index" json:"idPenyadap"`   // FK ke master Penyadap
-	Tanggal      time.Time `gorm:"not null;index" json:"tanggal"`
+	ID           uint         `gorm:"primaryKey;autoIncrement" json:"id"`
+	IdBakuMandor uint64       `gorm:"not null;index" json:"idBakuMandor"`
+	IdPenyadap   uint64       `gorm:"not null;index" json:"idPenyadap"`
+	Tanggal      time.Time    `gorm:"not null;index" json:"tanggal"`
+	Tipe         TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"`
 
 	BasahLatex float64 `gorm:"default:0" json:"basahLatex"`
 	Sheet      float64 `gorm:"default:0" json:"sheet"`
@@ -47,18 +83,16 @@ type BakuPenyadap struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
-	// Relasi ke Mandor
-	Mandor BakuMandor `gorm:"foreignKey:IdBakuMandor;references:ID" json:"mandor"`
-	// Relasi ke Penyadap
-	Penyadap Penyadap `gorm:"foreignKey:IdPenyadap;references:ID" json:"penyadap"`
+	Mandor   BakuMandor `gorm:"foreignKey:IdBakuMandor;references:ID" json:"mandor"`
+	Penyadap Penyadap   `gorm:"foreignKey:IdPenyadap;references:ID" json:"penyadap"`
 }
-
 type BakuDetail struct {
 	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
 
-	Tanggal  time.Time `gorm:"not null;index" json:"tanggal"`
-	Mandor   string    `gorm:"size:100;not null;index" json:"mandor"` // BARU: Nama mandor
-	Afdeling string    `gorm:"size:100;not null" json:"afdeling"`     // BARU: Afdeling
+	Tanggal  time.Time    `gorm:"not null;index" json:"tanggal"`
+	Mandor   string       `gorm:"size:100;not null;index" json:"mandor"` // Nama mandor
+	Afdeling string       `gorm:"size:100;not null" json:"afdeling"`     // Afdeling
+	Tipe     TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"`
 
 	JumlahPabrikBasahLatek      float64 `gorm:"default:0" json:"jumlah_pabrik_basah_latek"`
 	JumlahKebunBasahLatek       float64 `gorm:"default:0" json:"jumlah_kebun_basah_latek"`
@@ -90,6 +124,10 @@ func (BakuDetail) TableName() string {
 func (bd *BakuDetail) BeforeCreate(tx *gorm.DB) error {
 	// Memastikan tanggal disimpan tanpa timestamp jam
 	bd.Tanggal = bd.Tanggal.Truncate(24 * time.Hour)
+	// Set default tipe jika kosong
+	if bd.Tipe == "" {
+		bd.Tipe = TipeBaku
+	}
 	return nil
 }
 
@@ -97,5 +135,14 @@ func (bd *BakuDetail) BeforeCreate(tx *gorm.DB) error {
 func (bd *BakuDetail) BeforeUpdate(tx *gorm.DB) error {
 	// Memastikan tanggal disimpan tanpa timestamp jam
 	bd.Tanggal = bd.Tanggal.Truncate(24 * time.Hour)
+	return nil
+}
+
+// BeforeCreate hook untuk BakuPenyadap
+func (bp *BakuPenyadap) BeforeCreate(tx *gorm.DB) error {
+	// Set default tipe jika kosong
+	if bp.Tipe == "" {
+		bp.Tipe = TipeBaku
+	}
 	return nil
 }
