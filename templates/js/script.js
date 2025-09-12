@@ -36,6 +36,15 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
     }
 });
 
+document.addEventListener('DOMContentLoaded', function() {
+    var btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', function() {
+            window.top.location.href = '/logout';
+        });
+    }
+});
+
 // 👁️ Toggle Password
 document.getElementById("togglePassword").addEventListener("click", function() {
     const passwordField = document.getElementById("password");

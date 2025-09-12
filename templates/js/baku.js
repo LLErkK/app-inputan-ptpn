@@ -1,4 +1,20 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // Tampilkan tabel data produksi baku saat tombol diklik
+    setTimeout(function() {
+        const showBakuTableBtn = document.getElementById("showBakuTableBtn");
+        const bakuTableWrapper = document.getElementById("bakuTableWrapper");
+        if (showBakuTableBtn && bakuTableWrapper) {
+            showBakuTableBtn.addEventListener("click", function() {
+                if (bakuTableWrapper.style.display === "none" || bakuTableWrapper.style.display === "") {
+                    bakuTableWrapper.style.display = "block";
+                    showBakuTableBtn.textContent = "Sembunyikan Data Produksi Baku";
+                } else {
+                    bakuTableWrapper.style.display = "none";
+                    showBakuTableBtn.textContent = "Tampilkan Data Produksi Baku";
+                }
+            });
+        }
+    }, 0);
     // === POPUP MANDOR ===
     const tambahMandorBtn = document.getElementById("tambahMandor");
     const popupMandor = document.getElementById("popupMandor");
@@ -50,7 +66,64 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
     const form = document.getElementById("bakuForm");
-    const tableBody = document.querySelector("#bakuTable tbody");
+    const tableBody = document.querySelector("#bakuTableData tbody");
+    // Fungsi untuk menampilkan tabel sesuai mandor yang dipilih
+    function renderMandorTables(dataArr) {
+        const wrapper = document.getElementById('bakuTableWrapper');
+        wrapper.innerHTML = '';
+        // Kelompokkan data berdasarkan mandor
+        const mandorGroups = {};
+        dataArr.forEach(item => {
+            const mandorName = item.mandor ? item.mandor.mandor : '-';
+            if (!mandorGroups[mandorName]) mandorGroups[mandorName] = [];
+            mandorGroups[mandorName].push(item);
+        });
+        Object.keys(mandorGroups).forEach(mandorName => {
+            const table = document.createElement('table');
+            table.className = 'baku-table';
+            table.innerHTML = `
+                <caption style="font-weight:bold; text-align:left; margin-bottom:8px; color:#0093E9;">Mandor: ${mandorName}</caption>
+                <thead>
+                    <tr>
+                        <th>NIK</th>
+                        <th>Penyadap</th>
+                        <th>Basah Latek</th>
+                        <th>Basah Lump</th>
+                        <th>Sheet</th>
+                        <th>Br.Cr</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+            const tbody = table.querySelector('tbody');
+            mandorGroups[mandorName].forEach((item, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.penyadap ? item.penyadap.nik : '-'}</td>
+                    <td>${item.penyadap ? item.penyadap.nama_penyadap : '-'}</td>
+                    <td>${item.basahLatex}</td>
+                    <td>${item.basahLump}</td>
+                    <td>${item.sheet}</td>
+                    <td>${item.brCr}</td>
+                    <td>
+                        <button class="action-btn update update-btn" data-idx="${idx}" title="Update">
+                            <span class="action-icon"> 
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0093E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                            </span>
+                        </button>
+                        <button class="action-btn delete delete-btn" data-idx="${idx}" title="Delete">
+                            <span class="action-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            </span>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            wrapper.appendChild(table);
+        });
+    }
 
     const inputNama = document.getElementById("namaPenyadap");
     const inputNik = document.getElementById("nik");
@@ -150,33 +223,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-                        tableBody.innerHTML = "";
-                        data.data.forEach((item, idx) => {
-                                const tr = document.createElement("tr");
-                                tr.innerHTML = `
-                    <td>${item.mandor ? item.mandor.mandor : "-"}</td>
-                    <td>${item.penyadap ? item.penyadap.nik : "-"}</td>
-                    <td>${item.penyadap ? item.penyadap.nama_penyadap : "-"}</td>
-                    <td>${item.basahLatex}</td>
-                    <td>${item.basahLump}</td>
-                    <td>${item.sheet}</td>
-                    <td>${item.brCr}</td>
-                    <td>
-                        <button class="action-btn update update-btn" data-idx="${idx}" title="Update">
-                            <span class="action-icon"> 
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0093E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
-                            </span>
-                        </button>
-                        <button class="action-btn delete delete-btn" data-idx="${idx}" title="Delete">
-                            <span class="action-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                            </span>
-                        </button>
-                    </td>
-                `;
-                                tableBody.appendChild(tr);
-                        });
-                        addActionListeners(data.data);
+    renderMandorTables(data.data);
+    addActionListeners(data.data);
     // Tambahkan event handler untuk tombol update dan delete
     function addActionListeners(dataArr) {
         document.querySelectorAll('.update-btn').forEach(btn => {

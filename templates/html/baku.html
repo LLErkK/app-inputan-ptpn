@@ -65,8 +65,8 @@
     </div>
 
     <form class="baku-form" id="bakuForm">
-        <div class="form-row">
-            <div class="form-group" style="grid-column: span 2;">
+    <div class="form-row">
+            <div class="form-group">
                 <label for="mandor">NAMA Mandor</label>
                 <div style="display:flex; flex-direction:row; gap:8px; align-items:center;">
                     <select id="mandor" name="idBakuMandor" required style="width:100%;">
@@ -80,6 +80,19 @@
                     </button>
                 </div>
             </div>
+            <div class="form-group">
+                <label for="jenis">Jenis</label>
+                <select id="jenis" name="jenis" required style="width:100%;">
+                    <option value="">-- Pilih Jenis --</option>
+                    <option value="Lateks">Baku</option>
+                    <option value="Lump">Baku Borong</option>
+                    <option value="Sheet">Borong Eksternal</option>
+                    <option value="BrCr">Borong Minggu</option>
+                    <option value="BrCr">Borong Internal</option>
+                    <option value="BrCr">Tetes Lanjut</option>
+                </select>
+            </div>
+            <div></div>
         </div>
 
         <div class="form-row">
@@ -123,26 +136,32 @@
     </form>
 
     <div class="baku-table-container">
-        <h2>Data Produksi Baku</h2>
-        <table class="baku-table" id="bakuTable">
+        <h2>Ringkasan Mandor & Kebun</h2>
+        <table class="baku-table" id="summaryTable">
             <thead>
-            <tr>
-                <th>Mandor</th>
-                <th>NIK</th>
-                <th>Penyadap</th>
-                <th>Basah Latek</th>
-                <th>Basah Lump</th>
-                <th>Jumlah Sheet</th>
-                <th>Br.Cr</th>
-                <th>Action</th>
-            </tr>
+                <tr>
+                    <th>Mandor</th>
+                    <th>Jumlah Pabrik Basah Latek</th>
+                    <th>Jumlah Kebun Basah Latek</th>
+                    <th>Jumlah Sheet</th>
+                    <th>K3 Sheet</th>
+                    <th>Jumlah Pabrik Basah Lump</th>
+                    <th>Jumlah Kebun Basah Lump</th>
+                    <th>Jumlah Br_Cr</th>
+                    <th>K3 Br_Cr</th>
+                </tr>
             </thead>
             <tbody>
-            <!-- Data akan diisi oleh JS -->
+                <!-- Data ringkasan mandor akan diisi oleh JS -->
             </tbody>
         </table>
+        <button id="showBakuTableBtn" style="margin:16px 0; background:#0093E9; color:#fff; border:none; border-radius:6px; padding:8px 20px; font-weight:600; cursor:pointer;">Tampilkan Data Produksi Baku</button>
+        <div id="bakuTableWrapper" style="display:none;">
+           
+        </div>
     </div>
 </div>
 </body>
 <script src="../js/baku.js"></script>
+<script src="../js/script.js"></script>
 </html>
