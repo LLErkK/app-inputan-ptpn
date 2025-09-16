@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-// SetupRoutes mengatur semua routing aplikasi
+// SetupRoutes mengatur semua routing aplikasi dengan dukungan filter range tanggal
 func SetupRoutes() {
 	r := mux.NewRouter()
 
@@ -41,21 +41,25 @@ func SetupRoutes() {
 	// ================== NEW: TIPE PRODUKSI API ==================
 	protected.HandleFunc("/api/tipe-produksi", controllers.GetTipeProduksiList).Methods("GET")
 
-	// ================== BAKU API (CRUD JSON) ==================
-	// PENTING: Route spesifik HARUS didefinisikan SEBELUM route dengan parameter!
-
-	// BAKU DETAIL API - HARUS SEBELUM /api/baku/{id}
-	// Support query parameter: ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT
+	// ================== ENHANCED BAKU DETAIL API WITH DATE RANGE ==================
+	// Support query parameters:
+	// - ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT|BORONG_MINGGU
+	// - ?tanggal_mulai=YYYY-MM-DD&tanggal_selesai=YYYY-MM-DD
 	protected.HandleFunc("/api/baku/detail", controllers.GetAllBakuDetail).Methods("GET")
+	protected.HandleFunc("/api/baku/detail/range", controllers.GetBakuDetailByDateRange).Methods("GET")
 	protected.HandleFunc("/api/baku/detail/{tanggal}", controllers.GetBakuDetailByDate).Methods("GET")
 
-	// ================== BAKU PENYADAP CRUD - Setelah route detail ==================
-	// Support query parameter: ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT
+	// ================== ENHANCED BAKU PENYADAP CRUD WITH DATE RANGE ==================
+	// Support query parameters:
+	// - ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT|BORONG_MINGGU
+	// - ?tanggal_mulai=YYYY-MM-DD&tanggal_selesai=YYYY-MM-DD
 	protected.HandleFunc("/api/baku", controllers.GetAllBakuPenyadap).Methods("GET")
+	//protected.HandleFunc("/api/baku", controllers.GetBakuPenyadapByDate).Methods("GET")
 	protected.HandleFunc("/api/baku", controllers.CreateBakuPenyadap).Methods("POST")
-	protected.HandleFunc("/api/baku/{id}", controllers.GetBakuPenyadapByID).Methods("GET") // pastikan ada di controller
+	protected.HandleFunc("/api/baku/{id}", controllers.GetBakuPenyadapByID).Methods("GET")
 	protected.HandleFunc("/api/baku/{id}", controllers.UpdateBakuPenyadap).Methods("PUT")
-	protected.HandleFunc("/api/baku/{id}", controllers.DeleteBakuPenyadap).Methods("DELETE") // ganti Delete -> DeleteBakuPenyadap
+	protected.HandleFunc("/api/baku/{id}", controllers.DeleteBakuPenyadap).Methods("DELETE")
+	protected.HandleFunc("/api/baku/rekap/today", controllers.GetBakuPenyadapToday).Methods("GET")
 
 	// ================== MANDOR API (CRUD) ==================
 	protected.HandleFunc("/api/mandor", controllers.GetAllMandor).Methods("GET")
@@ -64,32 +68,51 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/mandor/{id}", controllers.UpdateMandor).Methods("PUT")
 	protected.HandleFunc("/api/mandor/{id}", controllers.DeleteMandor).Methods("DELETE")
 
-	// ================== REPORTING API WITH TIPE SUPPORT ==================
+	// ================== ENHANCED REPORTING API WITH DATE RANGE SUPPORT ==================
 	// Summary Mandor (total dari semua penyadap)
-	// Support query parameter: ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT
+	// Support query parameters:
+	// - ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT|BORONG_MINGGU
+	// - ?tanggal_mulai=YYYY-MM-DD&tanggal_selesai=YYYY-MM-DD
 	protected.HandleFunc("/api/reporting/mandor", controllers.GetMandorSummaryAll).Methods("GET")
+	protected.HandleFunc("/api/reporting/mandor/range", controllers.GetMandorSummaryByDateRange).Methods("GET")
 	protected.HandleFunc("/api/reporting/mandor/{tanggal}", controllers.GetMandorSummaryByDate).Methods("GET")
 
-	// Detail individual penyadap
-	// Support query parameter: ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT
+	// Detail individual penyadap with date range
+	// Support query parameters:
+	// - ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT|BORONG_MINGGU
+	// - ?tanggal_mulai=YYYY-MM-DD&tanggal_selesai=YYYY-MM-DD
 	protected.HandleFunc("/api/reporting/penyadap", controllers.GetPenyadapDetailAll).Methods("GET")
+	protected.HandleFunc("/api/reporting/penyadap/range", controllers.GetPenyadapDetailByDateRange).Methods("GET")
 	protected.HandleFunc("/api/reporting/penyadap/{tanggal}", controllers.GetPenyadapDetailByDate).Methods("GET")
 
-	// ================== SEARCH API WITH TIPE SUPPORT ==================
-	// Pencarian mandor berdasarkan nama dengan filter tanggal dan tipe opsional
-	// Query parameters: ?nama=xxx&tanggal=YYYY-MM-DD&tipe=BAKU
+	// ================== ENHANCED SEARCH API WITH DATE RANGE SUPPORT ==================
+	// Pencarian mandor berdasarkan nama dengan filter tanggal range dan tipe
+	// Query parameters:
+	// - ?nama=xxx (required)
+	// - ?tanggal=YYYY-MM-DD (single date, optional)
+	// - ?tanggal_mulai=YYYY-MM-DD&tanggal_selesai=YYYY-MM-DD (date range, optional)
+	// - ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT|BORONG_MINGGU (optional)
 	protected.HandleFunc("/api/search/mandor", controllers.SearchMandorByName).Methods("GET")
+	protected.HandleFunc("/api/search/mandor/range", controllers.SearchMandorWithDateRange).Methods("GET")
 
-	// Pencarian penyadap berdasarkan nama dengan filter tanggal dan tipe opsional
-	// Query parameters: ?nama=xxx&tanggal=YYYY-MM-DD&tipe=BAKU
+	// Pencarian penyadap berdasarkan nama dengan filter tanggal range dan tipe
+	// Query parameters: sama dengan mandor search
 	protected.HandleFunc("/api/search/penyadap", controllers.SearchPenyadapByName).Methods("GET")
+	protected.HandleFunc("/api/search/penyadap/range", controllers.SearchPenyadapWithDateRange).Methods("GET")
 
-	// Detail mandor beserta semua penyadapnya dengan filter tipe
-	// Query parameters: ?nama=xxx&tanggal=YYYY-MM-DD&tipe=BAKU
+	// Detail mandor beserta semua penyadapnya dengan filter tipe dan tanggal range
+	// Query parameters: sama dengan search di atas
 	protected.HandleFunc("/api/search/mandor/detail", controllers.GetMandorWithPenyadapDetail).Methods("GET")
 
-	// Global search dengan berbagai filter termasuk tipe
-	// Query parameters: ?type=mandor|penyadap&nama=xxx&tanggal=YYYY-MM-DD&afdeling=xxx&tahun=2024&tipe=BAKU
+	// Global search dengan berbagai filter termasuk tipe dan date range
+	// Query parameters:
+	// - ?type=mandor|penyadap (optional, auto-detect jika kosong)
+	// - ?nama=xxx (required)
+	// - ?tanggal=YYYY-MM-DD (single date, optional)
+	// - ?tanggal_mulai=YYYY-MM-DD&tanggal_selesai=YYYY-MM-DD (date range, optional)
+	// - ?afdeling=xxx (optional)
+	// - ?tahun=2024 (optional, untuk mandor saja)
+	// - ?tipe=BAKU|BAKU_BORONG|BORONG_EXTERNAL|BORONG_INTERNAL|TETES_LANJUT|BORONG_MINGGU (optional)
 	protected.HandleFunc("/api/search/all", controllers.SearchAll).Methods("GET")
 
 	// ================== PENYADAP API (CRUD + Search) ==================
@@ -99,6 +122,9 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/penyadap", controllers.CreatePenyadap).Methods("POST")
 	protected.HandleFunc("/api/penyadap/{id}", controllers.UpdatePenyadap).Methods("PUT")
 	protected.HandleFunc("/api/penyadap/{id}", controllers.DeletePenyadap).Methods("DELETE")
+
+	//monitoring
+	protected.HandleFunc("/monitoring", controllers.ServeMonitoringPage).Methods("GET")
 
 	// ================== BACKWARD COMPATIBILITY ==================
 	// Keep old routes if needed

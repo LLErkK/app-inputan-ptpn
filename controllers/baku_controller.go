@@ -5,6 +5,7 @@ import (
 	"app-inputan-ptpn/models"
 	"encoding/json"
 	"fmt"
+	"gorm.io/gorm"
 	"html/template"
 	"net/http"
 	"time"
@@ -55,10 +56,13 @@ type ReportingResponse struct {
 }
 
 type FilterInfo struct {
-	Tanggal     string              `json:"tanggal,omitempty"`
-	Tipe        models.TipeProduksi `json:"tipe,omitempty"`
-	TotalRecord int                 `json:"totalRecord"`
-	Periode     string              `json:"periode"`
+	TanggalMulai   string              `json:"tanggalMulai,omitempty"`
+	TanggalSelesai string              `json:"tanggalSelesai,omitempty"`
+	Tanggal        string              `json:"tanggal,omitempty"`
+	Tipe           models.TipeProduksi `json:"tipe,omitempty"`
+	TotalRecord    int                 `json:"totalRecord"`
+	Periode        string              `json:"periode"`
+	JumlahHari     int                 `json:"jumlahHari,omitempty"`
 }
 
 type BakuPageData struct {
@@ -90,6 +94,7 @@ func GetTipeProduksiList(w http.ResponseWriter, r *http.Request) {
 }
 
 // ======== CRUD OPERATIONS ========
+// GetBakuPenyadapByDate - Get penyadap data for a specific date with each penyadap's total, not the aggregate.
 
 // GetAllBakuPenyadap - Get all penyadap records with optional tipe filter
 func GetAllBakuPenyadap(w http.ResponseWriter, r *http.Request) {
@@ -1636,4 +1641,549 @@ func DeleteBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "Data penyadap berhasil dihapus",
 	})
+}
+func parseDateRange(tanggalMulai, tanggalSelesai string) (time.Time, time.Time, error) {
+	var startDate, endDate time.Time
+	var err error
+
+	if tanggalMulai != "" {
+		startDate, err = time.Parse("2006-01-02", tanggalMulai)
+		if err != nil {
+			return time.Time{}, time.Time{}, fmt.Errorf("format tanggal mulai tidak valid: %v", err)
+		}
+	}
+
+	if tanggalSelesai != "" {
+		endDate, err = time.Parse("2006-01-02", tanggalSelesai)
+		if err != nil {
+			return time.Time{}, time.Time{}, fmt.Errorf("format tanggal selesai tidak valid: %v", err)
+		}
+	}
+
+	// Validasi: tanggal mulai tidak boleh lebih besar dari tanggal selesai
+	if !startDate.IsZero() && !endDate.IsZero() && startDate.After(endDate) {
+		return time.Time{}, time.Time{}, fmt.Errorf("tanggal mulai tidak boleh lebih besar dari tanggal selesai")
+	}
+
+	return startDate, endDate, nil
+}
+
+func formatDateRangePeriode(tanggalMulai, tanggalSelesai string) (string, int) {
+	if tanggalMulai != "" && tanggalSelesai != "" {
+		startDate, _ := time.Parse("2006-01-02", tanggalMulai)
+		endDate, _ := time.Parse("2006-01-02", tanggalSelesai)
+		days := int(endDate.Sub(startDate).Hours()/24) + 1
+		return fmt.Sprintf("Periode: %s s/d %s", tanggalMulai, tanggalSelesai), days
+	} else if tanggalMulai != "" {
+		return fmt.Sprintf("Dari tanggal: %s", tanggalMulai), -1
+	} else if tanggalSelesai != "" {
+		return fmt.Sprintf("Sampai tanggal: %s", tanggalSelesai), -1
+	}
+	return "Semua waktu", -1
+}
+
+func GetBakuDetailByDateRange(w http.ResponseWriter, r *http.Request) {
+	tanggalMulai := r.URL.Query().Get("tanggal_mulai")
+	tanggalSelesai := r.URL.Query().Get("tanggal_selesai")
+	tipeFilter := r.URL.Query().Get("tipe")
+
+	if tanggalMulai == "" || tanggalSelesai == "" {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Parameter tanggal_mulai dan tanggal_selesai wajib diisi",
+		})
+		return
+	}
+
+	// Parse and validate date range
+	startDate, endDate, err := parseDateRange(tanggalMulai, tanggalSelesai)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	var details []models.BakuDetail
+	query := config.DB.
+		Where("tanggal >= ? AND tanggal < ?", startDate, endDate.Add(24*time.Hour)).
+		Order("tanggal desc, mandor asc")
+
+	// Filter by tipe if provided
+	if tipeFilter != "" {
+		if !models.IsValidTipeProduksi(models.TipeProduksi(tipeFilter)) {
+			respondJSON(w, http.StatusBadRequest, APIResponse{
+				Success: false,
+				Message: "Tipe produksi tidak valid",
+			})
+			return
+		}
+		query = query.Where("tipe = ?", tipeFilter)
+	}
+
+	if err := query.Find(&details).Error; err != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Message: "Gagal mengambil detail: " + err.Error(),
+		})
+		return
+	}
+
+	periode, _ := formatDateRangePeriode(tanggalMulai, tanggalSelesai)
+	if tipeFilter != "" {
+		periode += " - Tipe: " + tipeFilter
+	}
+
+	if len(details) == 0 {
+		respondJSON(w, http.StatusNotFound, APIResponse{
+			Success: false,
+			Message: "Detail untuk " + periode + " tidak ditemukan",
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Message: "Detail berhasil ditemukan untuk " + periode,
+		Data:    details,
+	})
+
+}
+func GetMandorSummaryByDateRange(w http.ResponseWriter, r *http.Request) {
+	tanggalMulai := r.URL.Query().Get("tanggal_mulai")
+	tanggalSelesai := r.URL.Query().Get("tanggal_selesai")
+	tipeFilter := r.URL.Query().Get("tipe")
+
+	if tanggalMulai == "" || tanggalSelesai == "" {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Parameter tanggal_mulai dan tanggal_selesai wajib diisi",
+		})
+		return
+	}
+
+	// Validate date range
+	_, _, err := parseDateRange(tanggalMulai, tanggalSelesai)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	summaries, err := getMandorSummariesByDateRange(tanggalMulai, tanggalSelesai, tipeFilter)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Message: "Gagal mengambil data summary: " + err.Error(),
+		})
+		return
+	}
+
+	periode, jumlahHari := formatDateRangePeriode(tanggalMulai, tanggalSelesai)
+	if tipeFilter != "" {
+		periode += " - Tipe: " + tipeFilter
+	}
+
+	response := ReportingResponse{
+		Success: true,
+		Message: "Data summary mandor untuk " + periode + " berhasil diambil",
+		Data:    summaries,
+		FilterInfo: FilterInfo{
+			TanggalMulai:   tanggalMulai,
+			TanggalSelesai: tanggalSelesai,
+			TotalRecord:    len(summaries),
+			Periode:        periode,
+			JumlahHari:     jumlahHari,
+			Tipe:           models.TipeProduksi(tipeFilter),
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func getMandorSummariesByDateRange(tanggalMulai, tanggalSelesai, tipeFilter string) ([]MandorSummary, error) {
+	startDate, endDate, _ := parseDateRange(tanggalMulai, tanggalSelesai)
+
+	var mandors []models.BakuMandor
+	if err := config.DB.Find(&mandors).Error; err != nil {
+		return nil, err
+	}
+
+	var summaries []MandorSummary
+
+	for _, mandor := range mandors {
+		summary := MandorSummary{
+			ID:         mandor.ID,
+			TahunTanam: mandor.TahunTanam,
+			Mandor:     mandor.Mandor,
+			Afdeling:   mandor.Afdeling,
+		}
+
+		// Query for totals from all penyadap for this mandor in date range
+		query := config.DB.Model(&models.BakuPenyadap{}).Where("id_baku_mandor = ?", mandor.ID)
+
+		// Apply date range filter
+		query = buildDateRangeQuery(query, startDate, endDate)
+
+		if tipeFilter != "" {
+			query = query.Where("tipe = ?", tipeFilter)
+			summary.Tipe = models.TipeProduksi(tipeFilter)
+		}
+
+		var results []struct {
+			TotalBasahLatex float64
+			TotalSheet      float64
+			TotalBasahLump  float64
+			TotalBrCr       float64
+			JumlahPenyadap  int64
+		}
+
+		err := query.Select(`
+			COALESCE(SUM(basah_latex), 0) as total_basah_latex,
+			COALESCE(SUM(sheet), 0) as total_sheet,
+			COALESCE(SUM(basah_lump), 0) as total_basah_lump,
+			COALESCE(SUM(br_cr), 0) as total_br_cr,
+			COUNT(DISTINCT id_penyadap) as jumlah_penyadap
+		`).Find(&results).Error
+
+		if err != nil {
+			return nil, err
+		}
+
+		if len(results) > 0 {
+			summary.TotalBasahLatex = results[0].TotalBasahLatex
+			summary.TotalSheet = results[0].TotalSheet
+			summary.TotalBasahLump = results[0].TotalBasahLump
+			summary.TotalBrCr = results[0].TotalBrCr
+			summary.JumlahPenyadap = int(results[0].JumlahPenyadap)
+		}
+
+		summaries = append(summaries, summary)
+	}
+
+	return summaries, nil
+}
+
+func buildDateRangeQuery(query *gorm.DB, startDate, endDate time.Time) *gorm.DB {
+	if !startDate.IsZero() && !endDate.IsZero() {
+		return query.Where("DATE(tanggal) BETWEEN DATE(?) AND DATE(?)", startDate, endDate)
+	} else if !startDate.IsZero() {
+		return query.Where("DATE(tanggal) >= DATE(?)", startDate)
+	} else if !endDate.IsZero() {
+		return query.Where("DATE(tanggal) <= DATE(?)", endDate)
+	}
+	return query
+}
+
+func GetPenyadapDetailByDateRange(w http.ResponseWriter, r *http.Request) {
+	tanggalMulai := r.URL.Query().Get("tanggal_mulai")
+	tanggalSelesai := r.URL.Query().Get("tanggal_selesai")
+	tipeFilter := r.URL.Query().Get("tipe")
+
+	if tanggalMulai == "" || tanggalSelesai == "" {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Parameter tanggal_mulai dan tanggal_selesai wajib diisi",
+		})
+		return
+	}
+
+	// Validate date range
+	_, _, err := parseDateRange(tanggalMulai, tanggalSelesai)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	details, err := getPenyadapDetailsByDateRange(tanggalMulai, tanggalSelesai, tipeFilter)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Message: "Gagal mengambil detail penyadap: " + err.Error(),
+		})
+		return
+	}
+
+	periode, _ := formatDateRangePeriode(tanggalMulai, tanggalSelesai)
+	if tipeFilter != "" {
+		periode += " - Tipe: " + tipeFilter
+	}
+
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Message: "Detail penyadap untuk " + periode + " berhasil diambil",
+		Data:    details,
+	})
+}
+
+func SearchMandorWithDateRange(w http.ResponseWriter, r *http.Request) {
+	namaMandor := r.URL.Query().Get("nama")
+	tanggalMulai := r.URL.Query().Get("tanggal_mulai")
+	tanggalSelesai := r.URL.Query().Get("tanggal_selesai")
+	tipeFilter := r.URL.Query().Get("tipe")
+
+	if namaMandor == "" {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Parameter 'nama' wajib diisi",
+		})
+		return
+	}
+
+	// Validate date range if provided
+	if tanggalMulai != "" || tanggalSelesai != "" {
+		_, _, err := parseDateRange(tanggalMulai, tanggalSelesai)
+		if err != nil {
+			respondJSON(w, http.StatusBadRequest, APIResponse{
+				Success: false,
+				Message: err.Error(),
+			})
+			return
+		}
+	}
+
+	// Validate tipe if provided
+	if tipeFilter != "" && !models.IsValidTipeProduksi(models.TipeProduksi(tipeFilter)) {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Tipe produksi tidak valid",
+		})
+		return
+	}
+
+	summaries, err := searchMandorSummariesWithDateRange(namaMandor, tanggalMulai, tanggalSelesai, tipeFilter)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Message: "Gagal mencari data mandor: " + err.Error(),
+		})
+		return
+	}
+
+	periode, jumlahHari := formatDateRangePeriode(tanggalMulai, tanggalSelesai)
+	if tipeFilter != "" {
+		periode += " - Tipe: " + tipeFilter
+	}
+
+	response := ReportingResponse{
+		Success: true,
+		Message: "Hasil pencarian mandor '" + namaMandor + "'",
+		Data:    summaries,
+		FilterInfo: FilterInfo{
+			TanggalMulai:   tanggalMulai,
+			TanggalSelesai: tanggalSelesai,
+			TotalRecord:    len(summaries),
+			Periode:        periode,
+			JumlahHari:     jumlahHari,
+			Tipe:           models.TipeProduksi(tipeFilter),
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func SearchPenyadapWithDateRange(w http.ResponseWriter, r *http.Request) {
+	namaPenyadap := r.URL.Query().Get("nama")
+	tanggalMulai := r.URL.Query().Get("tanggal_mulai")
+	tanggalSelesai := r.URL.Query().Get("tanggal_selesai")
+	tipeFilter := r.URL.Query().Get("tipe")
+
+	if namaPenyadap == "" {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Parameter 'nama' wajib diisi",
+		})
+		return
+	}
+
+	// Validate date range if provided
+	if tanggalMulai != "" || tanggalSelesai != "" {
+		_, _, err := parseDateRange(tanggalMulai, tanggalSelesai)
+		if err != nil {
+			respondJSON(w, http.StatusBadRequest, APIResponse{
+				Success: false,
+				Message: err.Error(),
+			})
+			return
+		}
+	}
+
+	// Validate tipe if provided
+	if tipeFilter != "" && !models.IsValidTipeProduksi(models.TipeProduksi(tipeFilter)) {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Tipe produksi tidak valid",
+		})
+		return
+	}
+
+	details, err := searchPenyadapDetailsWithDateRange(namaPenyadap, tanggalMulai, tanggalSelesai, tipeFilter)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Message: "Gagal mencari detail penyadap: " + err.Error(),
+		})
+		return
+	}
+
+	periode, _ := formatDateRangePeriode(tanggalMulai, tanggalSelesai)
+	if tipeFilter != "" {
+		periode += " - Tipe: " + tipeFilter
+	}
+
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Message: "Hasil pencarian penyadap '" + namaPenyadap + "' - " + periode,
+		Data:    details,
+	})
+}
+func getPenyadapDetailsByDateRange(tanggalMulai, tanggalSelesai string, tipeFilter string) ([]PenyadapDetail, error) {
+	startDate, endDate, err := parseDateRange(tanggalMulai, tanggalSelesai)
+	if err != nil {
+		return nil, err
+	}
+
+	var details []PenyadapDetail
+	query := config.DB.Table("baku_penyadaps").Select(`
+        penyadaps.id,
+        penyadaps.nama_penyadap,
+        penyadaps.nik,
+        baku_mandors.mandor,
+        baku_mandors.afdeling,
+        baku_penyadaps.tipe,
+        COALESCE(SUM(baku_penyadaps.basah_latex), 0) as total_basah_latex,
+        COALESCE(SUM(baku_penyadaps.sheet), 0) as total_sheet,
+        COALESCE(SUM(baku_penyadaps.basah_lump), 0) as total_basah_lump,
+        COALESCE(SUM(baku_penyadaps.br_cr), 0) as total_br_cr,
+        COUNT(baku_penyadaps.id) as jumlah_hari_kerja
+    `).
+		Joins("JOIN penyadaps ON penyadaps.id = baku_penyadaps.id_penyadap").
+		Joins("JOIN baku_mandors ON baku_penyadaps.id_baku_mandor = baku_mandors.id").
+		Where("DATE(baku_penyadaps.tanggal) BETWEEN DATE(?) AND DATE(?)", startDate, endDate)
+
+	// Apply tipe filter if provided
+	if tipeFilter != "" {
+		query = query.Where("baku_penyadaps.tipe = ?", tipeFilter)
+	}
+
+	// Execute query
+	if err := query.Group("penyadaps.id, penyadaps.nama_penyadap, penyadaps.nik, baku_mandors.mandor, baku_mandors.afdeling, baku_penyadaps.tipe").
+		Scan(&details).Error; err != nil {
+		return nil, err
+	}
+
+	return details, nil
+}
+
+func searchMandorSummariesWithDateRange(namaMandor, tanggalMulai, tanggalSelesai, tipeFilter string) ([]MandorSummary, error) {
+	startDate, endDate, err := parseDateRange(tanggalMulai, tanggalSelesai)
+	if err != nil {
+		return nil, err
+	}
+
+	var mandors []models.BakuMandor
+	query := config.DB.Where("mandor LIKE ?", "%"+namaMandor+"%")
+
+	if err := query.Find(&mandors).Error; err != nil {
+		return nil, err
+	}
+
+	var summaries []MandorSummary
+
+	for _, mandor := range mandors {
+		summary := MandorSummary{
+			ID:         mandor.ID,
+			TahunTanam: mandor.TahunTanam,
+			Mandor:     mandor.Mandor,
+			Afdeling:   mandor.Afdeling,
+		}
+
+		// Query to get totals from all penyadap for this mandor in the date range
+		query := config.DB.Model(&models.BakuPenyadap{}).
+			Where("id_baku_mandor = ?", mandor.ID)
+
+		// Apply date range filter
+		query = buildDateRangeQuery(query, startDate, endDate)
+
+		if tipeFilter != "" {
+			query = query.Where("tipe = ?", tipeFilter)
+			summary.Tipe = models.TipeProduksi(tipeFilter)
+		}
+
+		var results []struct {
+			TotalBasahLatex float64
+			TotalSheet      float64
+			TotalBasahLump  float64
+			TotalBrCr       float64
+			JumlahPenyadap  int64
+		}
+
+		err := query.Select(`
+            COALESCE(SUM(basah_latex), 0) as total_basah_latex,
+            COALESCE(SUM(sheet), 0) as total_sheet,
+            COALESCE(SUM(basah_lump), 0) as total_basah_lump,
+            COALESCE(SUM(br_cr), 0) as total_br_cr,
+            COUNT(DISTINCT id_penyadap) as jumlah_penyadap
+        `).Find(&results).Error
+
+		if err != nil {
+			return nil, err
+		}
+
+		if len(results) > 0 {
+			summary.TotalBasahLatex = results[0].TotalBasahLatex
+			summary.TotalSheet = results[0].TotalSheet
+			summary.TotalBasahLump = results[0].TotalBasahLump
+			summary.TotalBrCr = results[0].TotalBrCr
+			summary.JumlahPenyadap = int(results[0].JumlahPenyadap)
+		}
+
+		summaries = append(summaries, summary)
+	}
+
+	return summaries, nil
+}
+func searchPenyadapDetailsWithDateRange(namaPenyadap, tanggalMulai, tanggalSelesai, tipeFilter string) ([]PenyadapDetail, error) {
+	startDate, endDate, err := parseDateRange(tanggalMulai, tanggalSelesai)
+	if err != nil {
+		return nil, err
+	}
+
+	var details []PenyadapDetail
+	query := config.DB.Table("baku_penyadaps").Select(`
+        penyadaps.id,
+        penyadaps.nama_penyadap,
+        penyadaps.nik,
+        baku_mandors.mandor,
+        baku_mandors.afdeling,
+        baku_penyadaps.tipe,
+        COALESCE(SUM(baku_penyadaps.basah_latex), 0) as total_basah_latex,
+        COALESCE(SUM(baku_penyadaps.sheet), 0) as total_sheet,
+        COALESCE(SUM(baku_penyadaps.basah_lump), 0) as total_basah_lump,
+        COALESCE(SUM(baku_penyadaps.br_cr), 0) as total_br_cr,
+        COUNT(baku_penyadaps.id) as jumlah_hari_kerja
+    `).
+		Joins("JOIN penyadaps ON penyadaps.id = baku_penyadaps.id_penyadap").
+		Joins("JOIN baku_mandors ON baku_penyadaps.id_baku_mandor = baku_mandors.id").
+		Where("penyadaps.nama_penyadap LIKE ?", "%"+namaPenyadap+"%").
+		Where("DATE(baku_penyadaps.tanggal) BETWEEN DATE(?) AND DATE(?)", startDate, endDate)
+
+	if tipeFilter != "" {
+		query = query.Where("baku_penyadaps.tipe = ?", tipeFilter)
+	}
+
+	if err := query.Group("penyadaps.id, penyadaps.nama_penyadap, penyadaps.nik, baku_mandors.mandor, baku_mandors.afdeling, baku_penyadaps.tipe").
+		Scan(&details).Error; err != nil {
+		return nil, err
+	}
+
+	return details, nil
 }

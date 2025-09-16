@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Produksi</title>
+    <link rel="stylesheet" href="/css/monitoring.css">
+</head>
+<body>
+    <div class="monitoring-container">
+        <h1>Monitoring</h1>
+        <form class="monitoring-form" id="monitoringForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="namaMandor">Nama Mandor</label>
+                    <input type="text" id="namaMandor" name="namaMandor" placeholder="Isi nama mandor..." autocomplete="off" style="width:100%;">
+                </div>
+                <div class="form-group">
+                    <label for="namaPenyadap">Nama Penyadap</label>
+                    <input type="text" id="namaPenyadap" name="namaPenyadap" placeholder="Isi nama penyadap..." autocomplete="off" style="width:100%;">
+                </div>
+                <div class="form-group">
+                    <label for="filterTanggalAwal">Tanggal Awal</label>
+                    <input type="date" id="searchTanggalAwal" name="filterTanggalAwal" style="width:100%;">
+                </div>
+                <div class="form-group">
+                    <label for="filterTanggalAkhir">Tanggal Akhir</label>
+                    <input type="date" id="searchTanggalAkhir" name="filterTanggalAkhir" style="width:100%;">
+                </div>
+                <div class="form-group">
+                    <label for="filterJenis">Type Produksi</label>
+                    <select id="filterJenis" name="filterJenis" style="width:100%;">
+                        <option value="">-- Pilih Jenis --</option>
+                        <option value="BAKU">Baku</option>
+                        <option value="BAKU_BORONG">Baku Borong</option>
+                        <option value="BORONG_EXTERNAL">Borong Eksternal</option>
+                        <option value="BORONG_INTERNAL">Borong Internal</option>
+                        <option value="BORONG_MINGGU">Borong Minggu</option>
+                        <option value="TETES_LANJUT">Tetes Lanjut</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-action-row">
+                <button type="submit" id="searchBtn" class="search-btn">Search</button>
+            </div>
+        </form>
+        <div id="bakuTableWrapper" class="monitoring-table-container">
+            <table class="monitoring-table">
+            <thead>
+                <tr>
+                    <th>Tanggal</th>
+                    <th>MANDOR</th>
+                    <th>AFDELING</th>
+                    <th>NIK</th>
+                    <th>Nama Penyadap</th>
+                    <th>Periode</th>
+                    <th>Basah Latek</th>
+                    <th>Sheet</th>
+                    <th>Basah Lump</th>
+                    <th>Br.Cr</th>
+                </tr>
+            </thead>
+            </thead>
+        </table>
+        </div>
+    </div>
+</body>
+<script src="/js/monitoring.js"></script>
+
+</html>
