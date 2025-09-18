@@ -42,7 +42,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const payload = {
         mandor: document.getElementById("inputNamaMandor").value.trim(),
         tahun_tanam: parseInt(document.getElementById("inputTahunTanam").value) || 0,
-        afdeling: document.getElementById("inputAfdeling").value.trim()
+        afdeling: document.getElementById("inputAfdeling").value.trim(),
+        tipe: document.getElementById("jenis").value
       };
       try {
         const res = await fetch("/api/mandor", {
@@ -78,6 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <td>${safeText(m.mandor)}</td>
             <td>${safeText(m.tahun_tanam, "-")}</td>
             <td>${safeText(m.afdeling, "-")}</td>
+            <td>${safeText(m.tipe,"-")}</td>
             <td><button data-id="${String(m.id)}" class="delete-mandor-btn">Hapus</button></td>`;
           mandorTableBody.appendChild(tr);
         });
