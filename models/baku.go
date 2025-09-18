@@ -1,3 +1,5 @@
+// models/baku.go - Updated version
+
 package models
 
 import (
@@ -41,11 +43,13 @@ func IsValidTipeProduksi(tipe TipeProduksi) bool {
 	return false
 }
 
+// UPDATED: BakuMandor now includes Tipe field
 type BakuMandor struct {
-	ID         uint   `gorm:"primaryKey;autoIncrement" json:"id"`
-	TahunTanam uint   `gorm:"not null" json:"tahun_tanam"`
-	Mandor     string `gorm:"size:100;not null" json:"mandor"`
-	Afdeling   string `gorm:"size:100;not null" json:"afdeling"`
+	ID         uint         `gorm:"primaryKey;autoIncrement" json:"id"`
+	TahunTanam uint         `gorm:"not null" json:"tahun_tanam"`
+	Mandor     string       `gorm:"size:100;not null" json:"mandor"`
+	Afdeling   string       `gorm:"size:100;not null" json:"afdeling"`
+	Tipe       TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"` // NEW FIELD
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 	DeletedAt  gorm.DeletedAt `gorm:"index"`
@@ -67,12 +71,13 @@ type Penyadap struct {
 	BakuPenyadaps []BakuPenyadap `gorm:"foreignKey:IdPenyadap;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
 }
 
+// UPDATED: BakuPenyadap still has Tipe but will be auto-set from mandor
 type BakuPenyadap struct {
 	ID           uint         `gorm:"primaryKey;autoIncrement" json:"id"`
 	IdBakuMandor uint64       `gorm:"not null;index" json:"idBakuMandor"`
 	IdPenyadap   uint64       `gorm:"not null;index" json:"idPenyadap"`
 	Tanggal      time.Time    `gorm:"not null;index" json:"tanggal"`
-	Tipe         TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"`
+	Tipe         TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"` // Auto-set from mandor
 
 	BasahLatex float64 `gorm:"default:0" json:"basahLatex"`
 	Sheet      float64 `gorm:"default:0" json:"sheet"`
@@ -86,6 +91,7 @@ type BakuPenyadap struct {
 	Mandor   BakuMandor `gorm:"foreignKey:IdBakuMandor;references:ID" json:"mandor"`
 	Penyadap Penyadap   `gorm:"foreignKey:IdPenyadap;references:ID" json:"penyadap"`
 }
+
 type BakuDetail struct {
 	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
 
@@ -138,11 +144,17 @@ func (bd *BakuDetail) BeforeUpdate(tx *gorm.DB) error {
 	return nil
 }
 
-// BeforeCreate hook untuk BakuPenyadap
-func (bp *BakuPenyadap) BeforeCreate(tx *gorm.DB) error {
+// UPDATED: BeforeCreate hook for BakuMandor to set default tipe
+func (bm *BakuMandor) BeforeCreate(tx *gorm.DB) error {
 	// Set default tipe jika kosong
-	if bp.Tipe == "" {
-		bp.Tipe = TipeBaku
+	if bm.Tipe == "" {
+		bm.Tipe = TipeBaku
 	}
+	return nil
+}
+
+// UPDATED: BeforeCreate hook untuk BakuPenyadap - tipe will be auto-set from mandor
+func (bp *BakuPenyadap) BeforeCreate(tx *gorm.DB) error {
+	// Tipe akan di-set otomatis dari mandor di controller, tidak perlu set default di sini
 	return nil
 }

@@ -69,7 +69,7 @@ type BakuPageData struct {
 	Title        string
 	MandorList   []models.BakuMandor
 	PenyadapList []models.BakuPenyadap
-	TipeList     []models.TipeProduksi // BARU: List tipe produksi
+	TipeList     []models.TipeProduksi // For mandor input form
 }
 
 // ======== UTILITY FUNCTIONS ========
@@ -150,19 +150,19 @@ func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validasi tipe produksi
-	if penyadap.Tipe != "" && !models.IsValidTipeProduksi(penyadap.Tipe) {
+	// UPDATED: Auto-set tipe from mandor profile
+	var mandor models.BakuMandor
+	if err := config.DB.First(&mandor, penyadap.IdBakuMandor).Error; err != nil {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
 			Success: false,
-			Message: "Tipe produksi tidak valid. Gunakan: BAKU, BAKU_BORONG, BORONG_EXTERNAL, BORONG_INTERNAL, atau TETES_LANJUT",
+			Message: "Mandor dengan ID tersebut tidak ditemukan",
 		})
 		return
 	}
 
-	// Set default tipe jika kosong
-	if penyadap.Tipe == "" {
-		penyadap.Tipe = models.TipeBaku
-	}
+	// Set tipe otomatis dari profil mandor
+	penyadap.Tipe = mandor.Tipe
+	fmt.Printf("DEBUG: Auto-setting tipe '%s' from mandor '%s'\n", penyadap.Tipe, mandor.Mandor)
 
 	if penyadap.Tanggal.IsZero() {
 		penyadap.Tanggal = time.Now()
@@ -182,7 +182,7 @@ func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusCreated, APIResponse{
 		Success: true,
-		Message: "Data penyadap berhasil ditambahkan",
+		Message: fmt.Sprintf("Data penyadap berhasil ditambahkan dengan tipe %s (dari profil mandor)", penyadap.Tipe),
 		Data:    penyadap,
 	})
 }
@@ -209,17 +209,31 @@ func UpdateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validasi tipe produksi jika diubah
-	if updates.Tipe != "" && !models.IsValidTipeProduksi(updates.Tipe) {
-		respondJSON(w, http.StatusBadRequest, APIResponse{
-			Success: false,
-			Message: "Tipe produksi tidak valid",
-		})
-		return
-	}
-
 	// Simpan copy untuk update detail
 	oldCopy := existing
+
+	// UPDATED: If mandor changed, update tipe from new mandor profile
+	if updates.IdBakuMandor != 0 && updates.IdBakuMandor != existing.IdBakuMandor {
+		var newMandor models.BakuMandor
+		if err := config.DB.First(&newMandor, updates.IdBakuMandor).Error; err != nil {
+			respondJSON(w, http.StatusBadRequest, APIResponse{
+				Success: false,
+				Message: "Mandor baru dengan ID tersebut tidak ditemukan",
+			})
+			return
+		}
+
+		// Auto-set tipe from new mandor
+		updates.Tipe = newMandor.Tipe
+		fmt.Printf("DEBUG: Mandor changed, updating tipe to '%s' from mandor '%s'\n", updates.Tipe, newMandor.Mandor)
+	} else {
+		// UPDATED: If mandor didn't change, keep existing tipe from mandor profile
+		var currentMandor models.BakuMandor
+		if err := config.DB.First(&currentMandor, existing.IdBakuMandor).Error; err == nil {
+			updates.Tipe = currentMandor.Tipe
+			fmt.Printf("DEBUG: Mandor unchanged, keeping tipe '%s' from mandor '%s'\n", updates.Tipe, currentMandor.Mandor)
+		}
+	}
 
 	if err := config.DB.Model(&existing).Updates(updates).Error; err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
@@ -234,7 +248,7 @@ func UpdateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
-		Message: "Data penyadap berhasil diperbarui",
+		Message: fmt.Sprintf("Data penyadap berhasil diperbarui dengan tipe %s", existing.Tipe),
 	})
 }
 
