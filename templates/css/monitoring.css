@@ -8,11 +8,64 @@
     border: 1px solid rgba(255,255,255,0.8);
 }
 
+.monitoring-container h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 40px;
+    color: #2c3e50;
+    text-align: center;
+    background: linear-gradient(135deg, #0093E9, #80D0C7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Quick action buttons */
+.quick-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 40px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+ }
+
+.quick-btn {
+    background: white;
+    border: 2px solid #667eea;
+    color: #667eea;
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.quick-btn:hover {
+    background: #667eea;
+    color: white;
+}
+
+.export-btn {
+    background: linear-gradient(45deg, #4caf50, #45a049);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;  
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-left: auto;
+}
+
 #monitoringForm {
     background: rgba(255, 255, 255, 0.9);
-     padding: 32px 32px 64px 32px;
+    padding: 32px 32px 64px 32px;
     border-radius: 16px;
-    margin-bottom: 40px;
+    margin-bottom: 20px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.08);
     border: 1px solid rgba(0, 147, 233, 0.1);
     position: relative;
@@ -22,7 +75,7 @@
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 40px;
-    margin-bottom: 24px;
+    margin-bottom: 10px;
 }
 
 #monitoringForm .form-group {
@@ -58,6 +111,12 @@
     transform: translateY(-2px);
 }
 
+.export-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+}
+
+
 .form-action-row {
     margin-top: 25px;
     display: flex;
@@ -75,7 +134,7 @@
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 6px 20px rgba(0, 147, 233, 0.3);
-    margin-top: 25px;
+    margin-top: 0px;
 }
 
 
@@ -116,7 +175,7 @@
     width: 100%;
     border-collapse: collapse;
     background: rgb(0, 0, 0);
-    border-radius: 12px;
+    border-radius: 5px;
     overflow: hidden;
     box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     border: 2px solid #222; /* garis tepi hitam di sekeliling tabel */

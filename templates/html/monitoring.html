@@ -8,8 +8,16 @@
 </head>
 <body>
     <div class="monitoring-container">
-        <h1>Monitoring</h1>
+        <h1>MONITORING</h1>
         <form class="monitoring-form" id="monitoringForm">
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <button class="quick-btn" onclick="loadTodayData()">📅 Hari Ini</button>
+                <button class="quick-btn" onclick="loadWeekData()">📊 Minggu Ini</button>
+                <button class="quick-btn" onclick="loadMonthData()">📈 Bulan Ini</button>
+                <button class="quick-btn" onclick="clearAll()">🔄 Reset</button>
+                <button class="export-btn" onclick="window.exportSearchData()">💾 Export CSV</button>
+            </div>
             <div class="form-row">
                 <div class="form-group">
                     <label for="namaMandor">Nama Mandor</label>
@@ -50,10 +58,10 @@
                 <tr>
                     <th>Tanggal</th>
                     <th>MANDOR</th>
+                    <th>Tahun Tanam</th>
                     <th>AFDELING</th>
                     <th>NIK</th>
                     <th>Nama Penyadap</th>
-                    <th>Periode</th>
                     <th>Basah Latek</th>
                     <th>Sheet</th>
                     <th>Basah Lump</th>

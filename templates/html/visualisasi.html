@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Monitoring Produksi</title>
+    <link rel="stylesheet" href="/css/monitoring.css">
+    <style>
+        /* Enhanced CSS for smart search functionality */
+        .monitoring-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .monitoring-form {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            color: white;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.2);
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.1);
+        }
+
+        .form-action-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .search-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .search-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Search info display */
+        .search-info {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border-left: 4px solid #4CAF50;
+        }
+
+        .search-info.error {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+
+        .search-info h4 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-item label {
+            font-weight: 600;
+            color: #666;
+            min-width: 80px;
+        }
+
+        /* Badge styles */
+        .strategy-badge, .api-badge, .count-badge, .tipe-badge, .source-badge {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .strategy-badge {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .api-badge {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .count-badge {
+            background: #e8f5e8;
+            color: #4caf50;
+        }
+
+        .tipe-badge {
+            font-weight: 500;
+            text-transform: none;
+        }
+
+        .tipe-badge.baku { background: #e3f2fd; color: #1976d2; }
+        .tipe-badge.baku_borong { background: #f3e5f5; color: #7b1fa2; }
+        .tipe-badge.borong_external { background: #e8f5e8; color: #388e3c; }
+        .tipe-badge.borong_internal { background: #fff3e0; color: #f57c00; }
+        .tipe-badge.tetes_lanjut { background: #ffebee; color: #d32f2f; }
+        .tipe-badge.borong_minggu { background: #e0f2f1; color: #00695c; }
+
+        .source-badge {
+            font-size: 10px;
+        }
+
+        .source-badge.mandor_summary { background: #e1f5fe; color: #0277bd; }
+        .source-badge.penyadap_detail { background: #f3e5f5; color: #7b1fa2; }
+        .source-badge.baku_penyadap { background: #e8f5e8; color: #2e7d32; }
+        .source-badge.legacy { background: #fafafa; color: #616161; }
+
+        /* Table styles */
+        .monitoring-table-container {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+
+        .monitoring-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .monitoring-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .monitoring-table th {
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .monitoring-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .monitoring-table tr:hover {
+            background-color: #f8f9ff;
+        }
+
+        .row-even {
+            background-color: #fafafa;
+        }
+
+        .summary-row {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%) !important;
+            color: white !important;
+            font-weight: bold;
+        }
+
+        .summary-row td {
+            border-bottom: none !important;
+            padding: 15px 10px;
+        }
+
+        /* Cell-specific styles */
+        .date-cell {
+            font-weight: 600;
+            color: #1976d2;
+        }
+
+        .mandor-cell {
+            font-weight: 600;
+            color: #7b1fa2;
+        }
+
+        .number-cell {
+            text-align: right;
+            font-weight: 500;
+            font-family: 'Courier New', monospace;
+        }
+
+        .summary-cell {
+            text-align: right;
+            font-size: 16px;
+        }
+
+        /* Loading and empty states */
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            margin: 10px 0;
+            color: #333;
+        }
+
+        .empty-state p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* Autocomplete styles */
+        .form-group {
+            position: relative;
+        }
+
+        .autocomplete-items {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .autocomplete-item {
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            color: #333;
+            transition: background-color 0.2s ease;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.autocomplete-active {
+            background-color: #667eea;
+            color: white;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Quick action buttons */
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .quick-btn {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quick-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .export-btn {
+            background: linear-gradient(45deg, #4caf50, #45a049);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: auto;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .monitoring-container {
+                padding: 15px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .monitoring-table {
+                font-size: 12px;
+            }
+
+            .monitoring-table th,
+            .monitoring-table td {
+                padding: 8px 6px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .quick-actions {
+                justify-content: center;
+            }
+        }
+
+        /* Keyboard shortcuts hint */
+        .shortcuts-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .shortcuts-hint.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="monitoring-container">
+        <h1>🔍 Smart Monitoring Produksi</h1>
+        
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <button class="quick-btn" onclick="loadTodayData()">📅 Hari Ini</button>
+            <button class="quick-btn" onclick="loadWeekData()">📊 Minggu Ini</button>
+            <button class="quick-btn" onclick="loadMonthData()">📈 Bulan Ini</button>
+            <button class="quick-btn" onclick="clearAll()">🔄 Reset</button>
+            <button class="export-btn" onclick="window.exportSearchData()">💾 Export CSV</button>
+        </div>
+
+        <!-- Smart Search Form -->
+        <form class="monitoring-form" id="monitoringForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="namaMandor">👥 Nama Mandor</label>
+                    <input type="text" id="namaMandor" name="namaMandor" placeholder="Ketik nama mandor untuk pencarian..." autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="namaPenyadap">👤 Nama Penyadap</label>
+                    <input type="text" id="namaPenyadap" name="namaPenyadap" placeholder="Ketik nama penyadap untuk pencarian..." autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="searchTanggalAwal">📅 Tanggal Awal</label>
+                    <input type="date" id="searchTanggalAwal" name="filterTanggalAwal">
+                </div>
+                <div class="form-group">
+                    <label for="searchTanggalAkhir">📅 Tanggal Akhir</label>
+                    <input type="date" id="searchTanggalAkhir" name="filterTanggalAkhir">
+                </div>
+                <div class="form-group">
+                    <label for="filterJenis">🏷 Tipe Produksi</label>
+                    <select id="filterJenis" name="filterJenis">
+                        <option value="">-- Semua Tipe --</option>
+                        <option value="BAKU">Baku</option>
+                        <option value="BAKU_BORONG">Baku Borong</option>
+                        <option value="BORONG_EXTERNAL">Borong External</option>
+                        <option value="BORONG_INTERNAL">Borong Internal</option>
+                        <option value="BORONG_MINGGU">Borong Minggu</option>
+                        <option value="TETES_LANJUT">Tetes Lanjut</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-action-row">
+                <button type="submit" id="searchBtn" class="search-btn">🔍 Smart Search</button>
+            </div>
+        </form>
+
+        <!-- Search Results Info (will be inserted by JS) -->
+        <!-- <div id="searchInfo" class="search-info">...</div> -->
+
+        <!-- Results Table Container -->
+        <div id="bakuTableWrapper" class="monitoring-table-container">
+            <div class="loading-state">
+                <div class="spinner"></div>
+                <p>Memuat data awal...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Hint -->
+    <div id="shortcutsHint" class="shortcuts-hint">
+        Ctrl+F: Focus search | Ctrl+Enter: Search | Esc: Clear
+    </div>
+
+    <script src="/js/monitoring.js"></script>
+    <script>
+        // Additional utility functions for quick actions
+        function loadTodayData() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('searchTanggalAwal').value = today;
+            document.getElementById('searchTanggalAkhir').value = today;
+            document.getElementById('namaMandor').value = '';
+            document.getElementById('namaPenyadap').value = '';
+            document.getElementById('filterJenis').value = '';
+            document.getElementById('monitoringForm').dispatchEvent(new Event('submit'));
+        }
+
+        function loadWeekData() {
+            const today = new Date();
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - today.getDay());
+            
+            document.getElementById('searchTanggalAwal').value = weekStart.toISOString().split('T')[0];
+            document.getElementById('searchTanggalAkhir').value = today.toISOString().split('T')[0];
+            document.getElementById('namaMandor').value = '';
+            document.getElementById('namaPenyadap').value = '';
+            document.getElementById('filterJenis').value = '';
+            document.getElementById('monitoringForm').dispatchEvent(new Event('submit'));
+        }
+
+        function loadMonthData() {
+            const today = new Date();
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            document.getElementById('searchTanggalAwal').value = monthStart.toISOString().split('T')[0];
+            document.getElementById('searchTanggalAkhir').value = today.toISOString().split('T')[0];
+            document.getElementById('namaMandor').value = '';
+            document.getElementById('namaPenyadap').value = '';
+            document.getElementById('filterJenis').value = '';
+            document.getElementById('monitoringForm').dispatchEvent(new Event('submit'));
+        }
+
+        function clearAll() {
+            document.getElementById('monitoringForm').reset();
+            document.getElementById('monitoringForm').dispatchEvent(new Event('submit'));
+        }
+
+        // Show keyboard shortcuts hint on page load
+        setTimeout(() => {
+            document.getElementById('shortcutsHint').classList.add('show');
+            setTimeout(() => {
+                document.getElementById('shortcutsHint').classList.remove('show');
+            }, 3000);
+        }, 1000);
+    </script>
+</body>
+</html>

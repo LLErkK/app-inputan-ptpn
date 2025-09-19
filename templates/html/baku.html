@@ -129,7 +129,7 @@
                     <select id="mandor" name="idBakuMandor" required style="width:100%;">
                         <option value="">-- Pilih Mandor --</option>
                         {{range .MandorList}}
-                            <option value="{{.ID}}">{{.Mandor}} ({{.Afdeling}}) {{.TahunTanam}}</option>
+                            <option value="{{.ID}}">{{.Mandor}} ({{.Afdeling}}) {{.TahunTanam}} {{.Tipe}}</option>
                         {{end}}
                     </select>
                     <button type="button" id="tambahMandor" class="tambah-mandor-btn">
