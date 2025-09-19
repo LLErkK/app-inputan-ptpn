@@ -24,6 +24,7 @@ type MandorSummary struct {
 	ID              uint                `json:"id"`
 	TahunTanam      uint                `json:"tahunTanam"`
 	Mandor          string              `json:"mandor"`
+	Tanggal         time.Time           `json:"tanggal"`
 	Afdeling        string              `json:"afdeling"`
 	Tipe            models.TipeProduksi `json:"tipe"`
 	TotalBasahLatex float64             `json:"totalBasahLatex"`
@@ -38,7 +39,9 @@ type PenyadapDetail struct {
 	ID              uint                `json:"id"`
 	NamaPenyadap    string              `json:"namaPenyadap"`
 	NIK             string              `json:"nik"`
+	TahunTanam      uint                `json:"tahunTanam"`
 	Tipe            models.TipeProduksi `json:"tipe"`
+	Tanggal         string              `json:"tanggal"`
 	TotalBasahLatex float64             `json:"totalBasahLatex"`
 	TotalSheet      float64             `json:"totalSheet"`
 	TotalBasahLump  float64             `json:"totalBasahLump"`
@@ -1228,7 +1231,6 @@ func searchMandorSummaries(namaMandor, tanggal, tipeFilter string) ([]MandorSumm
 
 	return summaries, nil
 }
-
 func searchPenyadapDetails(namaPenyadap, tanggal, tipeFilter string) ([]PenyadapDetail, error) {
 	query := `
 		SELECT 
@@ -1237,7 +1239,9 @@ func searchPenyadapDetails(namaPenyadap, tanggal, tipeFilter string) ([]Penyadap
 			p.nik,
 			bm.mandor,
 			bm.afdeling,
+			bm.tahun_tanam,                          -- <-- ambil tahun tanam
 			bp.tipe,
+			DATE(bp.tanggal) as tanggal,
 			COALESCE(SUM(bp.basah_latex), 0) as total_basah_latex,
 			COALESCE(SUM(bp.sheet), 0) as total_sheet,
 			COALESCE(SUM(bp.basah_lump), 0) as total_basah_lump,
@@ -1261,7 +1265,11 @@ func searchPenyadapDetails(namaPenyadap, tanggal, tipeFilter string) ([]Penyadap
 		args = append(args, tipeFilter)
 	}
 
-	query += " GROUP BY p.id, p.nama_penyadap, p.nik, bm.mandor, bm.afdeling, bp.tipe ORDER BY p.nama_penyadap"
+	// tambahkan bm.tahun_tanam ke GROUP BY
+	query += `
+		GROUP BY p.id, p.nama_penyadap, p.nik, bm.mandor, bm.afdeling, bm.tahun_tanam, bp.tipe, bp.tanggal
+		ORDER BY bp.tanggal, p.nama_penyadap
+	`
 
 	var details []PenyadapDetail
 	if err := config.DB.Raw(query, args...).Scan(&details).Error; err != nil {
@@ -1332,20 +1340,21 @@ func searchMandorWithDetails(namaMandor, tanggal, tipeFilter string) ([]MandorSu
 
 		// Mendapatkan detail setiap penyadap untuk mandor ini
 		penyadapQuery := `
-			SELECT 
-				p.id,
-				p.nama_penyadap,
-				p.nik,
-				bp.tipe,
-				COALESCE(SUM(bp.basah_latex), 0) as total_basah_latex,
-				COALESCE(SUM(bp.sheet), 0) as total_sheet,
-				COALESCE(SUM(bp.basah_lump), 0) as total_basah_lump,
-				COALESCE(SUM(bp.br_cr), 0) as total_br_cr,
-				COUNT(bp.id) as jumlah_hari_kerja
-			FROM penyadaps p
-			LEFT JOIN baku_penyadaps bp ON p.id = bp.id_penyadap
-			WHERE bp.deleted_at IS NULL AND bp.id_baku_mandor = ?
-		`
+		SELECT 
+    	p.id,
+    	p.nama_penyadap,
+    	p.nik,
+    	bp.tipe,
+    	DATE(bp.tanggal) as tanggal,   -- <== ambil tanggal
+    	COALESCE(SUM(bp.basah_latex), 0) as total_basah_latex,
+    	COALESCE(SUM(bp.sheet), 0) as total_sheet,
+    	COALESCE(SUM(bp.basah_lump), 0) as total_basah_lump,
+    	COALESCE(SUM(bp.br_cr), 0) as total_br_cr,
+    	COUNT(bp.id) as jumlah_hari_kerja
+		FROM penyadaps p
+		LEFT JOIN baku_penyadaps bp ON p.id = bp.id_penyadap
+		WHERE bp.deleted_at IS NULL AND bp.id_baku_mandor = ?
+`
 
 		penyadapArgs := []interface{}{mandor.ID}
 

@@ -398,5 +398,5 @@ document.addEventListener("DOMContentLoaded", () => {
   renderRekapMandor();   // ← pakai /api/baku/detail (rekap per mandor)
   renderDetailBaku();    // ← pakai /api/baku?tanggal=YYYY-MM-DD (detail per penyadap, untuk Edit/Delete)
   // kalau kamu tetap ingin auto-refresh rekap tiap 30 detik:
-  setInterval(renderRekapMandor, 30000);
+  setInterval(renderRekapMandor, 300000);
 });
