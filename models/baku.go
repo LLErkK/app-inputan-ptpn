@@ -125,6 +125,9 @@ type BakuDetail struct {
 func (BakuDetail) TableName() string {
 	return "baku_details"
 }
+func (bm *BakuMandor) GetTipeAsString() string {
+	return string(bm.Tipe) // Convert Tipe to string for easier template rendering
+}
 
 // BeforeCreate hook untuk GORM
 func (bd *BakuDetail) BeforeCreate(tx *gorm.DB) error {

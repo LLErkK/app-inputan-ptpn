@@ -127,10 +127,14 @@
                 <label for="mandor">NAMA Mandor</label>
                 <div style="display:flex; flex-direction:row; gap:8px; align-items:center;">
                     <select id="mandor" name="idBakuMandor" required style="width:100%;">
+                        
+
                         <option value="">-- Pilih Mandor --</option>
+                        
                         {{range .MandorList}}
-                            <option value="{{.ID}}">{{.Mandor}} ({{.Afdeling}}) {{.TahunTanam}} {{.Tipe}}</option>
-                        {{end}}
+                            
+                            <option value="{{.ID}}">{{.Mandor}} ({{.Afdeling}}) {{.TahunTanam}} {{.GetTipeAsString}}</option>
+                      {{end}}
                     </select>
                     <button type="button" id="tambahMandor" class="tambah-mandor-btn">
                         <span class="tambah-mandor-icon">+</span>
@@ -213,6 +217,6 @@
 </div>
 </body>
 <!-- ✅ perbaikan path -->
-<script src="/js/baku.js"></script>
+<script src="/js/baku.js"> </script>
 
 </html>
