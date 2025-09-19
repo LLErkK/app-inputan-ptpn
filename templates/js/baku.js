@@ -76,6 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
         data.data.forEach(m => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
+            <td>${m}</td>
             <td>${safeText(m.mandor)}</td>
             <td>${safeText(m.tahun_tanam, "-")}</td>
             <td>${safeText(m.afdeling, "-")}</td>
@@ -112,7 +113,8 @@ document.addEventListener("DOMContentLoaded", () => {
         data.data.forEach(m => {
           const opt = document.createElement("option");
           opt.value = String(m.id);
-          opt.textContent = `${safeText(m.mandor)} (${safeText(m.afdeling, "-")}) ${safeText(m.tahun_tanam, "-")}`;
+          console.log(m)
+          opt.textContent = `${safeText(m.mandor)} (${safeText(m.afdeling, "-")}) ${safeText(m.tahun_tanam, "-")} - Tipe: ${safeText(m.tipe)}`;
           select.appendChild(opt);
         });
       }

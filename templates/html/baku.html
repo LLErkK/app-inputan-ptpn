@@ -66,7 +66,7 @@
                         <th>Tahun Tanam</th>
                         <th>Afdeling</th>
                         <th>Jenis</th>
-                        <th>Action</th> 
+                        <th>Action</th>
                     </tr>
                     </thead>
                     <tbody id="mandorTableBody">
@@ -127,13 +127,12 @@
                 <label for="mandor">NAMA Mandor</label>
                 <div style="display:flex; flex-direction:row; gap:8px; align-items:center;">
                     <select id="mandor" name="idBakuMandor" required style="width:100%;">
-                        
+
 
                         <option value="">-- Pilih Mandor --</option>
-                        
+
                         {{range .MandorList}}
-                            
-                            <option value="{{.ID}}">{{.Mandor}} ({{.Afdeling}}) {{.TahunTanam}} {{.GetTipeAsString}}</option>
+                            <option value="{{.ID}}">{{.Mandor}} - {{.Afdeling}} ({{.TahunTanam}}) | Tipe: {{.GetTipeAsString}}</option>
                       {{end}}
                     </select>
                     <button type="button" id="tambahMandor" class="tambah-mandor-btn">
@@ -142,7 +141,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="form-row">
             <div class="form-group">
                 <label for="namaPenyadap">Nama Penyadap</label>

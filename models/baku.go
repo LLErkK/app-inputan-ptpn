@@ -49,7 +49,7 @@ type BakuMandor struct {
 	TahunTanam uint         `gorm:"not null" json:"tahun_tanam"`
 	Mandor     string       `gorm:"size:100;not null" json:"mandor"`
 	Afdeling   string       `gorm:"size:100;not null" json:"afdeling"`
-	Tipe       TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"` // NEW FIELD
+	Tipe       TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 	DeletedAt  gorm.DeletedAt `gorm:"index"`
