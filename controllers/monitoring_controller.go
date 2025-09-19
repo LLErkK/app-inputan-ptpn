@@ -350,11 +350,10 @@ func executeDateOnlySearch(tanggalAwal, tanggalAkhir, tipe, method string) ([]Mo
 
 // executeTipeOnlySearch performs tipe-only filtering
 func executeTipeOnlySearch(tipe string) ([]MonitoringSearchItem, error) {
-	details, err := getPenyadapDetails("", tipe)
+	details, err := getPenyadapDetailsByTipeHarian(tipe)
 	if err != nil {
 		return nil, err
 	}
-
 	return convertPenyadapDetailsToMonitoringItems(details), nil
 }
 
@@ -556,6 +555,37 @@ func callSearchAllAPI(params url.Values) ([]MonitoringSearchItem, error) {
 	}
 
 	return convertBakuPenyadapToMonitoringItems(results), nil
+}
+func getPenyadapDetailsByTipeHarian(tipe string) ([]PenyadapDetail, error) {
+	query := `
+        SELECT 
+            p.id,
+            p.nama_penyadap,
+            p.nik,
+            bm.mandor,
+            bm.afdeling,
+            bm.tahun_tanam,
+            bp.tipe,
+            DATE(bp.tanggal) as tanggal,
+            COALESCE(SUM(bp.basah_latex), 0) as total_basah_latex,
+            COALESCE(SUM(bp.sheet), 0) as total_sheet,
+            COALESCE(SUM(bp.basah_lump), 0) as total_basah_lump,
+            COALESCE(SUM(bp.br_cr), 0) as total_br_cr
+        FROM baku_penyadaps bp
+        LEFT JOIN penyadaps p ON p.id = bp.id_penyadap
+        LEFT JOIN baku_mandors bm ON bp.id_baku_mandor = bm.id
+        WHERE bp.deleted_at IS NULL
+          AND bp.tipe = ?
+        GROUP BY p.id, p.nama_penyadap, p.nik, bm.mandor, bm.afdeling, bm.tahun_tanam, DATE(bp.tanggal), bp.tipe
+        ORDER BY DATE(bp.tanggal) DESC
+    `
+
+	var details []PenyadapDetail
+	if err := config.DB.Raw(query, tipe).Scan(&details).Error; err != nil {
+		return nil, err
+	}
+
+	return details, nil
 }
 
 // ServeMonitoringPage - Updated to serve the monitoring page
