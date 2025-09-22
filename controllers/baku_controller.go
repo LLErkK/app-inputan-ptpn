@@ -144,7 +144,7 @@ func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validasi
+	// Validasi awal
 	if penyadap.IdBakuMandor == 0 || penyadap.IdPenyadap == 0 {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
 			Success: false,
@@ -152,15 +152,8 @@ func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if penyadap.TahunTanam == 0 {
-		respondJSON(w, http.StatusBadRequest, APIResponse{
-			Success: false,
-			Message: "Tahun tanam wajib diisi",
-		})
-		return
-	}
 
-	// Auto-set tipe dari mandor
+	// Ambil mandor → auto set tipe & tahun tanam
 	var mandor models.BakuMandor
 	if err := config.DB.First(&mandor, penyadap.IdBakuMandor).Error; err != nil {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
@@ -170,8 +163,17 @@ func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-set field dari mandor
 	penyadap.Tipe = mandor.Tipe
-	fmt.Printf("DEBUG: Auto-setting tipe '%s' from mandor '%s'\n", penyadap.Tipe, mandor.Mandor)
+	penyadap.TahunTanam = mandor.TahunTanam
+
+	if penyadap.TahunTanam == 0 {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Tahun tanam wajib diisi (dari mandor)",
+		})
+		return
+	}
 
 	if penyadap.Tanggal.IsZero() {
 		penyadap.Tanggal = time.Now()
@@ -191,8 +193,11 @@ func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusCreated, APIResponse{
 		Success: true,
-		Message: fmt.Sprintf("Data penyadap berhasil ditambahkan dengan tipe %s (tahun tanam %d, dari profil mandor)", penyadap.Tipe, penyadap.TahunTanam),
-		Data:    penyadap,
+		Message: fmt.Sprintf(
+			"Data penyadap berhasil ditambahkan dengan tipe %s (tahun tanam %d, dari mandor %s)",
+			penyadap.Tipe, penyadap.TahunTanam, mandor.Mandor,
+		),
+		Data: penyadap,
 	})
 }
 

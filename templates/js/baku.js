@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let allBakuData = [];   // DETAIL per penyadap untuk Edit/Delete → dari /api/baku?tanggal=YYYY-MM-DD
   let editingId = null;   // simpan sebagai STRING
+  let mandorDataCache = []; // Cache untuk data mandor
 
   // ========= Popup Mandor =========
   const tambahMandorBtn = document.getElementById("tambahMandor");
@@ -76,7 +77,6 @@ document.addEventListener("DOMContentLoaded", () => {
         data.data.forEach(m => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
-            <td>${m}</td>
             <td>${safeText(m.mandor)}</td>
             <td>${safeText(m.tahun_tanam, "-")}</td>
             <td>${safeText(m.afdeling, "-")}</td>
@@ -95,10 +95,10 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         });
       } else {
-        mandorTableBody.innerHTML = `<tr><td colspan="4">Tidak ada data mandor.</td></tr>`;
+        mandorTableBody.innerHTML = `<tr><td colspan="5">Tidak ada data mandor.</td></tr>`;
       }
     } catch (e) {
-      mandorTableBody.innerHTML = `<tr><td colspan="4">Error: ${e.message}</td></tr>`;
+      mandorTableBody.innerHTML = `<tr><td colspan="5">Error: ${e.message}</td></tr>`;
     }
   }
 
@@ -110,10 +110,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch("/api/mandor");
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
+        // Cache data mandor untuk digunakan nanti
+        mandorDataCache = data.data;
+
         data.data.forEach(m => {
           const opt = document.createElement("option");
           opt.value = String(m.id);
-          console.log(m)
+          // Simpan tahun tanam sebagai data attribute
+          opt.setAttribute('data-tahun-tanam', m.tahun_tanam || '');
+          opt.setAttribute('data-tipe', m.tipe || '');
           opt.textContent = `${safeText(m.mandor)} (${safeText(m.afdeling, "-")}) ${safeText(m.tahun_tanam, "-")} - Tipe: ${safeText(m.tipe)}`;
           select.appendChild(opt);
         });
@@ -121,6 +126,11 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) {
       // biarkan kosong
     }
+  }
+
+  // ========= Function untuk mendapatkan data mandor berdasarkan ID =========
+  function getMandorById(id) {
+    return mandorDataCache.find(m => String(m.id) === String(id));
   }
 
   // ========= Popup Penyadap =========
@@ -131,22 +141,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const penyadapTableBody = document.getElementById("penyadapTableBody");
 
   if (tambahPenyadapBtn) {
-    // Show the popup when "Tambah Penyadap" button is clicked
     tambahPenyadapBtn.addEventListener("click", () => {
       if (popupPenyadap) popupPenyadap.style.display = "flex";
-      loadPenyadapList();  // Load existing penyadap list when the popup is shown
+      loadPenyadapList();
     });
   }
 
   if (closePopupPenyadapBtn) {
-    // Close the popup when "close" button is clicked
     closePopupPenyadapBtn.addEventListener("click", () => {
       if (popupPenyadap) popupPenyadap.style.display = "none";
     });
   }
 
   if (formPenyadapBaru) {
-    // Handle form submission for adding a new penyadap
     formPenyadapBaru.addEventListener("submit", async e => {
       e.preventDefault();
       const payload = {
@@ -164,7 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (data.success) {
           alert("Penyadap ditambahkan!");
           formPenyadapBaru.reset();
-          loadPenyadapList();  // Reload the penyadap list after adding a new one
+          loadPenyadapList();
         } else {
           alert("Gagal: " + data.message);
         }
@@ -174,12 +181,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Function to load the list of penyadap
   async function loadPenyadapList() {
     if (!penyadapTableBody) return;
-    penyadapTableBody.innerHTML = "";  // Clear the existing list
+    penyadapTableBody.innerHTML = "";
     try {
-      const res = await fetch("/api/penyadap");  // Get the list from the API
+      const res = await fetch("/api/penyadap");
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         data.data.forEach(p => {
@@ -197,12 +203,6 @@ document.addEventListener("DOMContentLoaded", () => {
       penyadapTableBody.innerHTML = `<tr><td colspan="2">Error: ${e.message}</td></tr>`;
     }
   }
-
-  // Helper function to sanitize text before displaying it
-  function safeText(text, fallback = "") {
-    return text ? text : fallback;
-  }
-
 
   // ========= Autocomplete Penyadap =========
   const inputNama = document.getElementById("namaPenyadap");
@@ -253,15 +253,21 @@ document.addEventListener("DOMContentLoaded", () => {
       const idMandorStr = document.getElementById("mandor").value;
       const idPenyadapStr = inputIdPenyadap ? inputIdPenyadap.value : "";
 
+      // Dapatkan data mandor untuk mengambil tahun tanam
+      const selectedMandor = getMandorById(idMandorStr);
+      const tahunTanam = selectedMandor ? selectedMandor.tahun_tanam : null;
+
       const payload = {
         idBakuMandor: idMandorStr ? parseInt(idMandorStr) : null,
         idPenyadap: idPenyadapStr ? parseInt(idPenyadapStr) : null,
-        tipe: document.getElementById("jenis").value,
+        tahunTanam: tahunTanam, // Tambahkan tahun tanam ke payload
         basahLatex: n(document.getElementById("latek").value),
         basahLump: n(document.getElementById("lump").value),
         sheet: n(document.getElementById("sheet").value),
         brCr: n(document.getElementById("brcr").value),
       };
+
+      console.log("Payload yang dikirim:", payload); // Debug log
 
       const url = editingId ? `/api/baku/${encodeURIComponent(editingId)}` : "/api/baku";
       const method = editingId ? "PUT" : "POST";
@@ -279,11 +285,11 @@ document.addEventListener("DOMContentLoaded", () => {
           form.reset();
           if (inputNik) inputNik.value = "";
           if (inputIdPenyadap) inputIdPenyadap.value = "";
-          const submitBtn = document.getElementById("submitBtn");
-          if (submitBtn) submitBtn.textContent = "Simpan";
+          const submitBtn = document.querySelector('button[type="submit"]');
+          if (submitBtn) submitBtn.textContent = "Save";
           // refresh kedua tampilan
-          renderRekapMandor();   // ambil dari /api/baku/detail
-          renderDetailBaku();    // ambil dari /api/baku?tanggal=YYYY-MM-DD
+          renderRekapMandor();
+          renderDetailBaku();
         } else {
           alert("Gagal: " + data.message);
         }
@@ -295,13 +301,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ========= Rekap Mandor (PAKAI /api/baku/detail) =========
   async function renderRekapMandor() {
-    // Asumsikan kamu punya <table id="summaryTable"> dengan <tbody>
     const body = document.querySelector("#summaryTable tbody");
     if (!body) return;
 
     body.innerHTML = "";
     try {
-      // Endpoint yang kamu kirim: /api/baku/detail (tanpa parameter tanggal)
       const res = await fetch(`/api/baku/detail`);
       const json = await res.json();
 
@@ -350,7 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     allBakuData = Array.isArray(dataArr) ? dataArr : [];
 
-    // group by mandor (berdasarkan struktur DETAIL: it.mandor?.mandor, it.penyadap?.*)
+    // group by mandor
     const groups = {};
     allBakuData.forEach(it => {
       const key = (it && it.mandor && it.mandor.mandor) ? it.mandor.mandor : "Unknown";
@@ -370,7 +374,7 @@ document.addEventListener("DOMContentLoaded", () => {
       table.innerHTML = `
         <caption>Mandor: ${safeText(mandor)}</caption>
         <thead>
-          <tr><th>NIK</th><th>Penyadap</th><th>Latek</th><th>Lump</th><th>Sheet</th><th>Br.Cr</th><th>Action</th></tr>
+          <tr><th>NIK</th><th>Penyadap</th><th>Tahun Tanam</th><th>Latek</th><th>Lump</th><th>Sheet</th><th>Br.Cr</th><th>Action</th></tr>
         </thead>
         <tbody></tbody>`;
       const tbody = table.querySelector("tbody");
@@ -378,10 +382,13 @@ document.addEventListener("DOMContentLoaded", () => {
       groups[mandor].forEach(it => {
         const nik  = (it && it.penyadap && it.penyadap.nik) ? it.penyadap.nik : "-";
         const nama = (it && it.penyadap && it.penyadap.nama_penyadap) ? it.penyadap.nama_penyadap : "-";
+        const tahunTanam = safeText(it.tahunTanam || it.tahun_tanam, "-");
+
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${nik}</td>
           <td>${nama}</td>
+          <td>${tahunTanam}</td>
           <td>${safeText(it.basahLatex, 0)}</td>
           <td>${safeText(it.basahLump, 0)}</td>
           <td>${safeText(it.sheet, 0)}</td>
@@ -396,7 +403,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ========= Event Delegation untuk Edit/Delete (BERLAKU UNTUK DETAIL) =========
+  // ========= Event Delegation untuk Edit/Delete =========
   const bakuTableWrapper = document.getElementById("bakuTableWrapper");
   if (bakuTableWrapper) {
     bakuTableWrapper.addEventListener("click", async (e) => {
@@ -411,19 +418,6 @@ document.addEventListener("DOMContentLoaded", () => {
         // set mandor (select value = STRING)
         const mandorSelect = document.getElementById("mandor");
         if (mandorSelect) mandorSelect.value = String(item.idBakuMandor);
-
-        // set jenis langsung + fallback option jika belum ada
-        const jenisSelect = document.getElementById("jenis");
-        if (jenisSelect) {
-          jenisSelect.value = item.tipe || "";
-          if (!jenisSelect.value && item.tipe) {
-            const opt = document.createElement("option");
-            opt.value = item.tipe;
-            opt.textContent = String(item.tipe).replace(/_/g, " ").toUpperCase();
-            jenisSelect.appendChild(opt);
-            jenisSelect.value = item.tipe;
-          }
-        }
 
         // set penyadap & angka
         const inputNama = document.getElementById("namaPenyadap");
@@ -444,7 +438,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (brcr)  brcr.value  = item.brCr       ?? 0;
 
         editingId = id; // STRING
-        const submitBtn = document.getElementById("submitBtn");
+        const submitBtn = document.querySelector('button[type="submit"]');
         if (submitBtn) submitBtn.textContent = "Perbarui";
       }
 
@@ -452,8 +446,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const id = String(delBtn.dataset.id);
         if (confirm("Hapus data?")) {
           await fetch(`/api/baku/${encodeURIComponent(id)}`, { method: "DELETE" });
-          renderRekapMandor(); // rekap ikut berubah
-          renderDetailBaku();  // refresh detail
+          renderRekapMandor();
+          renderDetailBaku();
         }
       }
     });
@@ -478,8 +472,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ========= Init =========
   loadMandorOptions();
-  renderRekapMandor();   // ← pakai /api/baku/detail (rekap per mandor)
-  renderDetailBaku();    // ← pakai /api/baku?tanggal=YYYY-MM-DD (detail per penyadap, untuk Edit/Delete)
-  // kalau kamu tetap ingin auto-refresh rekap tiap 30 detik:
+  renderRekapMandor();
+  renderDetailBaku();
   setInterval(renderRekapMandor, 300000);
 });
