@@ -57,3 +57,33 @@ document.getElementById("togglePassword").addEventListener("click", function() {
         this.textContent = "👁️";
     }
 });
+
+// Menambahkan event listener untuk form input
+document.getElementById('bakuForm').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    // Mencegah form disubmit saat menekan Enter
+    e.preventDefault();
+
+    // Mendapatkan elemen input yang sedang aktif
+    let currentElement = document.activeElement;
+    let nextElement = null;
+
+    // Mengecek apakah elemen yang aktif adalah input atau select
+    if (currentElement && (currentElement.tagName === 'INPUT' || currentElement.tagName === 'SELECT')) {
+      // Mendapatkan elemen input/select berikutnya
+      nextElement = getNextInput(currentElement);
+    }
+
+    // Fokus ke elemen berikutnya jika ada
+    if (nextElement) {
+      nextElement.focus();
+    }
+  }
+});
+
+// Fungsi untuk mendapatkan elemen input berikutnya
+function getNextInput(currentElement) {
+  let allInputs = document.querySelectorAll('#bakuForm input, #bakuForm select');
+  let currentIndex = Array.prototype.indexOf.call(allInputs, currentElement);
+  return allInputs[currentIndex + 1] || null;  // Mengembalikan input berikutnya
+}

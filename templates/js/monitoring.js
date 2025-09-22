@@ -1,11 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const wrapper = document.getElementById("bakuTableWrapper");
+    const bakuTableBody = document.getElementById("bakuTableBody");
     const btnSearch = document.getElementById("searchBtn");
     const tglAwal = document.getElementById("searchTanggalAwal");
     const tglAkhir = document.getElementById("searchTanggalAkhir");
     const filterJenis = document.getElementById("filterJenis");
-    const bakuTableBody = document.getElementById("bakuTableBody");
 
+    // Fungsi untuk mengambil data dari backend
     async function fetchData(url) {
         try {
             const res = await fetch(url);
@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return [];
     }
 
+    // Fungsi untuk render data ke dalam tabel
     function renderTable(dataArr) {
         bakuTableBody.innerHTML = ""; // Clear previous data
 
@@ -32,11 +33,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const tr = document.createElement("tr");
             tr.innerHTML = `
                 <td>${item.tanggal || "-"}</td>
-                <td>${item.mandor?.mandor || "-"}</td>
-                <td>${item.mandor?.afdeling || "-"}</td>
-                <td>${item.penyadap?.nik || "-"}</td>
-                <td>${item.penyadap?.nama_penyadap || "-"}</td>
-                <td>${item.periode || "-"}</td>
+                <td>${item.mandor || "-"}</td>
+                <td>${item.tahunTanam || "-"}</td>
+                <td>${item.afdeling || "-"}</td>
+                <td>${item.nik || "-"}</td>
+                <td>${item.namaPenyadap || "-"}</td>
                 <td>${item.basahLatex || 0}</td>
                 <td>${item.sheet || 0}</td>
                 <td>${item.basahLump || 0}</td>
@@ -50,7 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btnSearch.addEventListener("click", async (event) => {
         event.preventDefault(); // Prevent form submission
         let dataArr = [];
-        
+
         const awal = tglAwal.value;
         const akhir = tglAkhir.value;
         const jenis = filterJenis.value;

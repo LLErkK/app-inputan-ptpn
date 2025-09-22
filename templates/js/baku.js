@@ -81,7 +81,11 @@ document.addEventListener("DOMContentLoaded", () => {
             <td>${safeText(m.tahun_tanam, "-")}</td>
             <td>${safeText(m.afdeling, "-")}</td>
             <td>${safeText(m.tipe,"-")}</td>
-            <td><button data-id="${String(m.id)}" class="delete-mandor-btn">Hapus</button></td>`;
+            <td><button data-id="${String(m.id)}" class="delete-mandor-btn">
+            <span class="action-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </span>
+            </button></td>`;
           mandorTableBody.appendChild(tr);
         });
         mandorTableBody.querySelectorAll(".delete-mandor-btn").forEach(btn => {
@@ -334,74 +338,81 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ========= DETAIL per Penyadap (PAKAI /api/baku?tanggal=YYYY-MM-DD) =========
-  async function renderDetailBaku() {
-    const wrapper = document.getElementById("bakuTableWrapper");
-    if (!wrapper) return;
-    wrapper.innerHTML = "";
+async function renderDetailBaku() {
+  const wrapper = document.getElementById("bakuTableWrapper");
+  if (!wrapper) return;
+  wrapper.innerHTML = "";
 
-    const today = todayLocalYYYYMMDD();
-    let dataArr = [];
-    try {
-      const res = await fetch(`/api/baku?tanggal=${encodeURIComponent(today)}`);
-      const json = await res.json();
-      if (json && json.success && Array.isArray(json.data)) {
-        dataArr = json.data;
-      }
-    } catch (e) {
-      // biarkan kosong; akan tampil empty-state
+  const today = todayLocalYYYYMMDD();
+  let dataArr = [];
+  try {
+    const res = await fetch(`/api/baku?tanggal=${encodeURIComponent(today)}`);
+    const json = await res.json();
+    if (json && json.success && Array.isArray(json.data)) {
+      dataArr = json.data;
     }
-
-    allBakuData = Array.isArray(dataArr) ? dataArr : [];
-
-    // group by mandor
-    const groups = {};
-    allBakuData.forEach(it => {
-      const key = (it && it.mandor && it.mandor.mandor) ? it.mandor.mandor : "Unknown";
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(it);
-    });
-
-    const mandorNames = Object.keys(groups);
-    if (!mandorNames.length) {
-      wrapper.innerHTML = `<div class="empty-state">Belum ada data detail untuk hari ini (${today}).</div>`;
-      return;
-    }
-
-    mandorNames.forEach(mandor => {
-      const table = document.createElement("table");
-      table.className = "baku-table";
-      table.innerHTML = `
-        <caption>Mandor: ${safeText(mandor)}</caption>
-        <thead>
-          <tr><th>NIK</th><th>Penyadap</th><th>Tahun Tanam</th><th>Latek</th><th>Lump</th><th>Sheet</th><th>Br.Cr</th><th>Action</th></tr>
-        </thead>
-        <tbody></tbody>`;
-      const tbody = table.querySelector("tbody");
-
-      groups[mandor].forEach(it => {
-        const nik  = (it && it.penyadap && it.penyadap.nik) ? it.penyadap.nik : "-";
-        const nama = (it && it.penyadap && it.penyadap.nama_penyadap) ? it.penyadap.nama_penyadap : "-";
-        const tahunTanam = safeText(it.tahunTanam || it.tahun_tanam, "-");
-
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${nik}</td>
-          <td>${nama}</td>
-          <td>${tahunTanam}</td>
-          <td>${safeText(it.basahLatex, 0)}</td>
-          <td>${safeText(it.basahLump, 0)}</td>
-          <td>${safeText(it.sheet, 0)}</td>
-          <td>${safeText(it.brCr, 0)}</td>
-          <td>
-            <button class="edit-btn" data-id="${String(it.id)}">Edit</button>
-            <button class="delete-btn" data-id="${String(it.id)}">Delete</button>
-          </td>`;
-        tbody.appendChild(tr);
-      });
-      wrapper.appendChild(table);
-    });
+  } catch (e) {
+    // biarkan kosong; akan tampil empty-state
   }
+
+  allBakuData = Array.isArray(dataArr) ? dataArr : [];
+
+  // group by tahunTanam
+  const groupsByTahunTanam = {};
+  allBakuData.forEach(it => {
+    const key = it.tahunTanam || it.tahun_tanam || "Unknown";
+    if (!groupsByTahunTanam[key]) groupsByTahunTanam[key] = [];
+    groupsByTahunTanam[key].push(it);
+  });
+
+  const tahunTanamNames = Object.keys(groupsByTahunTanam);
+  if (!tahunTanamNames.length) {
+    wrapper.innerHTML = `<div class="empty-state">Belum ada data detail untuk hari ini (${today}).</div>`;
+    return;
+  }
+
+  tahunTanamNames.forEach(tahunTanam => {
+    const table = document.createElement("table");
+    table.className = "baku-table";
+    table.innerHTML = `
+      <caption>Tahun Tanam: ${safeText(tahunTanam)}</caption>
+      <thead>
+        <tr><th>Mandor</th><th>NIK</th><th>Penyadap</th><th>Latek</th><th>Lump</th><th>Sheet</th><th>Br.Cr</th><th>Action</th></tr>
+      </thead>
+      <tbody></tbody>`;
+    const tbody = table.querySelector("tbody");
+
+    groupsByTahunTanam[tahunTanam].forEach(it => {
+      const nik  = (it && it.penyadap && it.penyadap.nik) ? it.penyadap.nik : "-";
+      const nama = (it && it.penyadap && it.penyadap.nama_penyadap) ? it.penyadap.nama_penyadap : "-";
+      const mandor = (it && it.mandor && it.mandor.mandor) ? it.mandor.mandor : "Unknown";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${safeText(mandor, "-")}</td>
+        <td>${nik}</td>
+        <td>${nama}</td>
+        <td>${safeText(it.basahLatex, 0)}</td>
+        <td>${safeText(it.basahLump, 0)}</td>
+        <td>${safeText(it.sheet, 0)}</td>
+        <td>${safeText(it.brCr, 0)}</td>
+        <td>
+          <button class="edit-btn" data-id="${String(it.id)}">
+            <span class="action-icon"> 
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0093E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+            </span>
+          </button>
+          <button class="delete-btn" data-id="${String(it.id)}">
+            <span class="action-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </span>
+          </button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    wrapper.appendChild(table);
+  });
+}
 
   // ========= Event Delegation untuk Edit/Delete =========
   const bakuTableWrapper = document.getElementById("bakuTableWrapper");
