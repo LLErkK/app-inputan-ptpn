@@ -95,10 +95,11 @@ type BakuPenyadap struct {
 type BakuDetail struct {
 	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
 
-	Tanggal  time.Time    `gorm:"not null;index" json:"tanggal"`
-	Mandor   string       `gorm:"size:100;not null;index" json:"mandor"` // Nama mandor
-	Afdeling string       `gorm:"size:100;not null" json:"afdeling"`     // Afdeling
-	Tipe     TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"`
+	Tanggal    time.Time    `gorm:"not null;index" json:"tanggal"`
+	Mandor     string       `gorm:"size:100;not null;index" json:"mandor"` // Nama mandor
+	Afdeling   string       `gorm:"size:100;not null" json:"afdeling"`     // Afdeling
+	TahunTanam uint         `gorm:"" json:"tahun_tanam"`
+	Tipe       TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"`
 
 	JumlahPabrikBasahLatek      float64 `gorm:"default:0" json:"jumlah_pabrik_basah_latek"`
 	JumlahKebunBasahLatek       float64 `gorm:"default:0" json:"jumlah_kebun_basah_latek"`
