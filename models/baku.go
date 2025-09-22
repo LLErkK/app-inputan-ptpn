@@ -47,6 +47,7 @@ func IsValidTipeProduksi(tipe TipeProduksi) bool {
 type BakuMandor struct {
 	ID         uint         `gorm:"primaryKey;autoIncrement" json:"id"`
 	TahunTanam uint         `gorm:"not null" json:"tahun_tanam"`
+	NIK        string       `gorm:"not null" json:"nik"`
 	Mandor     string       `gorm:"size:100;not null" json:"mandor"`
 	Afdeling   string       `gorm:"size:100;not null" json:"afdeling"`
 	Tipe       TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"`
@@ -78,6 +79,7 @@ type BakuPenyadap struct {
 	IdPenyadap   uint64       `gorm:"not null;index" json:"idPenyadap"`
 	Tanggal      time.Time    `gorm:"not null;index" json:"tanggal"`
 	Tipe         TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"` // Auto-set from mandor
+	TahunTanam   uint         `gorm:"" json:"tahun_tanam"`
 
 	BasahLatex float64 `gorm:"default:0" json:"basahLatex"`
 	Sheet      float64 `gorm:"default:0" json:"sheet"`

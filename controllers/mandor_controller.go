@@ -28,6 +28,31 @@ func GetAllMandor(w http.ResponseWriter, r *http.Request) {
 		Data:    mandors,
 	})
 }
+func GetMandorByName(w http.ResponseWriter, r *http.Request) {
+	nama := r.URL.Query().Get("nama")
+	if nama == "" {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Parameter nama wajib diisi",
+		})
+		return
+	}
+
+	var mandors []models.BakuMandor
+	if err := config.DB.Where("mandor LIKE ?", "%"+nama+"%").Find(&mandors).Error; err != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Message: "Gagal mencari Mandor: " + err.Error(),
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Message: "Data mandor ditemukan",
+		Data:    mandors,
+	})
+}
 
 // UPDATED: CreateMandor - Now validates and sets Tipe
 func CreateMandor(w http.ResponseWriter, r *http.Request) {

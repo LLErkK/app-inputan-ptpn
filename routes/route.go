@@ -57,6 +57,7 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/baku/rekap/today", controllers.GetBakuPenyadapToday).Methods("GET")
 
 	// ================== MANDOR API (CRUD) ==================
+	protected.HandleFunc("/api/mandor/search", controllers.GetMandorByName).Methods("GET")
 	protected.HandleFunc("/api/mandor", controllers.GetAllMandor).Methods("GET")
 	protected.HandleFunc("/api/mandor", controllers.CreateMandor).Methods("POST")
 	protected.HandleFunc("/api/mandor/{id}", controllers.GetMandorByID).Methods("GET")

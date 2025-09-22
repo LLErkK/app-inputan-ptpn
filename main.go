@@ -3,6 +3,7 @@ package main
 import (
 	"app-inputan-ptpn/config"
 	"app-inputan-ptpn/routes"
+	"app-inputan-ptpn/seed"
 	"fmt"
 	"log"
 	"net/http"
@@ -25,6 +26,8 @@ func main() {
 
 	// Setup routes
 	routes.SetupRoutes()
+	seed.SeedMandor()
+	seed.SeedPenyadap()
 
 	// Start server
 	port := ":8080"
