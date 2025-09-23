@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Input Produksi Baku</title>
-    <!-- ✅ perbaikan path -->
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/input-baku.css">
     <link rel="stylesheet" href="/css/baku-table.css">
@@ -28,8 +27,14 @@
                     </div>
                     <div class="form-row" style="grid-template-columns: 1fr;">
                         <div class="form-group">
+                            <label for="inputNIKMandor">NIK</label>
+                            <input type="number" id="inputNIKmandor "  required>
+                        </div>
+                    </div>
+                    <div class="form-row" style="grid-template-columns: 1fr;">
+                        <div class="form-group">
                             <label for="inputTahunTanam">Tahun Tanam</label>
-                            <input type="text" id="inputTahunTanam" required>
+                            <input type="number" id="inputTahunTanam" required>
                         </div>
                     </div>
                     <div class="form-row" style="grid-template-columns: 1fr;">
@@ -63,6 +68,7 @@
                     <thead>
                     <tr>
                         <th>Nama Mandor</th>
+                        <th>NIK</th>
                         <th>Tahun Tanam</th>
                         <th>Afdeling</th>
                         <th>Jenis</th>
@@ -215,7 +221,6 @@
     </div>
 </div>
 </body>
-<!-- ✅ perbaikan path -->
 <script src="/js/baku.js"> </script>
 
 </html>

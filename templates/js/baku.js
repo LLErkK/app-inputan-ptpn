@@ -42,6 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       const payload = {
         mandor: document.getElementById("inputNamaMandor").value.trim(),
+        nik: document.getElementById("inputNIKMandor").value.trim(),
         tahun_tanam: parseInt(document.getElementById("inputTahunTanam").value) || 0,
         afdeling: document.getElementById("inputAfdeling").value.trim(),
         tipe: document.getElementById("jenis").value
@@ -78,6 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${safeText(m.mandor)}</td>
+            <td>${safeText(m.nik, "-")}</td>
             <td>${safeText(m.tahun_tanam, "-")}</td>
             <td>${safeText(m.afdeling, "-")}</td>
             <td>${safeText(m.tipe,"-")}</td>
@@ -310,7 +312,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     body.innerHTML = "";
     try {
-      const res = await fetch(`/api/baku/detail`);
+      const res = await fetch(`/api/baku/detail/${encodeURIComponent(todayLocalYYYYMMDD())}`);
       const json = await res.json();
 
       if (json && json.success && Array.isArray(json.data) && json.data.length) {

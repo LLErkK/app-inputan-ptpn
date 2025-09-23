@@ -4,6 +4,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const tglAwal = document.getElementById("searchTanggalAwal");
     const tglAkhir = document.getElementById("searchTanggalAkhir");
     const filterJenis = document.getElementById("filterJenis");
+    const namaMandorInput = document.getElementById("namaMandor");
+    const namaPenyadapInput = document.getElementById("namaPenyadap");
 
     // Fungsi untuk mengambil data dari backend
     async function fetchData(url) {
@@ -52,31 +54,86 @@ document.addEventListener("DOMContentLoaded", () => {
         event.preventDefault(); // Prevent form submission
         let dataArr = [];
 
+        // Ambil input dari pengguna
+        const namaMandor = namaMandorInput.value;
+        const namaPenyadap = namaPenyadapInput.value;
         const awal = tglAwal.value;
         const akhir = tglAkhir.value;
         const jenis = filterJenis.value;
 
-        let url = "/api/baku/detail";  // Default API endpoint
+        let url = "http://localhost:8080/api/monitoring/smart-search";  // API endpoint baru
+
+        // Membuat parameter query string
+        let params = new URLSearchParams();
+        params.append("namaMandor", namaMandor);
+        params.append("penyadap", namaPenyadap);
+        params.append("tipe", jenis);
 
         // Filter berdasarkan rentang tanggal
         if (awal && akhir) {
-            url = `/api/baku/detail/range?tanggal_mulai=${awal}&tanggal_selesai=${akhir}&tipe=${jenis}`;
+            params.append("tanggalAwal", awal);
+            params.append("tanggalAkhir", akhir);
         } else if (awal && !akhir) {
-            // Cari berdasarkan satu tanggal
-            url = `/api/baku/detail/${awal}?tipe=${jenis}`;
-        } else if (!awal && !akhir) {
+            // Jika hanya ada tanggal awal
+            params.append("tanggalAwal", awal);
+            params.append("tanggalAkhir", awal); // Bisa disesuaikan dengan logika lain
+        } else {
             // Jika tidak ada tanggal, gunakan tanggal hari ini
-            url = `/api/baku/detail/today?tipe=${jenis}`;
+            const today = new Date().toISOString().split("T")[0]; // format YYYY-MM-DD
+            params.append("tanggalAwal", today);
+            params.append("tanggalAkhir", today);
         }
 
-        // Ambil data dan render
+        // Gabungkan URL dengan query parameters
+        url += `?${params.toString()}`;
+
+        // Ambil data dari API dan render
         dataArr = await fetchData(url);
         renderTable(dataArr);
     });
 
-    // Load awal (hari ini)
-    (async () => {
-        const dataArr = await fetchData(`/api/baku/detail/today`);
-        renderTable(dataArr);
-    })();
+    // Fungsi untuk memuat data berdasarkan hari ini
+    function loadTodayData() {
+        const today = new Date().toISOString().split("T")[0];
+        tglAwal.value = today;
+        tglAkhir.value = today;
+        const url = `http://localhost:8080/api/monitoring/smart-search?namaMandor=${namaMandorInput.value}&penyadap=${namaPenyadapInput.value}&tanggalAwal=${today}&tanggalAkhir=${today}&tipe=${filterJenis.value}`;
+        fetchData(url).then(data => renderTable(data));
+    }
+
+    // Fungsi untuk memuat data berdasarkan minggu ini
+    function loadWeekData() {
+        const currentDate = new Date();
+        const firstDayOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay()));
+        const lastDayOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay() + 6));
+
+        tglAwal.value = firstDayOfWeek.toISOString().split("T")[0];
+        tglAkhir.value = lastDayOfWeek.toISOString().split("T")[0];
+
+        const url = `http://localhost:8080/api/monitoring/smart-search?namaMandor=${namaMandorInput.value}&penyadap=${namaPenyadapInput.value}&tanggalAwal=${tglAwal.value}&tanggalAkhir=${tglAkhir.value}&tipe=${filterJenis.value}`;
+        fetchData(url).then(data => renderTable(data));
+    }
+
+    // Fungsi untuk memuat data berdasarkan bulan ini
+    function loadMonthData() {
+        const currentDate = new Date();
+        const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+        tglAwal.value = firstDayOfMonth.toISOString().split("T")[0];
+        tglAkhir.value = lastDayOfMonth.toISOString().split("T")[0];
+
+        const url = `http://localhost:8080/api/monitoring/smart-search?namaMandor=${namaMandorInput.value}&penyadap=${namaPenyadapInput.value}&tanggalAwal=${tglAwal.value}&tanggalAkhir=${tglAkhir.value}&tipe=${filterJenis.value}`;
+        fetchData(url).then(data => renderTable(data));
+    }
+
+    // Fungsi untuk reset form
+    function clearAll() {
+        tglAwal.value = "";
+        tglAkhir.value = "";
+        filterJenis.value = "";
+        namaMandorInput.value = "";
+        namaPenyadapInput.value = "";
+        renderTable([]); // Clear table
+    }
 });
