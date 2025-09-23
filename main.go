@@ -28,6 +28,7 @@ func main() {
 	routes.SetupRoutes()
 	seed.SeedMandor()
 	seed.SeedPenyadap()
+	seed.SeedBaku()
 
 	// Start server
 	port := ":8080"
