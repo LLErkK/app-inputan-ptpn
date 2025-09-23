@@ -99,14 +99,15 @@ func GetTipeProduksiList(w http.ResponseWriter, r *http.Request) {
 // ======== CRUD OPERATIONS ========
 // GetBakuPenyadapByDate - Get penyadap data for a specific date with each penyadap's total, not the aggregate.
 
-// GetAllBakuPenyadap - Get all penyadap records with optional tipe filter
+// GetAllBakuPenyadap - Get all penyadap records with optional tipe and tanggal filter
 func GetAllBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 	tipeFilter := r.URL.Query().Get("tipe")
+	tanggalStr := r.URL.Query().Get("tanggal")
 
 	var penyadap []models.BakuPenyadap
 	query := config.DB.Preload("Mandor").Preload("Penyadap").Order("created_at desc")
 
-	// Filter by tipe if provided
+	// Filter by tipe
 	if tipeFilter != "" {
 		if !models.IsValidTipeProduksi(models.TipeProduksi(tipeFilter)) {
 			respondJSON(w, http.StatusBadRequest, APIResponse{
@@ -116,6 +117,19 @@ func GetAllBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		query = query.Where("tipe = ?", tipeFilter)
+	}
+
+	// Filter by tanggal
+	if tanggalStr != "" {
+		tanggal, err := time.Parse("2006-01-02", tanggalStr)
+		if err != nil {
+			respondJSON(w, http.StatusBadRequest, APIResponse{
+				Success: false,
+				Message: "Format tanggal tidak valid. Gunakan format YYYY-MM-DD",
+			})
+			return
+		}
+		query = query.Where("DATE(tanggal) = DATE(?)", tanggal)
 	}
 
 	if err := query.Find(&penyadap).Error; err != nil {
@@ -459,7 +473,6 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 				Mandor:   mandor.Mandor,
 				Afdeling: mandor.Afdeling,
 				Tipe:     entry.Tipe,
-				// semua field default 0
 			}
 		} else {
 			fmt.Printf("WARNING: Tidak ada BakuDetail untuk tanggal %s mandor %s tipe %s pada action %s\n",
@@ -471,7 +484,6 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 	// ================== Update nilai berdasarkan action ==================
 	switch action {
 	case "create":
-		fmt.Printf("CREATE: Menambah data untuk %s mandor %s tipe %s\n", targetDate.Format("2006-01-02"), mandor.Mandor, entry.Tipe)
 		detail.JumlahPabrikBasahLatek += entry.BasahLatex
 		detail.JumlahPabrikBasahLump += entry.BasahLump
 		detail.JumlahSheet += entry.Sheet
@@ -479,9 +491,6 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 
 	case "update":
 		if oldEntry != nil {
-			fmt.Printf("UPDATE: Mengupdate data untuk %s mandor %s tipe %s\n", targetDate.Format("2006-01-02"), mandor.Mandor, entry.Tipe)
-
-			// Jika tipe berubah, perlu update 2 detail berbeda
 			if oldEntry.Tipe != entry.Tipe {
 				// Kurangi dari detail lama
 				var oldDetail models.BakuDetail
@@ -491,7 +500,7 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 					oldDetail.JumlahSheet -= oldEntry.Sheet
 					oldDetail.JumlahBrCr -= oldEntry.BrCr
 
-					// Prevent negative values
+					// prevent negatif
 					if oldDetail.JumlahPabrikBasahLatek < 0 {
 						oldDetail.JumlahPabrikBasahLatek = 0
 					}
@@ -505,6 +514,10 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 						oldDetail.JumlahBrCr = 0
 					}
 
+					// hitung ulang K3 lama
+					oldDetail.K3Sheet = oldDetail.JumlahSheet * (oldDetail.JumlahPabrikBasahLatek / 100)
+					oldDetail.K3BrCr = oldDetail.JumlahBrCr * (oldDetail.JumlahPabrikBasahLump / 100)
+
 					config.DB.Save(&oldDetail)
 				}
 
@@ -514,7 +527,7 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 				detail.JumlahSheet += entry.Sheet
 				detail.JumlahBrCr += entry.BrCr
 			} else {
-				// Tipe sama, hitung selisih
+				// Tipe sama → hitung delta
 				deltaBasahLatex := entry.BasahLatex - oldEntry.BasahLatex
 				deltaBasahLump := entry.BasahLump - oldEntry.BasahLump
 				deltaSheet := entry.Sheet - oldEntry.Sheet
@@ -524,20 +537,16 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 				detail.JumlahPabrikBasahLump += deltaBasahLump
 				detail.JumlahSheet += deltaSheet
 				detail.JumlahBrCr += deltaBrCr
-
-				fmt.Printf("  Delta - BasahLatex: %.2f, BasahLump: %.2f, Sheet: %.2f, BrCr: %.2f\n",
-					deltaBasahLatex, deltaBasahLump, deltaSheet, deltaBrCr)
 			}
 		}
 
 	case "delete":
-		fmt.Printf("DELETE: Mengurangi data untuk %s mandor %s tipe %s\n", targetDate.Format("2006-01-02"), mandor.Mandor, entry.Tipe)
 		detail.JumlahPabrikBasahLatek -= entry.BasahLatex
 		detail.JumlahPabrikBasahLump -= entry.BasahLump
 		detail.JumlahSheet -= entry.Sheet
 		detail.JumlahBrCr -= entry.BrCr
 
-		// jaga jangan sampai negatif
+		// jaga jangan negatif
 		if detail.JumlahPabrikBasahLatek < 0 {
 			detail.JumlahPabrikBasahLatek = 0
 		}
@@ -551,6 +560,10 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 			detail.JumlahBrCr = 0
 		}
 	}
+
+	// ================== Hitung ulang K3 ==================
+	detail.K3Sheet = detail.JumlahSheet * (detail.JumlahPabrikBasahLatek / 100)
+	detail.K3BrCr = detail.JumlahBrCr * (detail.JumlahPabrikBasahLump / 100)
 
 	// ================== Hitung Selisih & Persentase ==================
 	detail.SelisihBasahLatek = detail.JumlahPabrikBasahLatek - detail.JumlahKebunBasahLatek
@@ -567,14 +580,9 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 		detail.PersentaseSelisihBasahLump = 0
 	}
 
-	// ================== Simpan ke DB ==================
+	// Simpan
 	if err := config.DB.Save(&detail).Error; err != nil {
 		fmt.Printf("ERROR: Gagal menyimpan BakuDetail: %v\n", err)
-	} else {
-		fmt.Printf("SUCCESS: BakuDetail %s mandor %s tipe %s terupdate\n",
-			targetDate.Format("2006-01-02"), mandor.Mandor, detail.Tipe)
-		fmt.Printf("  - Pabrik Latex: %.2f | Kebun Latex: %.2f\n", detail.JumlahPabrikBasahLatek, detail.JumlahKebunBasahLatek)
-		fmt.Printf("  - Pabrik Lump: %.2f | Kebun Lump: %.2f\n", detail.JumlahPabrikBasahLump, detail.JumlahKebunBasahLump)
 	}
 }
 
@@ -588,7 +596,7 @@ func RecalculateBakuDetail(tanggal time.Time, mandorID uint, tipe models.TipePro
 		return fmt.Errorf("mandor tidak ditemukan: %v", err)
 	}
 
-	// Hitung ulang total dari semua BakuPenyadap untuk tanggal, mandor, dan tipe tersebut
+	// Hitung ulang total dari semua BakuPenyadap
 	var totals struct {
 		TotalBasahLatex float64
 		TotalSheet      float64
@@ -605,17 +613,14 @@ func RecalculateBakuDetail(tanggal time.Time, mandorID uint, tipe models.TipePro
 			COALESCE(SUM(br_cr), 0) as total_br_cr
 		`).
 		Scan(&totals).Error
-
 	if err != nil {
 		return err
 	}
 
-	// Update atau create BakuDetail
+	// Update atau buat detail
 	var detail models.BakuDetail
 	err = config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ? AND tipe = ?", targetDate, mandor.Mandor, tipe).First(&detail).Error
-
 	if err != nil {
-		// Buat baru
 		detail = models.BakuDetail{
 			Tanggal:  targetDate,
 			Mandor:   mandor.Mandor,
@@ -624,11 +629,15 @@ func RecalculateBakuDetail(tanggal time.Time, mandorID uint, tipe models.TipePro
 		}
 	}
 
-	// Set nilai yang dihitung ulang
+	// Set nilai hasil perhitungan ulang
 	detail.JumlahKebunBasahLatek = totals.TotalBasahLatex
 	detail.JumlahSheet = totals.TotalSheet
 	detail.JumlahKebunBasahLump = totals.TotalBasahLump
 	detail.JumlahBrCr = totals.TotalBrCr
+
+	// Hitung ulang K3
+	detail.K3Sheet = detail.JumlahSheet * (detail.JumlahPabrikBasahLatek / 100)
+	detail.K3BrCr = detail.JumlahBrCr * (detail.JumlahPabrikBasahLump / 100)
 
 	// Hitung ulang selisih
 	detail.SelisihBasahLatek = detail.JumlahPabrikBasahLatek - detail.JumlahKebunBasahLatek
