@@ -36,6 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
             tr.innerHTML = `
                 <td>${item.tanggal || "-"}</td>
                 <td>${item.mandor || "-"}</td>
+                <td>${item.tipe || "-"}</td>
                 <td>${item.tahunTanam || "-"}</td>
                 <td>${item.afdeling || "-"}</td>
                 <td>${item.nik || "-"}</td>
@@ -49,9 +50,8 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Event search
-    btnSearch.addEventListener("click", async (event) => {
-        event.preventDefault(); // Prevent form submission
+    // Fungsi untuk memicu pencarian
+    async function searchData() {
         let dataArr = [];
 
         // Ambil input dari pengguna
@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Membuat parameter query string
         let params = new URLSearchParams();
         params.append("namaMandor", namaMandor);
-        params.append("penyadap", namaPenyadap);
+        params.append("namaPenyadap", namaPenyadap);
         params.append("tipe", jenis);
 
         // Filter berdasarkan rentang tanggal
@@ -90,6 +90,22 @@ document.addEventListener("DOMContentLoaded", () => {
         // Ambil data dari API dan render
         dataArr = await fetchData(url);
         renderTable(dataArr);
+    }
+
+    // Event search when clicking the search button
+    btnSearch.addEventListener("click", async (event) => {
+        event.preventDefault(); // Prevent form submission
+        await searchData();
+    });
+
+    // Event search when pressing Enter
+    document.querySelectorAll("#namaMandor, #namaPenyadap, #searchTanggalAwal, #searchTanggalAkhir, #filterJenis").forEach(input => {
+        input.addEventListener("keydown", function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Prevent the default Enter key behavior (form submit)
+                searchData(); // Trigger the search function
+            }
+        });
     });
 
     // Fungsi untuk memuat data berdasarkan hari ini

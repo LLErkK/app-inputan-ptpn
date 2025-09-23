@@ -68,7 +68,7 @@
     border-radius: 16px;
     margin-bottom: 20px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.08);
-    /* border: 1px solid rgba(0, 147, 233, 0.1); */
+    border: 1px solid rgba(0, 147, 233, 0.1);   
     position: relative;
 }
 
@@ -166,31 +166,31 @@
   padding: 18px 15px;
   text-align: center;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border: none;
 }
-/* Tambahkan border hitam di sekeliling tabel monitoring */
-.monitoring-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: rgb(0, 0, 0);
-    border-radius: 5px;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    border: 2px solid #222; /* garis tepi hitam di sekeliling tabel */
-}
-/* ...existing code... */
 
-.monitoring-table th,
 .monitoring-table td {
-    border-right: 2px solid #222; /* garis hitam antar kolom */
+  padding: 15px 12px;
+  text-align: center;
+  border-bottom: 1px solid rgba(0, 147, 233, 0.08);
+  font-size: 0.95rem;
+  color: #191f25;
+  transition: all 0.3s ease;
 }
 
-.monitoring-table th:last-child,
-.monitoring-table td:last-child {
-    border-right: none; /* hilangkan garis di kolom terakhir */
+.monitoring-table tr:nth-child(even) {
+  background: rgba(0, 147, 233, 0.02);
 }
 
-/* ...existing code... */
+.monitoring-table tr:hover {
+  background: rgba(0, 147, 233, 0.06);
+  transform: scale(1.01);
+  box-shadow: 0 4px 15px rgba(0, 147, 233, 0.1);
+}
+
+.monitoring-table tr:hover td {
+  color: #1a252f;
+}
