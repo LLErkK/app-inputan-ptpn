@@ -562,8 +562,8 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 	}
 
 	// ================== Hitung ulang K3 ==================
-	detail.K3Sheet = detail.JumlahSheet * (detail.JumlahPabrikBasahLatek / 100)
-	detail.K3BrCr = detail.JumlahBrCr * (detail.JumlahPabrikBasahLump / 100)
+	detail.K3Sheet = detail.JumlahSheet / (detail.JumlahPabrikBasahLatek / 100)
+	detail.K3BrCr = detail.JumlahBrCr / (detail.JumlahPabrikBasahLump / 100)
 
 	// ================== Hitung Selisih & Persentase ==================
 	detail.SelisihBasahLatek = detail.JumlahPabrikBasahLatek - detail.JumlahKebunBasahLatek
@@ -636,8 +636,8 @@ func RecalculateBakuDetail(tanggal time.Time, mandorID uint, tipe models.TipePro
 	detail.JumlahBrCr = totals.TotalBrCr
 
 	// Hitung ulang K3
-	detail.K3Sheet = detail.JumlahSheet * (detail.JumlahPabrikBasahLatek / 100)
-	detail.K3BrCr = detail.JumlahBrCr * (detail.JumlahPabrikBasahLump / 100)
+	detail.K3Sheet = detail.JumlahSheet / (detail.JumlahPabrikBasahLatek / 100)
+	detail.K3BrCr = detail.JumlahBrCr / (detail.JumlahPabrikBasahLump / 100)
 
 	// Hitung ulang selisih
 	detail.SelisihBasahLatek = detail.JumlahPabrikBasahLatek - detail.JumlahKebunBasahLatek

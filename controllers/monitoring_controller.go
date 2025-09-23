@@ -431,7 +431,7 @@ func callSearchAllAPI(params url.Values) ([]MonitoringSearchItem, error) {
 		query = query.
 			Joins("JOIN baku_mandors bm ON bm.id = baku_penyadaps.id_baku_mandor").
 			Where("bm.mandor LIKE ?", "%"+namaMandor+"%")
-	} else if namaPenyadap != "" && typ == "penyadap" {
+	} else if namaPenyadap != "" {
 		query = query.
 			Joins("JOIN penyadaps p ON p.id = baku_penyadaps.id_penyadap").
 			Where("p.nama_penyadap LIKE ?", "%"+namaPenyadap+"%")
