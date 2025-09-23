@@ -338,6 +338,19 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) {
       body.innerHTML = `<tr><td colspan="11">Gagal memuat rekap.</td></tr>`;
     }
+          function safeText(value, defaultValue = "") {
+      if (value === null || value === undefined || value === "") {
+        return defaultValue;
+      }
+      
+      // Jika nilai berupa angka, batasi angka desimal hingga 2
+      if (!isNaN(value)) {
+        return parseFloat(value).toFixed(2); // Ubah '2' sesuai jumlah angka desimal yang diinginkan
+      }
+
+      return value;
+    }
+
   }
 
 async function renderDetailBaku() {
@@ -426,7 +439,16 @@ async function renderDetailBaku() {
       if (editBtn) {
         const id = String(editBtn.dataset.id);
         const item = allBakuData.find(d => String(d.id) === id);
-        if (!item) { alert("Data tidak ditemukan."); return; }
+        if (!item) { 
+          alert("Data tidak ditemukan.");
+          return; 
+        }
+
+        // Men-scroll halaman ke atas dengan animasi smooth
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth' // Scroll dengan animasi smooth
+        });
 
         // set mandor (select value = STRING)
         const mandorSelect = document.getElementById("mandor");
