@@ -11,6 +11,14 @@ import (
 )
 
 func main() {
+	dbFile := "produksi.db"
+	if _, err := os.Stat(dbFile); err == nil {
+		err := os.Remove(dbFile)
+		if err != nil {
+			log.Fatalf("Gagal menghapus database lama: %v", err)
+		}
+		fmt.Println("Database lama berhasil dihapus")
+	}
 	// Initialize database
 	config.InitDB()
 
@@ -29,6 +37,7 @@ func main() {
 	seed.SeedMandor()
 	seed.SeedPenyadap()
 	seed.SeedBaku()
+	seed.SeedBakuBorong()
 
 	// Start server
 	port := ":8080"

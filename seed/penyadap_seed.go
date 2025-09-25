@@ -74,5 +74,8 @@ func SeedPenyadap() {
 		{NamaPenyadap: "TACHOZIN AL MIFTAHCGOZIN", NIK: "9006759"},
 		{NamaPenyadap: "WARISTO", NIK: "9006735"},
 	}
-	config.DB.Create(&penyadaps)
+	for _, penyadap := range penyadaps {
+		var existingPenyadap models.Penyadap
+		config.DB.Where("nik = ?", penyadap.NIK).FirstOrCreate(&existingPenyadap, penyadap)
+	}
 }
