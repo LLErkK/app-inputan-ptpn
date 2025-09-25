@@ -1,4 +1,4 @@
-// models/baku.go - Updated version
+// models/baku.go - Fixed version
 
 package models
 
@@ -8,16 +8,16 @@ import (
 	"gorm.io/gorm"
 )
 
-// Enum untuk tipe produksi
+// Enum untuk tipe produksi - FIXED: Consistent naming
 type TipeProduksi string
 
 const (
 	TipeBaku         TipeProduksi = "BAKU"
 	TipeBakuBorong   TipeProduksi = "BAKU_BORONG"
-	TipeBorgExternal TipeProduksi = "BORONG_EXTERNAL"
-	TipeBorgInternal TipeProduksi = "BORONG_INTERNAL"
+	TipeBorgExternal TipeProduksi = "BAKU_EKSTERNAL" // FIXED: Consistent with seed
+	TipeBorgInternal TipeProduksi = "BAKU_INTERNAL"  // FIXED: Consistent with seed
 	TipeTetesLanjut  TipeProduksi = "TETES_LANJUT"
-	TipeBorgMinggu   TipeProduksi = "BORONG_MINGGU"
+	TipeBorgMinggu   TipeProduksi = "BAKU_MINGGU" // FIXED: Consistent with seed
 )
 
 // GetAllTipeProduksi returns all available production types
@@ -43,7 +43,6 @@ func IsValidTipeProduksi(tipe TipeProduksi) bool {
 	return false
 }
 
-// UPDATED: BakuMandor now includes Tipe field
 type BakuMandor struct {
 	ID         uint         `gorm:"primaryKey;autoIncrement" json:"id"`
 	TahunTanam uint         `gorm:"not null" json:"tahun_tanam"`
@@ -72,13 +71,13 @@ type Penyadap struct {
 	BakuPenyadaps []BakuPenyadap `gorm:"foreignKey:IdPenyadap;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
 }
 
-// UPDATED: BakuPenyadap still has Tipe but will be auto-set from mandor
+// FIXED: Change foreign key type to uint (not uint64)
 type BakuPenyadap struct {
 	ID           uint         `gorm:"primaryKey;autoIncrement" json:"id"`
-	IdBakuMandor uint64       `gorm:"not null;index" json:"idBakuMandor"`
-	IdPenyadap   uint64       `gorm:"not null;index" json:"idPenyadap"`
+	IdBakuMandor uint         `gorm:"not null;index" json:"idBakuMandor"` // FIXED: uint instead of uint64
+	IdPenyadap   uint         `gorm:"not null;index" json:"idPenyadap"`   // FIXED: uint instead of uint64
 	Tanggal      time.Time    `gorm:"not null;index" json:"tanggal"`
-	Tipe         TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"` // Auto-set from mandor
+	Tipe         TipeProduksi `gorm:"type:text; not null; default:'BAKU'; index" json:"tipe"`
 	TahunTanam   uint         `gorm:"" json:"tahun_tanam"`
 
 	BasahLatex float64 `gorm:"default:0" json:"basahLatex"`
@@ -128,8 +127,9 @@ type BakuDetail struct {
 func (BakuDetail) TableName() string {
 	return "baku_details"
 }
+
 func (bm *BakuMandor) GetTipeAsString() string {
-	return string(bm.Tipe) // Convert Tipe to string for easier template rendering
+	return string(bm.Tipe)
 }
 
 // BeforeCreate hook untuk GORM
@@ -150,7 +150,7 @@ func (bd *BakuDetail) BeforeUpdate(tx *gorm.DB) error {
 	return nil
 }
 
-// UPDATED: BeforeCreate hook for BakuMandor to set default tipe
+// BeforeCreate hook for BakuMandor to set default tipe
 func (bm *BakuMandor) BeforeCreate(tx *gorm.DB) error {
 	// Set default tipe jika kosong
 	if bm.Tipe == "" {
@@ -159,8 +159,21 @@ func (bm *BakuMandor) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// UPDATED: BeforeCreate hook untuk BakuPenyadap - tipe will be auto-set from mandor
+// BeforeCreate hook untuk BakuPenyadap - set tanggal hari ini dan auto-set tipe from mandor
 func (bp *BakuPenyadap) BeforeCreate(tx *gorm.DB) error {
-	// Tipe akan di-set otomatis dari mandor di controller, tidak perlu set default di sini
+	// Set tanggal ke hari ini jika kosong
+	if bp.Tanggal.IsZero() {
+		bp.Tanggal = time.Now().Truncate(24 * time.Hour)
+	}
+
+	// Auto-set tipe dari mandor jika kosong
+	if bp.Tipe == "" && bp.IdBakuMandor > 0 {
+		var mandor BakuMandor
+		if err := tx.First(&mandor, bp.IdBakuMandor).Error; err == nil {
+			bp.Tipe = mandor.Tipe
+			bp.TahunTanam = mandor.TahunTanam
+		}
+	}
+
 	return nil
 }

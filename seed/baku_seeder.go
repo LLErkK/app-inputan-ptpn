@@ -1,6 +1,7 @@
 package seed
 
 import (
+	"app-inputan-ptpn/config"
 	"app-inputan-ptpn/controllers"
 	"bytes"
 	"encoding/json"
@@ -8,7 +9,8 @@ import (
 )
 
 func SeedBaku() {
-
+	config.DB.Exec("DELETE FROM baku_penyadaps")
+	config.DB.Exec("DELETE FROM baku_details")
 	entries := []map[string]interface{}{
 		{"IdBakuMandor": 2, "IdPenyadap": 1, "BasahLatex": 39.40, "Sheet": 11.34, "BasahLump": 0, "BrCr": 0},
 		{"IdBakuMandor": 2, "IdPenyadap": 2, "BasahLatex": 32.51, "Sheet": 9.36, "BasahLump": 1.75, "BrCr": 0.50},

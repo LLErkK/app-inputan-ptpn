@@ -6,7 +6,6 @@ import (
 )
 
 func SeedMandor() {
-
 	mandors := []models.BakuMandor{
 		//baku
 		{TahunTanam: 1998, Mandor: "SUKIYATNO", NIK: "9006569", Afdeling: "SETRO", Tipe: "BAKU"},
@@ -97,9 +96,5 @@ func SeedMandor() {
 		{TahunTanam: 2006, Mandor: "AHMAD ARIF", NIK: "9006406", Afdeling: "SETRO", Tipe: "BAKU_EKSTERNAL"},
 	}
 
-	for _, mandor := range mandors {
-		var existingMandor models.BakuMandor
-		config.DB.Where("tahun_tanam = ? AND nik = ? AND afdeling = ? AND tipe = ?",
-			mandor.TahunTanam, mandor.NIK, mandor.Afdeling, mandor.Tipe).FirstOrCreate(&existingMandor, mandor)
-	}
+	config.DB.Create(&mandors)
 }
