@@ -106,6 +106,9 @@ func SetupRoutes() {
 	protected.HandleFunc("/mandor/{id}", controllers.DeleteMandor).Methods("DELETE")
 	protected.HandleFunc("/penyadap/search", controllers.GetPenyadapByName).Methods("GET")
 
+	//visualisasi endpoint
+	protected.HandleFunc("/visualisasi", controllers.ServeVisualisasiPage).Methods("GET")
+
 	// ================== ADDITIONAL MONITORING ENDPOINTS ==================
 	protected.HandleFunc("/api/monitoring/today/summary", func(w http.ResponseWriter, r *http.Request) {
 		// Redirect ke smart search dengan tanggal hari ini
