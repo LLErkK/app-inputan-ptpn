@@ -39,13 +39,12 @@ func main() {
 	seed.SeedMandor()
 	seed.SeedPenyadap()
 	seed.SeedBaku()
-	seed.SeedBakuBorong()
 
 	// Jalankan seeder setelah server aktif
 	go func() {
-		// kasih delay supaya server siap
 		time.Sleep(2 * time.Second)
 		seed.SeedData()
+		seed.SeedBakuBorong()
 	}()
 
 	// Start server

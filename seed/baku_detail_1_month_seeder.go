@@ -42,7 +42,9 @@ func SeedData() {
 		log.Fatalf("Login gagal, response: %+v", loginResp)
 	}
 
-	log.Println("✓ Login berhasil, token:", loginResp.Token)
+	// Simpan token global
+	SessionToken = loginResp.Token
+	log.Println("✓ Login berhasil, token:", SessionToken)
 
 	// 2. Siapkan tanggal sebulan penuh
 	now := time.Now()
@@ -62,7 +64,7 @@ func SeedData() {
 			IdPenyadap:   1,
 			Tanggal:      d,
 			Tipe:         models.TipeBaku,
-			TahunTanam:   2020, // bisa kamu ganti sesuai mandor
+			TahunTanam:   2020,
 			BasahLatex:   10.0,
 			Sheet:        20.0,
 			BasahLump:    15.0,
@@ -72,10 +74,10 @@ func SeedData() {
 		body, _ := json.Marshal(penyadap)
 		req, _ := http.NewRequest("POST", "http://localhost:8080/api/baku", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
-		// tambahkan session_token sebagai cookie
+		// pakai cookie dari token
 		req.AddCookie(&http.Cookie{
 			Name:  "session_token",
-			Value: loginResp.Token,
+			Value: SessionToken,
 		})
 
 		res, err := client.Do(req)
