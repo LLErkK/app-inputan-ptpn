@@ -109,6 +109,9 @@ func SetupRoutes() {
 	//visualisasi endpoint
 	protected.HandleFunc("/visualisasi", controllers.ServeVisualisasiPage).Methods("GET")
 
+	//rekap endpoint
+	protected.HandleFunc("/rekap", controllers.ServeRekapPage).Methods("GET")
+
 	// ================== ADDITIONAL MONITORING ENDPOINTS ==================
 	protected.HandleFunc("/api/monitoring/today/summary", func(w http.ResponseWriter, r *http.Request) {
 		// Redirect ke smart search dengan tanggal hari ini
