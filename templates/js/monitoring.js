@@ -7,31 +7,60 @@ document.addEventListener("DOMContentLoaded", () => {
     const namaMandorInput = document.getElementById("namaMandor");
     const namaPenyadapInput = document.getElementById("namaPenyadap");
 
+    // Debug: Cek apakah semua element ditemukan
+    console.log("Elements found:", {
+        bakuTableBody: !!bakuTableBody,
+        btnSearch: !!btnSearch,
+        tglAwal: !!tglAwal,
+        tglAkhir: !!tglAkhir,
+        filterJenis: !!filterJenis,
+        namaMandorInput: !!namaMandorInput,
+        namaPenyadapInput: !!namaPenyadapInput
+    });
+
     // Fungsi untuk mengambil data dari backend
     async function fetchData(url) {
+        console.log("Fetching data from:", url);
         try {
             const res = await fetch(url);
+            console.log("Response status:", res.status);
+            console.log("Response headers:", Object.fromEntries(res.headers.entries()));
+            
             const json = await res.json();
+            console.log("Response JSON:", json);
+            
             if (json && json.success && Array.isArray(json.data)) {
+                console.log("Data found:", json.data.length, "records");
                 return json.data;
+            } else {
+                console.log("No valid data in response");
+                return [];
             }
         } catch (e) {
             console.error("Fetch error:", e);
+            return [];
         }
-        return [];
     }
 
     // Fungsi untuk render data ke dalam tabel
     function renderTable(dataArr) {
+        console.log("Rendering table with data:", dataArr);
+        
+        if (!bakuTableBody) {
+            console.error("bakuTableBody element not found!");
+            return;
+        }
+
         bakuTableBody.innerHTML = ""; // Clear previous data
 
-        if (!dataArr.length) {
-            bakuTableBody.innerHTML = `<tr><td colspan="10" style="text-align:center;">Data tidak ditemukan.</td></tr>`;
+        if (!dataArr || !dataArr.length) {
+            bakuTableBody.innerHTML = `<tr><td colspan="11" style="text-align:center;">Data tidak ditemukan.</td></tr>`;
             return;
         }
 
         // Render data into the table
-        dataArr.forEach(item => {
+        dataArr.forEach((item, index) => {
+            console.log(`Rendering row ${index}:`, item);
             const tr = document.createElement("tr");
             tr.innerHTML = `
                 <td>${item.tanggal || "-"}</td>
@@ -48,108 +77,159 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
             bakuTableBody.appendChild(tr);
         });
+        
+        console.log("Table rendered successfully");
     }
 
     // Fungsi untuk memicu pencarian
     async function searchData() {
-        let dataArr = [];
-
+        console.log("Starting search...");
+        
         // Ambil input dari pengguna
-        const namaMandor = namaMandorInput.value;
-        const namaPenyadap = namaPenyadapInput.value;
-        const awal = tglAwal.value;
-        const akhir = tglAkhir.value;
-        const jenis = filterJenis.value;
+        const namaMandor = namaMandorInput?.value || "";
+        const namaPenyadap = namaPenyadapInput?.value || "";
+        const awal = tglAwal?.value || "";
+        const akhir = tglAkhir?.value || "";
+        const jenis = filterJenis?.value || "";
 
-        let url = "http://localhost:8080/api/monitoring/smart-search";  // API endpoint baru
+        console.log("Search parameters:", {
+            namaMandor, namaPenyadap, awal, akhir, jenis
+        });
 
-        // Membuat parameter query string
+        let url = "http://localhost:8080/api/monitoring/smart-search";
         let params = new URLSearchParams();
-        params.append("namaMandor", namaMandor);
-        params.append("namaPenyadap", namaPenyadap);
-        params.append("tipe", jenis);
+        
+        // Tambahkan parameter sesuai dengan backend
+        if (namaMandor) params.append("namaMandor", namaMandor);
+        if (namaPenyadap) params.append("namaPenyadap", namaPenyadap);
+        if (jenis) params.append("filterJenis", jenis);
 
         // Filter berdasarkan rentang tanggal
         if (awal && akhir) {
-            params.append("tanggalAwal", awal);
-            params.append("tanggalAkhir", akhir);
+            params.append("filterTanggalAwal", awal);
+            params.append("filterTanggalAkhir", akhir);
         } else if (awal && !akhir) {
-            // Jika hanya ada tanggal awal
-            params.append("tanggalAwal", awal);
-            params.append("tanggalAkhir", awal); // Bisa disesuaikan dengan logika lain
+            params.append("filterTanggalAwal", awal);
+            params.append("filterTanggalAkhir", awal);
         } else {
             // Jika tidak ada tanggal, gunakan tanggal hari ini
-            const today = new Date().toISOString().split("T")[0]; // format YYYY-MM-DD
-            params.append("tanggalAwal", today);
-            params.append("tanggalAkhir", today);
+            const today = new Date().toISOString().split("T")[0];
+            params.append("filterTanggalAwal", today);
+            params.append("filterTanggalAkhir", today);
         }
 
         // Gabungkan URL dengan query parameters
-        url += `?${params.toString()}`;
+        if (params.toString()) {
+            url += `?${params.toString()}`;
+        }
+
+        console.log("Final URL:", url);
 
         // Ambil data dari API dan render
-        dataArr = await fetchData(url);
+        const dataArr = await fetchData(url);
         renderTable(dataArr);
     }
 
     // Event search when clicking the search button
-    btnSearch.addEventListener("click", async (event) => {
-        event.preventDefault(); // Prevent form submission
-        await searchData();
-    });
+    if (btnSearch) {
+        btnSearch.addEventListener("click", async (event) => {
+            console.log("Search button clicked");
+            event.preventDefault();
+            await searchData();
+        });
+    }
+
+    // Tambahkan event listener untuk form submit juga
+    const monitoringForm = document.getElementById("monitoringForm");
+    if (monitoringForm) {
+        monitoringForm.addEventListener("submit", async (event) => {
+            console.log("Form submitted");
+            event.preventDefault();
+            await searchData();
+        });
+    }
 
     // Event search when pressing Enter
-    document.querySelectorAll("#namaMandor, #namaPenyadap, #searchTanggalAwal, #searchTanggalAkhir, #filterJenis").forEach(input => {
+    const inputElements = document.querySelectorAll("#namaMandor, #namaPenyadap, #searchTanggalAwal, #searchTanggalAkhir, #filterJenis");
+    inputElements.forEach(input => {
         input.addEventListener("keydown", function(event) {
             if (event.key === 'Enter') {
-                event.preventDefault(); // Prevent the default Enter key behavior (form submit)
-                searchData(); // Trigger the search function
+                console.log("Enter pressed on input");
+                event.preventDefault();
+                searchData();
             }
         });
     });
 
     // Fungsi untuk memuat data berdasarkan hari ini
     function loadTodayData() {
+        console.log("Loading today data...");
         const today = new Date().toISOString().split("T")[0];
-        tglAwal.value = today;
-        tglAkhir.value = today;
-        const url = `http://localhost:8080/api/monitoring/smart-search?namaMandor=${namaMandorInput.value}&penyadap=${namaPenyadapInput.value}&tanggalAwal=${today}&tanggalAkhir=${today}&tipe=${filterJenis.value}`;
+        
+        const url = `http://localhost:8080/api/monitoring/today/summary?tipe=${filterJenis.value}&namaMandor=${namaMandorInput.value}&penyadap=${namaPenyadapInput.value}`;
+        console.log("Today data URL:", url);
         fetchData(url).then(data => renderTable(data));
     }
 
     // Fungsi untuk memuat data berdasarkan minggu ini
     function loadWeekData() {
+        console.log("Loading week data...");
         const currentDate = new Date();
         const firstDayOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay()));
         const lastDayOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay() + 6));
 
-        tglAwal.value = firstDayOfWeek.toISOString().split("T")[0];
-        tglAkhir.value = lastDayOfWeek.toISOString().split("T")[0];
+        const startDate = firstDayOfWeek.toISOString().split("T")[0];
+        const endDate = lastDayOfWeek.toISOString().split("T")[0];
 
-        const url = `http://localhost:8080/api/monitoring/smart-search?namaMandor=${namaMandorInput.value}&penyadap=${namaPenyadapInput.value}&tanggalAwal=${tglAwal.value}&tanggalAkhir=${tglAkhir.value}&tipe=${filterJenis.value}`;
+        const url = `http://localhost:8080/api/monitoring/week/summary?tipe=${filterJenis.value}&namaMandor=${namaMandorInput.value}&penyadap=${namaPenyadapInput.value}`;
+        console.log("Week data URL:", url);
         fetchData(url).then(data => renderTable(data));
     }
 
     // Fungsi untuk memuat data berdasarkan bulan ini
     function loadMonthData() {
+        console.log("Loading month data...");
         const currentDate = new Date();
         const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-        tglAwal.value = firstDayOfMonth.toISOString().split("T")[0];
-        tglAkhir.value = lastDayOfMonth.toISOString().split("T")[0];
+        const startDate = firstDayOfMonth.toISOString().split("T")[0];
+        const endDate = lastDayOfMonth.toISOString().split("T")[0];
 
-        const url = `http://localhost:8080/api/monitoring/smart-search?namaMandor=${namaMandorInput.value}&penyadap=${namaPenyadapInput.value}&tanggalAwal=${tglAwal.value}&tanggalAkhir=${tglAkhir.value}&tipe=${filterJenis.value}`;
+        const url = `http://localhost:8080/api/monitoring/month/summary?tipe=${filterJenis.value}&namaMandor=${namaMandorInput.value}&penyadap=${namaPenyadapInput.value}`;
+        console.log("Month data URL:", url);
         fetchData(url).then(data => renderTable(data));
     }
 
     // Fungsi untuk reset form
     function clearAll() {
-        tglAwal.value = "";
-        tglAkhir.value = "";
-        filterJenis.value = "";
-        namaMandorInput.value = "";
-        namaPenyadapInput.value = "";
-        renderTable([]); // Clear table
+        console.log("Clearing all data...");
+        if (tglAwal) tglAwal.value = "";
+        if (tglAkhir) tglAkhir.value = "";
+        if (filterJenis) filterJenis.value = "";
+        if (namaMandorInput) namaMandorInput.value = "";
+        if (namaPenyadapInput) namaPenyadapInput.value = "";
+        
+        // Reset ke pesan awal
+        initializeTable();
     }
+
+    // Expose fungsi ke global scope
+    window.loadTodayData = loadTodayData;
+    window.loadWeekData = loadWeekData;
+    window.loadMonthData = loadMonthData;
+    window.clearAll = clearAll;
+    window.searchData = searchData; // Tambahkan ini juga
+    
+    console.log("JavaScript loaded successfully");
+    
+    // Inisialisasi tabel dengan pesan kosong
+    function initializeTable() {
+        if (bakuTableBody) {
+            bakuTableBody.innerHTML = `<tr><td colspan="11" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>`;
+        }
+    }
+    
+    // Inisialisasi tabel kosong saat halaman dimuat
+    initializeTable();
 });

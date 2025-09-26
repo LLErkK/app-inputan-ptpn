@@ -128,25 +128,19 @@
     </div>
 
     <form class="baku-form" id="bakuForm">
-        <div class="form-row">
-            <div class="form-group">
-                <label for="mandor">NAMA Mandor</label>
-                <div style="display:flex; flex-direction:row; gap:8px; align-items:center;">
-                    <select id="mandor" name="idBakuMandor" required style="width:100%;">
-
-
-                        <option value="">-- Pilih Mandor --</option>
-
-                        {{range .MandorList}}
-                            <option value="{{.ID}}">{{.Mandor}} - {{.Afdeling}} ({{.TahunTanam}}) | Tipe: {{.GetTipeAsString}}</option>
-                      {{end}}
-                    </select>
-                    <button type="button" id="tambahMandor" class="tambah-mandor-btn">
-                        <span class="tambah-mandor-icon">+</span>
-                    </button>
-                </div>
+        <div class="form-group">
+            <label for="mandor">NAMA Mandor</label>
+            <div style="display:flex; flex-direction:row; gap:8px; align-items:center;">
+                <input id="mandor" name="idBakuMandor" required list="mandor-list" style="width:100%;" placeholder="Pilih Mandor...">
+                <datalist id="mandor-list">
+                    <!-- Options will be added dynamically -->
+                </datalist>
+                <button type="button" id="tambahMandor" class="tambah-mandor-btn">
+                    <span class="tambah-mandor-icon">+</span>
+                </button>
             </div>
         </div>
+
 
         <div class="form-row">
             <div class="form-group">

@@ -108,31 +108,34 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  async function loadMandorOptions() {
-    const select = document.getElementById("mandor");
-    if (!select) return;
-    select.innerHTML = '<option value="">-- Pilih Mandor --</option>';
+async function loadMandorOptions() {
+    const input = document.getElementById("mandor");
+    const datalist = document.getElementById("mandor-list");
+    if (!input || !datalist) return;
+    
+    // Kosongkan datalist sebelum mengisi ulang
+    datalist.innerHTML = '';
+    
     try {
-      const res = await fetch("/api/mandor");
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        // Cache data mandor untuk digunakan nanti
-        mandorDataCache = data.data;
+        const res = await fetch("/api/mandor");
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+            // Cache data mandor untuk digunakan nanti
+            mandorDataCache = data.data;
 
-        data.data.forEach(m => {
-          const opt = document.createElement("option");
-          opt.value = String(m.id);
-          // Simpan tahun tanam sebagai data attribute
-          opt.setAttribute('data-tahun-tanam', m.tahun_tanam || '');
-          opt.setAttribute('data-tipe', m.tipe || '');
-          opt.textContent = `${safeText(m.mandor)} (${safeText(m.afdeling, "-")}) ${safeText(m.tahun_tanam, "-")} - Tipe: ${safeText(m.tipe)}`;
-          select.appendChild(opt);
-        });
-      }
+            data.data.forEach(m => {
+                const option = document.createElement("option");
+                option.value = `${safeText(m.mandor)} (${safeText(m.afdeling, "-")}) ${safeText(m.tahun_tanam, "-")} - Tipe: ${safeText(m.tipe)}`;
+                option.setAttribute('data-id', m.id); // Menyimpan ID mandor
+                datalist.appendChild(option);
+            });
+        }
     } catch (e) {
-      // biarkan kosong
+        // biarkan kosong
     }
-  }
+}
+
+
 
   // ========= Function untuk mendapatkan data mandor berdasarkan ID =========
   function getMandorById(id) {
