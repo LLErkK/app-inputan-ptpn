@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 func main() {
@@ -19,6 +20,7 @@ func main() {
 		}
 		fmt.Println("Database lama berhasil dihapus")
 	}
+
 	// Initialize database
 	config.InitDB()
 
@@ -38,6 +40,13 @@ func main() {
 	seed.SeedPenyadap()
 	seed.SeedBaku()
 	seed.SeedBakuBorong()
+
+	// Jalankan seeder setelah server aktif
+	go func() {
+		// kasih delay supaya server siap
+		time.Sleep(2 * time.Second)
+		seed.SeedData()
+	}()
 
 	// Start server
 	port := ":8080"

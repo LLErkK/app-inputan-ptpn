@@ -111,6 +111,8 @@ func SetupRoutes() {
 
 	//rekap endpoint
 	protected.HandleFunc("/rekap", controllers.ServeRekapPage).Methods("GET")
+	protected.HandleFunc("/rekap/today", controllers.GetBakuDetailToday).Methods("GET")
+	protected.HandleFunc("/rekap/until-today", controllers.GetBakuDetailUntilTodayThisMonth).Methods("GET")
 
 	// ================== ADDITIONAL MONITORING ENDPOINTS ==================
 	protected.HandleFunc("/api/monitoring/today/summary", func(w http.ResponseWriter, r *http.Request) {
@@ -119,8 +121,8 @@ func SetupRoutes() {
 		today := time.Now().Format("2006-01-02")
 
 		params := url.Values{}
-		params.Add("filterTanggalAwal", today)
-		params.Add("filterTanggalAkhir", today)
+		params.Add("tanggalAwal", today)
+		params.Add("tanggalAkhir", today)
 		if tipe != "" {
 			params.Add("filterJenis", tipe)
 		}
@@ -131,11 +133,20 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/monitoring/week/summary", func(w http.ResponseWriter, r *http.Request) {
 		tipe := r.URL.Query().Get("tipe")
 		today := time.Now()
-		weekStart := today.AddDate(0, 0, -int(today.Weekday()))
+
+		// Cari hari Senin minggu ini
+		offset := int(today.Weekday()) - int(time.Monday)
+		if offset < 0 {
+			offset = 6 // kalau hari ini Minggu (0), mundur ke Senin minggu sebelumnya
+		}
+		weekStart := today.AddDate(0, 0, -offset)
+
+		// Akhir minggu = Minggu
+		weekEnd := weekStart.AddDate(0, 0, 6)
 
 		params := url.Values{}
-		params.Add("filterTanggalAwal", weekStart.Format("2006-01-02"))
-		params.Add("filterTanggalAkhir", today.Format("2006-01-02"))
+		params.Add("tanggalAwal", weekStart.Format("2006-01-02"))
+		params.Add("tanggalAkhir", weekEnd.Format("2006-01-02"))
 		if tipe != "" {
 			params.Add("filterJenis", tipe)
 		}
@@ -149,8 +160,8 @@ func SetupRoutes() {
 		monthStart := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, today.Location())
 
 		params := url.Values{}
-		params.Add("filterTanggalAwal", monthStart.Format("2006-01-02"))
-		params.Add("filterTanggalAkhir", today.Format("2006-01-02"))
+		params.Add("tanggalAwal", monthStart.Format("2006-01-02"))
+		params.Add("tanggalAkhir", today.Format("2006-01-02"))
 		if tipe != "" {
 			params.Add("filterJenis", tipe)
 		}

@@ -147,7 +147,7 @@ func GetAllBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// CreateBakuPenyadap - Create new penyadap record
+// CreateBakuPenyadap - Fixed version that properly calls updateBakuDetail
 func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 	var penyadap models.BakuPenyadap
 	if err := json.NewDecoder(r.Body).Decode(&penyadap); err != nil {
@@ -167,7 +167,7 @@ func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ambil mandor → auto set tipe & tahun tanam
+	// Ambil mandor untuk auto set tipe & tahun tanam
 	var mandor models.BakuMandor
 	if err := config.DB.First(&mandor, penyadap.IdBakuMandor).Error; err != nil {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
@@ -193,8 +193,21 @@ func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		penyadap.Tanggal = time.Now()
 	}
 
-	// Simpan data penyadap
-	if err := config.DB.Create(&penyadap).Error; err != nil {
+	// Pastikan tanggal tanpa timestamp jam
+	penyadap.Tanggal = penyadap.Tanggal.Truncate(24 * time.Hour)
+
+	// Simpan data penyadap dalam transaction
+	tx := config.DB.Begin()
+	if tx.Error != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Message: "Gagal memulai transaction: " + tx.Error.Error(),
+		})
+		return
+	}
+
+	if err := tx.Create(&penyadap).Error; err != nil {
+		tx.Rollback()
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
 			Message: "Gagal menyimpan data penyadap: " + err.Error(),
@@ -202,8 +215,19 @@ func CreateBakuPenyadap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update detail harian
+	// Commit transaction sebelum update detail
+	if err := tx.Commit().Error; err != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Message: "Gagal commit transaction: " + err.Error(),
+		})
+		return
+	}
+
+	// Update detail harian setelah berhasil create
+	fmt.Printf("DEBUG: CreateBakuPenyadap - About to update BakuDetail for penyadap ID=%d\n", penyadap.ID)
 	updateBakuDetail(penyadap, "create", nil)
+	fmt.Printf("DEBUG: CreateBakuPenyadap - BakuDetail update completed\n")
 
 	respondJSON(w, http.StatusCreated, APIResponse{
 		Success: true,
@@ -449,10 +473,10 @@ func GetBakuDetailByDateAndMandor(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// updateBakuDetail - Helper function to update daily summary with tipe support
-// Mencari berdasarkan kombinasi tanggal, mandor, DAN tipe
+// updateBakuDetail - dipanggil saat Create/Update/Delete BakuPenyadap
+// updateBakuDetail - Fixed version
 func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models.BakuPenyadap) {
-	// Ambil tanggal tanpa jam untuk konsistensi
+	// Ambil tanggal tanpa jam
 	targetDate := entry.Tanggal.Truncate(24 * time.Hour)
 
 	// Ambil data mandor
@@ -462,110 +486,75 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 		return
 	}
 
-	var detail models.BakuDetail
-	err := config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ? AND tipe = ?", targetDate, mandor.Mandor, entry.Tipe).First(&detail).Error
+	// Hitung ulang total dari database
+	var totals struct {
+		TotalBasahLatex float64
+		TotalSheet      float64
+		TotalBasahLump  float64
+		TotalBrCr       float64
+	}
+
+	err := config.DB.Raw(`
+		SELECT 
+			COALESCE(SUM(basah_latex), 0) as total_basah_latex,
+			COALESCE(SUM(sheet), 0) as total_sheet,
+			COALESCE(SUM(basah_lump), 0) as total_basah_lump,
+			COALESCE(SUM(br_cr), 0) as total_br_cr
+		FROM baku_penyadaps 
+		WHERE DATE(tanggal) = DATE(?) 
+		AND id_baku_mandor = ? 
+		AND tipe = ?
+		AND deleted_at IS NULL
+	`, targetDate, entry.IdBakuMandor, entry.Tipe).Scan(&totals).Error
 
 	if err != nil {
-		// Jika belum ada detail untuk kombinasi tanggal + mandor + tipe → buat baru
-		if action == "create" {
-			detail = models.BakuDetail{
-				Tanggal:  targetDate,
-				Mandor:   mandor.Mandor,
-				Afdeling: mandor.Afdeling,
-				Tipe:     entry.Tipe,
-			}
-		} else {
-			fmt.Printf("WARNING: Tidak ada BakuDetail untuk tanggal %s mandor %s tipe %s pada action %s\n",
-				targetDate.Format("2006-01-02"), mandor.Mandor, entry.Tipe, action)
-			return
+		fmt.Printf("ERROR: Gagal menghitung total: %v\n", err)
+		return
+	}
+
+	// Cari atau buat BakuDetail
+	var detail models.BakuDetail
+	err = config.DB.Where("DATE(tanggal) = DATE(?) AND id_baku_mandor = ? AND tipe = ?",
+		targetDate, entry.IdBakuMandor, entry.Tipe).First(&detail).Error
+
+	if err != nil && err != gorm.ErrRecordNotFound {
+		fmt.Printf("ERROR: Database error: %v\n", err)
+		return
+	}
+
+	isNewRecord := (err == gorm.ErrRecordNotFound)
+
+	if isNewRecord {
+		detail = models.BakuDetail{
+			Tanggal:      targetDate,
+			IdBakuMandor: mandor.ID,
+			Mandor:       mandor.Mandor,
+			Afdeling:     mandor.Afdeling,
+			TahunTanam:   mandor.TahunTanam,
+			Tipe:         entry.Tipe,
 		}
 	}
 
-	// ================== Update nilai berdasarkan action ==================
-	switch action {
-	case "create":
-		detail.JumlahPabrikBasahLatek += entry.BasahLatex
-		detail.JumlahPabrikBasahLump += entry.BasahLump
-		detail.JumlahSheet += entry.Sheet
-		detail.JumlahBrCr += entry.BrCr
+	// Set data PABRIK
+	detail.JumlahPabrikBasahLatek = totals.TotalBasahLatex
+	detail.JumlahPabrikBasahLump = totals.TotalBasahLump
+	detail.JumlahSheet = totals.TotalSheet
+	detail.JumlahBrCr = totals.TotalBrCr
 
-	case "update":
-		if oldEntry != nil {
-			if oldEntry.Tipe != entry.Tipe {
-				// Kurangi dari detail lama
-				var oldDetail models.BakuDetail
-				if err := config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ? AND tipe = ?", targetDate, mandor.Mandor, oldEntry.Tipe).First(&oldDetail).Error; err == nil {
-					oldDetail.JumlahPabrikBasahLatek -= oldEntry.BasahLatex
-					oldDetail.JumlahPabrikBasahLump -= oldEntry.BasahLump
-					oldDetail.JumlahSheet -= oldEntry.Sheet
-					oldDetail.JumlahBrCr -= oldEntry.BrCr
-
-					// prevent negatif
-					if oldDetail.JumlahPabrikBasahLatek < 0 {
-						oldDetail.JumlahPabrikBasahLatek = 0
-					}
-					if oldDetail.JumlahPabrikBasahLump < 0 {
-						oldDetail.JumlahPabrikBasahLump = 0
-					}
-					if oldDetail.JumlahSheet < 0 {
-						oldDetail.JumlahSheet = 0
-					}
-					if oldDetail.JumlahBrCr < 0 {
-						oldDetail.JumlahBrCr = 0
-					}
-
-					// hitung ulang K3 lama
-					oldDetail.K3Sheet = oldDetail.JumlahSheet * (oldDetail.JumlahPabrikBasahLatek / 100)
-					oldDetail.K3BrCr = oldDetail.JumlahBrCr * (oldDetail.JumlahPabrikBasahLump / 100)
-
-					config.DB.Save(&oldDetail)
-				}
-
-				// Tambah ke detail baru
-				detail.JumlahPabrikBasahLatek += entry.BasahLatex
-				detail.JumlahPabrikBasahLump += entry.BasahLump
-				detail.JumlahSheet += entry.Sheet
-				detail.JumlahBrCr += entry.BrCr
-			} else {
-				// Tipe sama → hitung delta
-				deltaBasahLatex := entry.BasahLatex - oldEntry.BasahLatex
-				deltaBasahLump := entry.BasahLump - oldEntry.BasahLump
-				deltaSheet := entry.Sheet - oldEntry.Sheet
-				deltaBrCr := entry.BrCr - oldEntry.BrCr
-
-				detail.JumlahPabrikBasahLatek += deltaBasahLatex
-				detail.JumlahPabrikBasahLump += deltaBasahLump
-				detail.JumlahSheet += deltaSheet
-				detail.JumlahBrCr += deltaBrCr
-			}
-		}
-
-	case "delete":
-		detail.JumlahPabrikBasahLatek -= entry.BasahLatex
-		detail.JumlahPabrikBasahLump -= entry.BasahLump
-		detail.JumlahSheet -= entry.Sheet
-		detail.JumlahBrCr -= entry.BrCr
-
-		// jaga jangan negatif
-		if detail.JumlahPabrikBasahLatek < 0 {
-			detail.JumlahPabrikBasahLatek = 0
-		}
-		if detail.JumlahPabrikBasahLump < 0 {
-			detail.JumlahPabrikBasahLump = 0
-		}
-		if detail.JumlahSheet < 0 {
-			detail.JumlahSheet = 0
-		}
-		if detail.JumlahBrCr < 0 {
-			detail.JumlahBrCr = 0
-		}
+	// Hitung K3
+	if detail.JumlahPabrikBasahLatek > 0 {
+		detail.K3Sheet = detail.JumlahSheet / detail.JumlahPabrikBasahLatek * 100
+	} else {
+		detail.K3Sheet = 0
 	}
 
-	// ================== Hitung ulang K3 ==================
-	detail.K3Sheet = detail.JumlahSheet / (detail.JumlahPabrikBasahLatek / 100)
-	detail.K3BrCr = detail.JumlahBrCr / (detail.JumlahPabrikBasahLump / 100)
+	if detail.JumlahPabrikBasahLump > 0 {
+		detail.K3BrCr = detail.JumlahBrCr / detail.JumlahPabrikBasahLump * 100
+	} else {
+		detail.K3BrCr = 0
+	}
 
-	// ================== Hitung Selisih & Persentase ==================
+	// Hitung Selisih
 	detail.SelisihBasahLatek = detail.JumlahPabrikBasahLatek - detail.JumlahKebunBasahLatek
 	if detail.JumlahKebunBasahLatek > 0 {
 		detail.PersentaseSelisihBasahLatek = (detail.SelisihBasahLatek / detail.JumlahKebunBasahLatek) * 100
@@ -581,12 +570,18 @@ func updateBakuDetail(entry models.BakuPenyadap, action string, oldEntry *models
 	}
 
 	// Simpan
-	if err := config.DB.Save(&detail).Error; err != nil {
-		fmt.Printf("ERROR: Gagal menyimpan BakuDetail: %v\n", err)
+	if isNewRecord {
+		if err := config.DB.Create(&detail).Error; err != nil {
+			fmt.Printf("ERROR: Gagal create BakuDetail: %v\n", err)
+		}
+	} else {
+		if err := config.DB.Save(&detail).Error; err != nil {
+			fmt.Printf("ERROR: Gagal update BakuDetail: %v\n", err)
+		}
 	}
 }
 
-// RecalculateBakuDetail - Fungsi untuk hitung ulang BakuDetail berdasarkan tanggal, mandor, dan tipe
+// RecalculateBakuDetail - Fungsi untuk hitung ulang BakuDetail berdasarkan tanggal, mandor ID, dan tipe
 func RecalculateBakuDetail(tanggal time.Time, mandorID uint, tipe models.TipeProduksi) error {
 	targetDate := tanggal.Truncate(24 * time.Hour)
 
@@ -619,25 +614,38 @@ func RecalculateBakuDetail(tanggal time.Time, mandorID uint, tipe models.TipePro
 
 	// Update atau buat detail
 	var detail models.BakuDetail
-	err = config.DB.Where("DATE(tanggal) = DATE(?) AND mandor = ? AND tipe = ?", targetDate, mandor.Mandor, tipe).First(&detail).Error
+	err = config.DB.Where("DATE(tanggal) = DATE(?) AND id_baku_mandor = ? AND tipe = ?", targetDate, mandorID, tipe).
+		First(&detail).Error
+
 	if err != nil {
 		detail = models.BakuDetail{
-			Tanggal:  targetDate,
-			Mandor:   mandor.Mandor,
-			Afdeling: mandor.Afdeling,
-			Tipe:     tipe,
+			Tanggal:      targetDate,
+			IdBakuMandor: mandor.ID,
+			Mandor:       mandor.Mandor,
+			Afdeling:     mandor.Afdeling,
+			Tipe:         tipe,
+			TahunTanam:   mandor.TahunTanam,
 		}
 	}
 
-	// Set nilai hasil perhitungan ulang
-	detail.JumlahKebunBasahLatek = totals.TotalBasahLatex
+	// Set nilai hasil perhitungan ulang ke Jumlah Pabrik
+	detail.JumlahPabrikBasahLatek = totals.TotalBasahLatex
+	detail.JumlahPabrikBasahLump = totals.TotalBasahLump
 	detail.JumlahSheet = totals.TotalSheet
-	detail.JumlahKebunBasahLump = totals.TotalBasahLump
 	detail.JumlahBrCr = totals.TotalBrCr
 
-	// Hitung ulang K3
-	detail.K3Sheet = detail.JumlahSheet / (detail.JumlahPabrikBasahLatek / 100)
-	detail.K3BrCr = detail.JumlahBrCr / (detail.JumlahPabrikBasahLump / 100)
+	// Hitung ulang K3 (dibagi)
+	if detail.JumlahPabrikBasahLatek > 0 {
+		detail.K3Sheet = detail.JumlahSheet / detail.JumlahPabrikBasahLatek * 100
+	} else {
+		detail.K3Sheet = 0
+	}
+
+	if detail.JumlahPabrikBasahLump > 0 {
+		detail.K3BrCr = detail.JumlahBrCr / detail.JumlahPabrikBasahLump * 100
+	} else {
+		detail.K3BrCr = 0
+	}
 
 	// Hitung ulang selisih
 	detail.SelisihBasahLatek = detail.JumlahPabrikBasahLatek - detail.JumlahKebunBasahLatek
