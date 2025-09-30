@@ -131,7 +131,7 @@ func UpdatePenyadap(w http.ResponseWriter, r *http.Request) {
 func DeletePenyadap(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	if err := config.DB.Delete(&models.BakuPenyadap{}, id).Error; err != nil {
+	if err := config.DB.Delete(&models.Penyadap{}, id).Error; err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
 			Message: "Gagal menghapus data penyadap: " + err.Error(),
