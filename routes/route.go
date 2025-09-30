@@ -109,6 +109,8 @@ func SetupRoutes() {
 	//visualisasi endpoint
 	protected.HandleFunc("/visualisasi", controllers.ServeVisualisasiPage).Methods("GET")
 	protected.HandleFunc("/api/visualisasi/default", controllers.GetTotalPerDay).Methods("GET")
+	protected.HandleFunc("/api/visualisasi/penyadap", controllers.GetPenyadapPerDay).Methods("GET")
+	protected.HandleFunc("/api/visualisasi/mandor", controllers.GetMandorPerDay).Methods("GET")
 
 	//rekap endpoint
 	protected.HandleFunc("/rekap", controllers.ServeRekapPage).Methods("GET")
