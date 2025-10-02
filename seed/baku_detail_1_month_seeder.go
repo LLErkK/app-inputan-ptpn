@@ -75,7 +75,7 @@ func SeedData() {
 
 	client := &http.Client{}
 
-	// Cek Mandor ID 1 (dengan autentikasi)
+	// Cek Mandor ID 1
 	mandorReq, _ := http.NewRequest("GET", "http://localhost:8080/api/mandor/1", nil)
 	mandorReq.AddCookie(&http.Cookie{Name: "session_token", Value: SessionToken})
 
@@ -93,7 +93,7 @@ func SeedData() {
 	mandorResp.Body.Close()
 	fmt.Println("  ✓ Mandor ID 1 ditemukan")
 
-	// Cek Penyadap ID 1
+	// Cek Penyadap
 	penyadapReq, _ := http.NewRequest("GET", "http://localhost:8080/api/penyadap", nil)
 	penyadapReq.AddCookie(&http.Cookie{Name: "session_token", Value: SessionToken})
 
@@ -110,31 +110,32 @@ func SeedData() {
 	penyadapResp.Body.Close()
 	fmt.Println("  ✓ Data penyadap dapat diakses")
 
-	// 3. Siapkan tanggal sebulan penuh
+	// 3. Siapkan tanggal untuk 3 bulan: bulan kemarin, bulan ini, bulan depan
 	now := time.Now()
-	year, month := now.Year(), now.Month()
-	startOfMonth := time.Date(year, month, 1, 0, 0, 0, 0, now.Location())
-	startOfNextMonth := startOfMonth.AddDate(0, 1, 0)
-	endOfMonth := startOfNextMonth.AddDate(0, 0, -1)
+	year, month, _ := now.Date()
+	loc := now.Location()
+
+	startOfPrevMonth := time.Date(year, month-1, 1, 0, 0, 0, 0, loc)
+	startOfAfterNextMonth := time.Date(year, month+2, 1, 0, 0, 0, 0, loc)
+	endOfNextMonth := startOfAfterNextMonth.AddDate(0, 0, -1)
 
 	successCount := 0
 	errorCount := 0
 	totalDays := 0
-	errorDetails := make(map[string]int) // Untuk track jenis error
+	errorDetails := make(map[string]int)
 
 	fmt.Printf("\n→ Mulai seeding data dari %s sampai %s\n",
-		startOfMonth.Format("2006-01-02"),
-		endOfMonth.Format("2006-01-02"))
+		startOfPrevMonth.Format("2006-01-02"),
+		endOfNextMonth.Format("2006-01-02"))
 
 	// 4. Loop tanggal & kirim data ke API
-	for d := startOfMonth; !d.After(endOfMonth); d = d.AddDate(0, 0, 1) {
+	for d := startOfPrevMonth; !d.After(endOfNextMonth); d = d.AddDate(0, 0, 1) {
 		totalDays++
 
-		// PERBAIKAN: Pastikan format tanggal konsisten
 		penyadap := map[string]interface{}{
 			"IdBakuMandor": 43,
 			"IdPenyadap":   1,
-			"Tanggal":      d.Format("2006-01-02T15:04:05Z07:00"), // ISO 8601 format
+			"Tanggal":      d.Format("2006-01-02T15:04:05Z07:00"),
 			"Tipe":         "BAKU_INTERNAL",
 			"TahunTanam":   2020,
 			"BasahLatex":   10.0,
@@ -157,33 +158,30 @@ func SeedData() {
 			fmt.Printf("  ✗ Tanggal %s: %s\n", d.Format("2006-01-02"), errorMsg)
 			errorDetails[errorMsg]++
 			errorCount++
-			time.Sleep(500 * time.Millisecond) // Delay lebih lama jika error
+			time.Sleep(500 * time.Millisecond)
 			continue
 		}
 
 		if res.StatusCode != http.StatusCreated {
 			bodyBytes, _ := io.ReadAll(res.Body)
 			errorMsg := fmt.Sprintf("Status %d: %s", res.StatusCode, string(bodyBytes))
-
-			// Hanya tampilkan error pertama untuk setiap jenis
 			if errorDetails[errorMsg] == 0 {
 				fmt.Printf("  ✗ Tanggal %s: %s\n", d.Format("2006-01-02"), errorMsg)
 			}
 			errorDetails[errorMsg]++
 			errorCount++
 		} else {
-			if totalDays%5 == 0 || totalDays == 1 { // Tampilkan di hari 1, 5, 10, dst
-				fmt.Printf("  ✓ Progress: %d/%d hari berhasil\n", successCount+1, endOfMonth.Day())
+			if totalDays%5 == 0 || totalDays == 1 {
+				fmt.Printf("  ✓ Progress: %d/%d hari berhasil\n", successCount+1, endOfNextMonth.Sub(startOfPrevMonth).Hours()/24+1)
 			}
 			successCount++
 		}
 		res.Body.Close()
 
-		// Delay kecil untuk menghindari overload
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	// 5. Summary dengan detail error
+	// 5. Summary
 	fmt.Printf("\n→ Seeding data selesai: %d berhasil, %d gagal dari %d hari\n",
 		successCount, errorCount, totalDays)
 
