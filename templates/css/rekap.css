@@ -1,4 +1,7 @@
-/* Reset default styles */
+/* Menambahkan font Poppins dari Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+/* Global font family */
 * {
   margin: 0;
   padding: 0;
@@ -6,51 +9,250 @@
 }
 
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Poppins', sans-serif;
   background-color: #f5f5f5;
   padding: 20px;
 }
 
-table {
+.rekap-container {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 30px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  border: 1px solid rgba(255,255,255,0.8);
+}
+
+/* Table Container - Key fix untuk prevent overflow */
+.rekap-table-container {
+  padding: 0;
+  overflow-x: auto;
+  border-radius: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #0093E9 #f1f1f1;
+}
+
+.rekap-table-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.rekap-table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.rekap-table-container::-webkit-scrollbar-thumb {
+  background: #0093E9;
+  border-radius: 10px;
+}
+
+.rekap-table-container::-webkit-scrollbar-thumb:hover {
+  background: #80D0C7;
+}
+
+/* Header Container - Fixed position */
+.rekap-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(10px);
+  margin: -30px -30px 30px -30px;
+  padding: 30px 30px 20px 30px;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.rekap-container h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0;
+  color: #2c3e50;
+  text-align: center;
+  background: linear-gradient(135deg, #0093E9, #80D0C7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Table styling - Fix untuk tidak overflow */
+.rekap-table {
   width: 100%;
-  border-collapse: collapse;
-  background-color: #fff;
-  border: 1px solid #ddd;
-  margin: 0 auto;
-  font-size: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+  border: 1px solid rgba(0, 147, 233, 0.1);
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+  min-width: 800px;
 }
 
-thead {
-  background-color: #7cba7f; /* Green color */
-  color: #fff;
+.rekap-table thead {
+  background: linear-gradient(135deg, #0093E9, #80D0C7);
 }
 
-thead th {
-  padding: 10px;
+.rekap-table thead th {
+  background: linear-gradient(135deg, #0093E9, #80D0C7);
+  color: white;
+  padding: 15px 12px;
   text-align: center;
+  font-weight: bold;
+  font-size: 13px;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  position: relative;
+  white-space: nowrap;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Body styling */
+.rekap-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.rekap-table tbody tr:nth-child(even) {
+  background-color: rgba(0, 147, 233, 0.02);
+}
+
+.rekap-table tbody tr:hover {
+  background-color: rgba(0, 147, 233, 0.06);
+  transform: scale(1.01);
+  box-shadow: 0 4px 15px rgba(0, 147, 233, 0.1);
+}
+
+.rekap-table tbody td {
+  padding: 12px;
+  text-align: center;
+  border-bottom: 1px solid rgba(0, 147, 233, 0.08);
+  border-right: 1px solid #e0e0e0;
+  color: #191f25;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+  font-family: 'Poppins', sans-serif;
+}
+
+.rekap-table tbody td:last-child {
+  border-right: none;
   font-weight: bold;
 }
 
-tbody tr {
-  background-color: #d9f2d9; /* Light green for rows */
+.rekap-table tbody tr:hover td {
+  color: #1a252f;
 }
 
-tbody td {
-  padding: 8px;
-  text-align: center;
-  border: 1px solid #ddd;
+.rekap-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
-tbody tr:nth-child(even) {
-  background-color: #e9f7e9; /* Alternate row color */
+.rekap-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 12px;
 }
 
-tfoot {
-  background-color: #7cba7f;
+.rekap-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 12px;
 }
 
-tfoot td {
-  font-weight: bold;
-  text-align: center;
-  padding: 10px;
+/* Jarak antara nama tipe dan tabel */
+.rekap-table-container h2 {
+  margin-top: 15px;
+  margin-bottom: 15px; /* Memberikan jarak antara nama tipe dan tabel */
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #2c3e50;
+  text-align: left;
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #0093E9, #80D0C7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+  .rekap-container {
+    padding: 25px;
+  }
+  
+  .rekap-header {
+    margin: -25px -25px 25px -25px;
+    padding: 25px 25px 20px 25px;
+  }
+  
+  .rekap-table {
+    font-size: 12px;
+  }
+  
+  .rekap-table thead th {
+    padding: 12px 10px;
+    font-size: 12px;
+  }
+  
+  .rekap-table tbody td {
+    padding: 10px 8px;
+  }
+  
+  .rekap-container h1 {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .rekap-container {
+    padding: 20px;
+    margin: 10px;
+  }
+  
+  .rekap-header {
+    margin: -20px -20px 20px -20px;
+    padding: 20px 20px 15px 20px;
+  }
+  
+  .rekap-container h1 {
+    font-size: 1.8rem;
+  }
+  
+  .rekap-table {
+    font-size: 11px;
+    min-width: 900px;
+  }
+  
+  .rekap-table thead th {
+    padding: 10px 8px;
+    font-size: 11px;
+  }
+  
+  .rekap-table tbody td {
+    padding: 8px 6px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 10px;
+  }
+  
+  .rekap-container {
+    padding: 15px;
+    margin: 5px;
+  }
+  
+  .rekap-header {
+    margin: -15px -15px 15px -15px;
+    padding: 15px 15px 10px 15px;
+  }
+  
+  .rekap-container h1 {
+    font-size: 1.5rem;
+  }
+  
+  .rekap-table {
+    min-width: 1000px;
+  }
 }

@@ -143,77 +143,160 @@ async function loadMandorOptions() {
   }
 
   // ========= Popup Penyadap =========
-  const tambahPenyadapBtn = document.getElementById("tambahPenyadap");
-  const popupPenyadap = document.getElementById("popupPenyadap");
-  const closePopupPenyadapBtn = document.getElementById("closePopupPenyadap");
-  const formPenyadapBaru = document.getElementById("formPenyadapBaru");
-  const penyadapTableBody = document.getElementById("penyadapTableBody");
+// ========= Popup Penyadap =========
+const tambahPenyadapBtn = document.getElementById("tambahPenyadap");
+const popupPenyadap = document.getElementById("popupPenyadap");
+const closePopupPenyadapBtn = document.getElementById("closePopupPenyadap");
+const formPenyadapBaru = document.getElementById("formPenyadapBaru");
+const penyadapTableBody = document.getElementById("penyadapTableBody");
 
-  if (tambahPenyadapBtn) {
-    tambahPenyadapBtn.addEventListener("click", () => {
-      if (popupPenyadap) popupPenyadap.style.display = "flex";
-      loadPenyadapList();
-    });
-  }
+// Buka popup
+if (tambahPenyadapBtn) {
+  tambahPenyadapBtn.addEventListener("click", () => {
+    if (popupPenyadap) popupPenyadap.style.display = "flex";
+    loadPenyadapList();
+  });
+}
 
-  if (closePopupPenyadapBtn) {
-    closePopupPenyadapBtn.addEventListener("click", () => {
-      if (popupPenyadap) popupPenyadap.style.display = "none";
-    });
-  }
+// Tutup popup
+if (closePopupPenyadapBtn) {
+  closePopupPenyadapBtn.addEventListener("click", () => {
+    if (popupPenyadap) popupPenyadap.style.display = "none";
+  });
+}
 
-  if (formPenyadapBaru) {
-    formPenyadapBaru.addEventListener("submit", async e => {
-      e.preventDefault();
-      const payload = {
-        nama: document.getElementById("inputNamaPenyadap").value.trim(),
-        nik: document.getElementById("inputNIK").value.trim(),
-      };
-
-      try {
-        const res = await fetch("/api/penyadap", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert("Penyadap ditambahkan!");
-          formPenyadapBaru.reset();
-          loadPenyadapList();
-        } else {
-          alert("Gagal: " + data.message);
-        }
-      } catch (err) {
-        alert("Error: " + err.message);
-      }
-    });
-  }
-
-  async function loadPenyadapList() {
-    if (!penyadapTableBody) return;
-    penyadapTableBody.innerHTML = "";
-    try {
-      const res = await fetch("/api/penyadap");
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        data.data.forEach(p => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${safeText(p.nama)}</td>
-            <td>${safeText(p.nik)}</td>
-          `;
-          penyadapTableBody.appendChild(tr);
-        });
-      } else {
-        penyadapTableBody.innerHTML = `<tr><td colspan="2">Tidak ada data penyadap.</td></tr>`;
-      }
-    } catch (e) {
-      penyadapTableBody.innerHTML = `<tr><td colspan="2">Error: ${e.message}</td></tr>`;
+// Submit form penyadap baru
+if (formPenyadapBaru) {
+  formPenyadapBaru.addEventListener("submit", async e => {
+    e.preventDefault();
+    
+    const nama = document.getElementById("inputNamaPenyadap").value.trim();
+    const nik = document.getElementById("inputNIK").value.trim();
+    
+    if (!nama || !nik) {
+      alert("Nama Penyadap dan NIK wajib diisi!");
+      return;
     }
-  }
 
-  // ========= Autocomplete Penyadap =========
+    const payload = {
+      nama_penyadap: nama,
+      nik: nik
+    };
+
+    try {
+      const res = await fetch("/api/penyadap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        alert("Penyadap berhasil ditambahkan!");
+        formPenyadapBaru.reset();
+        loadPenyadapList();
+      } else {
+        alert("Gagal: " + (data.message || "Terjadi kesalahan"));
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      alert("Error: " + err.message);
+    }
+  });
+}
+
+// Load daftar penyadap
+async function loadPenyadapList() {
+  if (!penyadapTableBody) {
+    console.error("penyadapTableBody tidak ditemukan!");
+    return;
+  }
+  
+  console.log("Loading penyadap list...");
+  penyadapTableBody.innerHTML = '<tr><td colspan="3">Memuat data...</td></tr>';
+  
+  try {
+    const res = await fetch("/api/penyadap");
+    console.log("Response status:", res.status);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    
+    const data = await res.json();
+    console.log("Data received:", data);
+    
+    penyadapTableBody.innerHTML = "";
+    
+    if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+      console.log("Rendering", data.data.length, "penyadaps");
+      
+      data.data.forEach(p => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${safeText(p.nama_penyadap)}</td>
+          <td>${safeText(p.nik)}</td>
+          <td>
+            <button data-id="${String(p.id)}" class="delete-penyadap-btn">
+              <span class="action-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+                  <line x1="10" y1="11" x2="10" y2="17"/>
+                  <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+              </span>
+            </button>
+          </td>
+        `;
+        penyadapTableBody.appendChild(tr);
+      });
+      
+      // Pasang event listener setelah semua row ditambahkan
+      const deleteButtons = penyadapTableBody.querySelectorAll(".delete-penyadap-btn");
+      console.log("Found delete buttons:", deleteButtons.length);
+      
+      deleteButtons.forEach(btn => {
+        btn.addEventListener("click", async function() {
+          const id = String(this.getAttribute("data-id"));
+          console.log("Delete clicked for ID:", id);
+          
+          if (confirm("Hapus penyadap ini?")) {
+            try {
+              console.log("Sending DELETE request to:", `/api/penyadap/${id}`);
+              
+              const res = await fetch(`/api/penyadap/${encodeURIComponent(id)}`, { 
+                method: "DELETE" 
+              });
+              
+              console.log("DELETE response status:", res.status);
+              const data = await res.json();
+              console.log("DELETE response data:", data);
+              
+              if (res.ok && data.success) {
+                alert("Penyadap berhasil dihapus!");
+                loadPenyadapList();
+              } else {
+                alert("Gagal menghapus: " + (data.message || "Unknown error"));
+              }
+            } catch (err) {
+              console.error("Delete error:", err);
+              alert("Error: " + err.message);
+            }
+          }
+        });
+      });
+      
+    } else {
+      console.log("No data found");
+      penyadapTableBody.innerHTML = `<tr><td colspan="3">Belum ada data penyadap.</td></tr>`;
+    }
+  } catch (e) {
+    console.error("Error loading penyadap:", e);
+    penyadapTableBody.innerHTML = `<tr><td colspan="3" style="color: red;">Error: ${safeText(e.message)}</td></tr>`;
+  }
+}  // ========= Autocomplete Penyadap =========
   const inputNama = document.getElementById("namaPenyadap");
   const inputNik = document.getElementById("nik");
   const inputIdPenyadap = document.getElementById("idPenyadap");

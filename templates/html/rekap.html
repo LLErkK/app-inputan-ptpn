@@ -7,48 +7,17 @@
   <link rel="stylesheet" href="/css/rekap.css">
 </head>
 <body>
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Tahun Tanam</th>
-        <th>NIK</th>
-        <th>MANDOR</th>
-        <th>HK</th>
-        <th>HR INI</th>
-        <th>S/D HR INI</th>
-        <th>PRODUKSI BAKU</th>
-        <th>LATEX</th>
-        <th>KEBUN</th>
-        <th>PABRIK</th>
-        <th>%</th>
-        <th>KERING</th>
-        <th>KK SHEET</th>
-        <th>SHEET</th>
-        <th>BR.CR</th>
-        <th>JUMLAH</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>1998</td>
-        <td>9006569</td>
-        <td>SUKYATNO</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>7.00</td>
-        <td>12.50</td>
-        <td>28.79</td>
-        <td>38.00</td>
-        <td>2.00</td>
-        <td>40.00</td>
-      </tr>
-      <!-- More rows here, similar to the first one -->
-    </tbody>
-  </table>
+  <div class="rekap-container">
+    <!-- Header yang tidak akan bergeser saat scroll -->
+    <div class="rekap-header">
+      <h1>REKAP</h1>
+    </div>
+    
+    <!-- Container untuk tabel yang bisa scroll horizontal -->
+    <div id="rekap-tables-container" class="rekap-tables-container"> 
+      <!-- Tabel-tabel akan dimuat di sini -->
+    </div>
+  </div>
 </body>
+<script src="/js/rekap.js"></script>
 </html>

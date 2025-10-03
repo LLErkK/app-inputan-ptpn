@@ -86,36 +86,49 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("Starting search...");
         
         // Ambil input dari pengguna
-        const namaMandor = namaMandorInput?.value || "";
-        const namaPenyadap = namaPenyadapInput?.value || "";
+        const namaMandor = namaMandorInput?.value.trim() || "";
+        const namaPenyadap = namaPenyadapInput?.value.trim() || "";
         const awal = tglAwal?.value || "";
         const akhir = tglAkhir?.value || "";
         const jenis = filterJenis?.value || "";
 
-        console.log("Search parameters:", {
-            namaMandor, namaPenyadap, awal, akhir, jenis
-        });
+        console.log("=== SEARCH PARAMETERS ===");
+        console.log("Nama Mandor:", namaMandor);
+        console.log("Nama Penyadap:", namaPenyadap);
+        console.log("Tanggal Awal:", awal);
+        console.log("Tanggal Akhir:", akhir);
+        console.log("Jenis:", jenis);
 
         let url = "http://localhost:8080/api/monitoring/smart-search";
         let params = new URLSearchParams();
         
         // Tambahkan parameter sesuai dengan backend
-        if (namaMandor) params.append("namaMandor", namaMandor);
-        if (namaPenyadap) params.append("namaPenyadap", namaPenyadap);
-        if (jenis) params.append("filterJenis", jenis);
+        if (namaMandor) {
+            params.append("namaMandor", namaMandor);
+            console.log("✓ Added namaMandor parameter");
+        }
+        if (namaPenyadap) {
+            params.append("namaPenyadap", namaPenyadap);
+            console.log("✓ Added namaPenyadap parameter");
+        }
+        if (jenis) {
+            params.append("tipe", jenis); // Backend menggunakan "tipe" bukan "filterJenis"
+            console.log("✓ Added tipe parameter");
+        }
 
-        // Filter berdasarkan rentang tanggal
-        if (awal && akhir) {
-            params.append("filterTanggalAwal", awal);
-            params.append("filterTanggalAkhir", akhir);
-        } else if (awal && !akhir) {
-            params.append("filterTanggalAwal", awal);
-            params.append("filterTanggalAkhir", awal);
+        // PERBAIKAN: Filter berdasarkan rentang tanggal
+        // Hanya tambahkan parameter tanggal jika ada input tanggal
+        // PENTING: Backend menggunakan "tanggalAwal" dan "tanggalAkhir" (BUKAN "filterTanggalAwal")
+        if (awal || akhir) {
+            const tanggalAwal = awal || akhir; // Gunakan akhir jika awal kosong
+            const tanggalAkhir = akhir || awal; // Gunakan awal jika akhir kosong
+            
+            params.append("tanggalAwal", tanggalAwal);
+            params.append("tanggalAkhir", tanggalAkhir);
+            
+            console.log("✓ Added date range:", tanggalAwal, "to", tanggalAkhir);
         } else {
-            // Jika tidak ada tanggal, gunakan tanggal hari ini
-            const today = new Date().toISOString().split("T")[0];
-            params.append("filterTanggalAwal", today);
-            params.append("filterTanggalAkhir", today);
+            console.log("⚠ No date filter applied - will return current month data");
         }
 
         // Gabungkan URL dengan query parameters
@@ -123,7 +136,15 @@ document.addEventListener("DOMContentLoaded", () => {
             url += `?${params.toString()}`;
         }
 
-        console.log("Final URL:", url);
+        console.log("=== FINAL REQUEST ===");
+        console.log("URL:", url);
+        console.log("Parameters:", params.toString());
+        console.log("=====================");
+
+        // Tampilkan loading indicator
+        if (bakuTableBody) {
+            bakuTableBody.innerHTML = `<tr><td colspan="11" style="text-align:center;"><i>Memuat data...</i></td></tr>`;
+        }
 
         // Ambil data dari API dan render
         const dataArr = await fetchData(url);
@@ -166,39 +187,59 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("Loading today data...");
         const today = new Date().toISOString().split("T")[0];
         
-        const url = `http://localhost:8080/api/monitoring/today/summary?tipe=${filterJenis.value}&namaMandor=${namaMandorInput.value}&penyadap=${namaPenyadapInput.value}`;
-        console.log("Today data URL:", url);
-        fetchData(url).then(data => renderTable(data));
+        // Set nilai input tanggal ke hari ini
+        if (tglAwal) tglAwal.value = today;
+        if (tglAkhir) tglAkhir.value = today;
+        
+        // Trigger pencarian
+        searchData();
     }
 
     // Fungsi untuk memuat data berdasarkan minggu ini
     function loadWeekData() {
         console.log("Loading week data...");
-        const currentDate = new Date();
-        const firstDayOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay()));
-        const lastDayOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay() + 6));
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        
+        // Hitung hari pertama minggu ini (Minggu)
+        const firstDay = new Date(now);
+        firstDay.setDate(now.getDate() - dayOfWeek);
+        
+        // Hitung hari terakhir minggu ini (Sabtu)
+        const lastDay = new Date(now);
+        lastDay.setDate(now.getDate() + (6 - dayOfWeek));
 
-        const startDate = firstDayOfWeek.toISOString().split("T")[0];
-        const endDate = lastDayOfWeek.toISOString().split("T")[0];
+        const startDate = firstDay.toISOString().split("T")[0];
+        const endDate = lastDay.toISOString().split("T")[0];
 
-        const url = `http://localhost:8080/api/monitoring/week/summary?tipe=${filterJenis.value}&namaMandor=${namaMandorInput.value}&penyadap=${namaPenyadapInput.value}`;
-        console.log("Week data URL:", url);
-        fetchData(url).then(data => renderTable(data));
+        console.log("Week range:", startDate, "to", endDate);
+
+        // Set nilai input tanggal
+        if (tglAwal) tglAwal.value = startDate;
+        if (tglAkhir) tglAkhir.value = endDate;
+        
+        // Trigger pencarian
+        searchData();
     }
 
     // Fungsi untuk memuat data berdasarkan bulan ini
     function loadMonthData() {
         console.log("Loading month data...");
-        const currentDate = new Date();
-        const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        const now = new Date();
+        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
         const startDate = firstDayOfMonth.toISOString().split("T")[0];
         const endDate = lastDayOfMonth.toISOString().split("T")[0];
 
-        const url = `http://localhost:8080/api/monitoring/month/summary?tipe=${filterJenis.value}&namaMandor=${namaMandorInput.value}&penyadap=${namaPenyadapInput.value}`;
-        console.log("Month data URL:", url);
-        fetchData(url).then(data => renderTable(data));
+        console.log("Month range:", startDate, "to", endDate);
+
+        // Set nilai input tanggal
+        if (tglAwal) tglAwal.value = startDate;
+        if (tglAkhir) tglAkhir.value = endDate;
+        
+        // Trigger pencarian
+        searchData();
     }
 
     // Fungsi untuk reset form
@@ -219,7 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.loadWeekData = loadWeekData;
     window.loadMonthData = loadMonthData;
     window.clearAll = clearAll;
-    window.searchData = searchData; // Tambahkan ini juga
+    window.searchData = searchData;
     
     console.log("JavaScript loaded successfully");
     

@@ -1,3 +1,15 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background-color: #f5f5f5;
+  padding: 20px;
+}
+
 .monitoring-container {
     max-width: 1200px;
     margin: 20px auto;
@@ -20,7 +32,7 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
     text-shadow: 0 2px 4px rgba(0,0,0,0.1); 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Arial', sans-serif;
 }
 
 /* Quick action buttons */
@@ -157,7 +169,6 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-
 }
 
 .monitoring-table th {
