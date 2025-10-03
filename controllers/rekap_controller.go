@@ -35,8 +35,9 @@ type BakuDetailResponse struct {
 	SelisihBasahLump           float64 `json:"selisih_basah_lump"`
 	PersentaseSelisihBasahLump float64 `json:"persentase_selisih_basah_lump"`
 
-	JumlahBrCr float64 `json:"jumlah_br_cr"`
-	K3BrCr     float64 `json:"k3_br_cr"`
+	JumlahBrCr   float64 `json:"jumlah_br_cr"`
+	K3BrCr       float64 `json:"k3_br_cr"`
+	JumlahKering float64 `json:"jumlah_kering"`
 }
 
 func GetBakuDetailToday(w http.ResponseWriter, r *http.Request) {
@@ -86,6 +87,10 @@ func GetBakuDetailToday(w http.ResponseWriter, r *http.Request) {
 			Message: message,
 		})
 		return
+	}
+
+	for i := range details {
+		details[i].JumlahKering = details[i].JumlahSheet + details[i].JumlahBrCr
 	}
 
 	respondJSON(w, http.StatusOK, APIResponse{
