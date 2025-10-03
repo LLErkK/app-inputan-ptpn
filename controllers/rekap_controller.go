@@ -11,16 +11,67 @@ import (
 func ServeRekapPage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "templates/html/rekap.html")
 }
+
+type BakuDetailResponse struct {
+	ID           uint      `json:"id"`
+	Tanggal      time.Time `json:"tanggal"`
+	IdBakuMandor uint      `json:"id_baku_mandor"`
+	Mandor       string    `json:"mandor"`
+	NIK          string    `json:"nik"`
+	Afdeling     string    `json:"afdeling"`
+	TahunTanam   uint      `json:"tahun_tanam"`
+	Tipe         string    `json:"tipe"`
+
+	JumlahPabrikBasahLatek      float64 `json:"jumlah_pabrik_basah_latek"`
+	JumlahKebunBasahLatek       float64 `json:"jumlah_kebun_basah_latek"`
+	SelisihBasahLatek           float64 `json:"selisih_basah_latek"`
+	PersentaseSelisihBasahLatek float64 `json:"persentase_selisih_basah_latek"`
+
+	JumlahSheet float64 `json:"jumlah_sheet"`
+	K3Sheet     float64 `json:"k3_sheet"`
+
+	JumlahPabrikBasahLump      float64 `json:"jumlah_pabrik_basah_lump"`
+	JumlahKebunBasahLump       float64 `json:"jumlah_kebun_basah_lump"`
+	SelisihBasahLump           float64 `json:"selisih_basah_lump"`
+	PersentaseSelisihBasahLump float64 `json:"persentase_selisih_basah_lump"`
+
+	JumlahBrCr float64 `json:"jumlah_br_cr"`
+	K3BrCr     float64 `json:"k3_br_cr"`
+}
+
 func GetBakuDetailToday(w http.ResponseWriter, r *http.Request) {
-	// Ambil tanggal hari ini (format YYYY-MM-DD)
 	today := time.Now().Format("2006-01-02")
 
-	var details []models.BakuDetail
-	query := config.DB.
-		Where("DATE(tanggal) = DATE(?)", today).
-		Order("mandor asc")
+	var details []BakuDetailResponse
 
-	if err := query.Find(&details).Error; err != nil {
+	err := config.DB.Table("baku_details").
+		Select(`
+			baku_details.id, 
+			baku_details.tanggal, 
+			baku_details.mandor, 
+			baku_mandors.nik, 
+			baku_details.afdeling, 
+			baku_details.tahun_tanam, 
+			baku_details.tipe,
+			baku_details.jumlah_pabrik_basah_latek,
+			baku_details.jumlah_kebun_basah_latek,
+			baku_details.selisih_basah_latek,
+			baku_details.persentase_selisih_basah_latek,
+			baku_details.jumlah_sheet,
+			baku_details.k3_sheet,
+			baku_details.jumlah_pabrik_basah_lump,
+			baku_details.jumlah_kebun_basah_lump,
+			baku_details.selisih_basah_lump,
+			baku_details.persentase_selisih_basah_lump,
+			baku_details.jumlah_br_cr,
+			baku_details.k3_br_cr
+		`).
+		Joins("LEFT JOIN baku_mandors ON baku_mandors.id = baku_details.id_baku_mandor").
+		Where("DATE(baku_details.tanggal) = DATE(?)", today).
+		Order("baku_details.mandor asc").
+		Scan(&details).Error
+
+	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
 			Message: "Gagal mengambil detail: " + err.Error(),
@@ -43,6 +94,7 @@ func GetBakuDetailToday(w http.ResponseWriter, r *http.Request) {
 		Data:    details,
 	})
 }
+
 func GetBakuDetailUntilTodayThisMonth(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 
