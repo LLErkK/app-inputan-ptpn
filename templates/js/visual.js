@@ -4,21 +4,90 @@ let currentApiData = [];
 let currentConfig = {
     threshold: 150,
     title: 'Grafik Produksi',
-    jenisData: '',
     field: 'jumlah_pabrik_basah_latek',
     showTrend: true,
     showThreshold: true
 };
 
-// Fungsi untuk fetch data dari API berdasarkan jenis
-async function fetchDataByJenis(jenis, bulan, tahun) {
+// Fungsi untuk fetch list mandor dari API
+async function fetchMandorList() {
+    try {
+        const response = await fetch('/api/mandor'); // Sesuaikan dengan endpoint Anda
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            return result.data;
+        }
+        return [];
+    } catch (error) {
+        console.error('Error fetching mandor list:', error);
+        return [];
+    }
+}
+
+// Fungsi untuk fetch list penyadap dari API
+async function fetchPenyadapList() {
+    try {
+        const response = await fetch('/api/penyadap'); // Sesuaikan dengan endpoint Anda
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            return result.data;
+        }
+        return [];
+    } catch (error) {
+        console.error('Error fetching penyadap list:', error);
+        return [];
+    }
+}
+
+// Fungsi untuk populate dropdown mandor
+async function populateMandorDropdown() {
+    const select = document.getElementById('namaMandor');
+    const mandorList = await fetchMandorList();
+    
+    // Clear existing options except first one
+    select.innerHTML = '<option value="">-- Pilih Mandor --</option>';
+    
+    mandorList.forEach(mandor => {
+        const option = document.createElement('option');
+        option.value = mandor.id; // Gunakan ID
+        option.textContent = mandor.nama; // Tampilkan nama
+        select.appendChild(option);
+    });
+}
+
+// Fungsi untuk populate dropdown penyadap
+async function populatePenyadapDropdown() {
+    const select = document.getElementById('namaPenyadap');
+    const penyadapList = await fetchPenyadapList();
+    
+    // Clear existing options except first one
+    select.innerHTML = '<option value="">-- Pilih Penyadap --</option>';
+    
+    penyadapList.forEach(penyadap => {
+        const option = document.createElement('option');
+        option.value = penyadap.id; // Gunakan ID
+        option.textContent = penyadap.nama; // Tampilkan nama
+        select.appendChild(option);
+    });
+}
+
+// Fungsi untuk fetch data dari API
+async function fetchData(idMandor, idPenyadap, bulan, tahun) {
     try {
         let url = '/api/visualisasi/default';
         const params = [];
         
-        if (jenis) {
-            params.push(`tipe=${jenis}`);
+        // Jika ada ID mandor atau penyadap, gunakan endpoint yang sesuai
+        if (idMandor && idMandor.trim() !== '') {
+            url = '/api/visualisasi/mandor';
+            params.push(`idMandor=${encodeURIComponent(idMandor)}`);
+        } else if (idPenyadap && idPenyadap.trim() !== '') {
+            url = '/api/visualisasi/penyadap';
+            params.push(`idPenyadap=${encodeURIComponent(idPenyadap)}`);
         }
+        
         if (bulan) {
             params.push(`bulan=${bulan}`);
         }
@@ -30,8 +99,12 @@ async function fetchDataByJenis(jenis, bulan, tahun) {
             url += '?' + params.join('&');
         }
         
+        console.log('Fetching from:', url);
+        
         const response = await fetch(url);
         const result = await response.json();
+        
+        console.log('API Response:', result);
         
         if (result.success && result.data) {
             return result.data;
@@ -60,8 +133,33 @@ function transformDataForChart(apiData, fieldName) {
             grouped[date] = 0;
         }
         
-        grouped[date] += item[fieldName] || 0;
+        // Untuk endpoint penyadap, field name berbeda (camelCase)
+        let value = 0;
+        
+        // Mapping untuk data penyadap (camelCase dari backend)
+        const penyadapFieldMap = {
+            'jumlah_pabrik_basah_latek': 'basahLatex',
+            'jumlah_kebun_basah_latek': 'basahLatex',
+            'jumlah_sheet': 'sheet',
+            'k3_sheet': 'sheet',
+            'jumlah_pabrik_basah_lump': 'basahLump',
+            'jumlah_kebun_basah_lump': 'basahLump',
+            'jumlah_br_cr': 'brCr',
+            'k3_br_cr': 'brCr'
+        };
+        
+        // Cek apakah data dari endpoint penyadap (punya field basahLatex, sheet, dll)
+        if (item.hasOwnProperty('basahLatex') || item.hasOwnProperty('basahLump')) {
+            value = item[penyadapFieldMap[fieldName]] || 0;
+        } else {
+            // Data dari endpoint default/mandor (snake_case)
+            value = item[fieldName] || 0;
+        }
+        
+        grouped[date] += value;
     });
+    
+    console.log('Grouped data:', grouped);
     
     return Object.values(grouped).map(val => Math.round(val));
 }
@@ -138,7 +236,7 @@ function drawBarChart() {
         
         // Index labels
         ctx.font = '11px Arial';
-        ctx.fillText(`P${index + 1}`, x + barWidth/2, chartTop + chartHeight + 20);
+        ctx.fillText(`Hari ${index + 1}`, x + barWidth/2, chartTop + chartHeight + 20);
         
         // Tambahkan indikator tren untuk peningkatan visual
         if (showTrend && prevValue !== null) {
@@ -179,21 +277,16 @@ function drawBarChart() {
     }
 }
 
-// Handler untuk perubahan jenis data
+// Handler untuk update grafik (dipanggil dari tombol Update Grafik)
 async function handleJenisChange() {
-    const jenis = document.getElementById('jenis').value;
+    const idMandor = document.getElementById('namaMandor').value;
+    const idPenyadap = document.getElementById('namaPenyadap').value;
     const field = document.getElementById('fieldSelect').value;
     const bulan = document.getElementById('bulan').value;
     const tahun = document.getElementById('tahun').value;
     
-    if (!jenis) {
-        alert('Silakan pilih jenis data terlebih dahulu');
-        return;
-    }
-    
     // Update config
     currentConfig.field = field;
-    currentConfig.jenisData = jenis;
     
     // Tampilkan loading
     const canvas = document.getElementById('barChart');
@@ -205,11 +298,13 @@ async function handleJenisChange() {
     ctx.fillText('Memuat data...', canvas.width / 2, canvas.height / 2);
     
     // Fetch data dari API
-    const apiData = await fetchDataByJenis(jenis, bulan, tahun);
+    const apiData = await fetchData(idMandor, idPenyadap, bulan, tahun);
     
     if (apiData.length > 0) {
         currentApiData = apiData;
         currentData = transformDataForChart(apiData, field);
+        
+        console.log('Transformed data:', currentData);
         
         // Update title dengan nama field yang lebih friendly
         const fieldNames = {
@@ -223,7 +318,18 @@ async function handleJenisChange() {
             'k3_br_cr': 'K3 BR/CR'
         };
         
-        currentConfig.title = `${fieldNames[field]} - ${jenis.replace(/_/g, ' ')}`;
+        let titleSuffix = '';
+        if (idMandor && idMandor.trim() !== '') {
+            const selectedOption = document.getElementById('namaMandor').selectedOptions[0];
+            titleSuffix = ` - Mandor: ${selectedOption.textContent}`;
+        } else if (idPenyadap && idPenyadap.trim() !== '') {
+            const selectedOption = document.getElementById('namaPenyadap').selectedOptions[0];
+            titleSuffix = ` - Penyadap: ${selectedOption.textContent}`;
+        } else {
+            titleSuffix = ' - Total';
+        }
+        
+        currentConfig.title = `${fieldNames[field]}${titleSuffix}`;
         
         drawBarChart();
     } else {
@@ -236,6 +342,7 @@ async function handleJenisChange() {
 // Handler untuk perubahan field
 function handleFieldChange() {
     if (currentApiData.length === 0) {
+        alert('Silakan update grafik terlebih dahulu dengan klik tombol "Update Grafik"');
         return;
     }
     
@@ -255,7 +362,21 @@ function handleFieldChange() {
         'k3_br_cr': 'K3 BR/CR'
     };
     
-    currentConfig.title = `${fieldNames[field]} - ${currentConfig.jenisData.replace(/_/g, ' ')}`;
+    const idMandor = document.getElementById('namaMandor').value;
+    const idPenyadap = document.getElementById('namaPenyadap').value;
+    
+    let titleSuffix = '';
+    if (idMandor && idMandor.trim() !== '') {
+        const selectedOption = document.getElementById('namaMandor').selectedOptions[0];
+        titleSuffix = ` - Mandor: ${selectedOption.textContent}`;
+    } else if (idPenyadap && idPenyadap.trim() !== '') {
+        const selectedOption = document.getElementById('namaPenyadap').selectedOptions[0];
+        titleSuffix = ` - Penyadap: ${selectedOption.textContent}`;
+    } else {
+        titleSuffix = ' - Total';
+    }
+    
+    currentConfig.title = `${fieldNames[field]}${titleSuffix}`;
     
     drawBarChart();
 }
@@ -279,13 +400,17 @@ document.getElementById('showThreshold').addEventListener('change', function() {
 });
 
 // Inisialisasi saat halaman dimuat
-window.onload = function() {
+window.onload = async function() {
     // Set bulan dan tahun saat ini sebagai default
     const now = new Date();
     const tahunInput = document.getElementById('tahun');
     if (tahunInput && !tahunInput.value) {
         tahunInput.value = now.getFullYear();
     }
+    
+    // Populate dropdown mandor dan penyadap
+    await populateMandorDropdown();
+    await populatePenyadapDropdown();
     
     // Gambar chart kosong pertama kali
     drawBarChart();
