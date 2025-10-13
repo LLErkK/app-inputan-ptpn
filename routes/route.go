@@ -106,11 +106,18 @@ func SetupRoutes() {
 	protected.HandleFunc("/mandor/{id}", controllers.DeleteMandor).Methods("DELETE")
 	protected.HandleFunc("/penyadap/search", controllers.GetPenyadapByName).Methods("GET")
 
-	//visualisasi endpoint
+	// Routes untuk visualisasi
 	protected.HandleFunc("/visualisasi", controllers.ServeVisualisasiPage).Methods("GET")
+
+	// Routes untuk data per hari (bulan)
 	protected.HandleFunc("/api/visualisasi/default", controllers.GetTotalPerDay).Methods("GET")
 	protected.HandleFunc("/api/visualisasi/penyadap", controllers.GetPenyadapPerDay).Methods("GET")
 	protected.HandleFunc("/api/visualisasi/mandor", controllers.GetMandorPerDay).Methods("GET")
+
+	// Routes untuk data per tahun
+	protected.HandleFunc("/api/visualisasi/default/year", controllers.GetTotalPerYear).Methods("GET")
+	protected.HandleFunc("/api/visualisasi/penyadap/year", controllers.GetPenyadapPerYear).Methods("GET")
+	protected.HandleFunc("/api/visualisasi/mandor/year", controllers.GetMandorPerYear).Methods("GET")
 
 	//rekap endpoint
 	protected.HandleFunc("/rekap", controllers.ServeRekapPage).Methods("GET")

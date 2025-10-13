@@ -129,23 +129,15 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("session_token")
 		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": false,
-				"message": "Unauthorized: No session token",
-			})
+			// Redirect ke halaman utama jika unauthorized
+			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
 
 		// Validate token (implementasi sederhana)
 		if cookie.Value == "" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": false,
-				"message": "Unauthorized: Invalid token",
-			})
+			// Redirect ke halaman utama jika token invalid
+			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
 
@@ -155,7 +147,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 func ServeLoginPage(w http.ResponseWriter, r *http.Request) {
 	// Check if user is already logged in
 	if cookie, err := r.Cookie("session_token"); err == nil && cookie.Value != "" {
-		http.Redirect(w, r, "/dashboard", http.StatusFound)
+		http.Redirect(w, r, "/rekap", http.StatusFound)
 		return
 	}
 
