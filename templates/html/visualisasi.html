@@ -69,7 +69,24 @@
       </form>
         
       <div class="chart-container">
+        <div class="chart-header-group" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
           <div class="chart-title" id="dynamicChartTitle">Grafik Produksi</div>
+          <div class="time-toggle" role="tablist" aria-label="Pilih rentang waktu">
+              <button type="button" class="time-btn active" data-range="day">
+                  <span class="ico">📅</span>
+                  <span class="label">Hari</span>
+              </button>
+              <button type="button" class="time-btn" data-range="week">
+                  <span class="ico">📊</span>
+                  <span class="label">Minggu</span>
+              </button>
+              <button type="button" class="time-btn" data-range="month">
+                  <span class="ico">📈</span>
+                  <span class="label">Bulan</span>
+              </button>
+          </div>
+          <div class="chart-subtitle" id="dynamicChartSubtitle">Ringkasan produksi harian, mingguan, dan bulanan</div>
+        </div>
           <div class="bar-controls">
               <label>
                   <input type="checkbox" id="showTrend" checked> Tampilkan Indikator Tren

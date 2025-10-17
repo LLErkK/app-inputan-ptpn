@@ -184,8 +184,7 @@ function drawBarChart() {
     const showTrend = currentConfig.showTrend;
     const showThreshold = currentConfig.showThreshold;
     
-    // Perbarui judul grafik
-    document.getElementById('dynamicChartTitle').textContent = title;
+    // Subtitle tetap statis (tidak diubah oleh JS)
     
     // Set dimensi kanvas
     canvas.width = Math.max(600, data.length * 60);
@@ -397,6 +396,63 @@ document.getElementById('showTrend').addEventListener('change', function() {
 document.getElementById('showThreshold').addEventListener('change', function() {
     currentConfig.showThreshold = this.checked;
     drawBarChart();
+});
+
+// --- Visual range (Hari/Minggu/Bulan) helpers ---
+function setVisualRange(range) {
+    // Find corresponding button and toggle active class
+    const container = document.querySelector('.time-toggle');
+    if (!container) return;
+
+    const buttons = Array.from(container.querySelectorAll('.time-btn'));
+    buttons.forEach(btn => {
+        if (btn.getAttribute('data-range') === range) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // store in form hidden input
+    let existing = document.getElementById('selectedRange');
+    if(!existing){
+        existing = document.createElement('input');
+        existing.type = 'hidden';
+        existing.id = 'selectedRange';
+        existing.name = 'selectedRange';
+        const form = document.getElementById('visualForm');
+        if (form) form.appendChild(existing);
+    }
+    existing.value = range;
+
+    // Optionally adjust bulan/tahun UI depending on range
+    // For now just call update handler to refresh chart
+    if (typeof handleJenisChange === 'function') {
+        handleJenisChange();
+    }
+}
+
+// Attach click listeners to time buttons on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.querySelector('.time-toggle');
+    if (!container) return;
+    container.addEventListener('click', function(e){
+        const btn = e.target.closest('.time-btn');
+        if (!btn) return;
+        const range = btn.getAttribute('data-range');
+        if (range) setVisualRange(range);
+    });
+
+    // Prevent accidental clicks/double-clicks on chart title changing text or selecting it
+    const titleEl = document.getElementById('dynamicChartTitle');
+    if (titleEl) {
+        // Disable text selection
+        titleEl.style.userSelect = 'none';
+        titleEl.style.webkitUserSelect = 'none';
+        // Stop clicks from propagating to any potential handlers
+        titleEl.addEventListener('click', function(e){ e.stopPropagation(); e.preventDefault(); });
+        titleEl.addEventListener('dblclick', function(e){ e.stopPropagation(); e.preventDefault(); });
+    }
 });
 
 // Inisialisasi saat halaman dimuat

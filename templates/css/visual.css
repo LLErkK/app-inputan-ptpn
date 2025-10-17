@@ -114,10 +114,11 @@
             border: 1px solid rgba(255,255,255,0.8);
         } 
 
+
         .chart-title {
             font-size: 2.5rem;
             font-weight: 700;
-            margin-bottom: 40px;
+            margin-bottom: 0; /* lebih rapat lagi */
             color: #2c3e50;
             text-align: center;
             background: linear-gradient(135deg, #0093E9, #80D0C7);
@@ -126,6 +127,23 @@
             background-clip: text;
             text-shadow: 0 2px 4px rgba(0,0,0,0.1);
             text-transform: uppercase;
+        }
+
+        .chart-header-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px; /* super rapat */
+        }
+
+        .chart-subtitle {
+            font-size: 0.95rem;
+            color: #556677;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 4px;
+            font-weight: 600;
+            opacity: 0.9;
         }
 
         #barChartScroll {
@@ -153,6 +171,52 @@
             background: rgba(102, 126, 234, 0.1);
             border-radius: 10px;
         }
+
+        /* Time range toggle buttons above the chart */
+        .time-toggle {
+            display: inline-flex;
+            gap: 12px;
+            align-items: center;
+            background: transparent;
+            padding: 6px;
+            border-radius: 999px;
+        }
+
+        .time-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 18px;
+            border-radius: 999px;
+            background: white;
+            border: 2px solid rgba(102,126,234,0.18);
+            cursor: pointer;
+            font-weight: 700;
+            color: #44627e;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            transition: all 0.18s ease;
+            font-size: 14px;
+        }
+
+        .time-btn .ico {
+            display:inline-block;
+            width:20px;
+            text-align:center;
+            font-size:14px;
+        }
+
+        .time-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px rgba(102,126,234,0.12);
+        }
+
+        .time-btn.active {
+            background: linear-gradient(135deg, #0093E9, #80D0C7);
+            color: #fff;
+            border-color: rgba(0,0,0,0.05);
+            box-shadow: 0 8px 28px rgba(0,147,233,0.18);
+        }
+
 
         .bar-controls label {
             color: #495057;
