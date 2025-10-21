@@ -119,6 +119,11 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/visualisasi/penyadap/year", controllers.GetPenyadapPerYear).Methods("GET")
 	protected.HandleFunc("/api/visualisasi/mandor/year", controllers.GetMandorPerYear).Methods("GET")
 
+	// Route untuk data 5 tahun terakhir
+	protected.HandleFunc("/api/visualisasi/default/fiveyear", controllers.GetTotalPerFiveYear).Methods("GET")
+	protected.HandleFunc("/api/visualisasi/penyadap/fiveyear", controllers.GetPenyadapPerFiveYear).Methods("GET")
+	protected.HandleFunc("/api/visualisasi/mandor/fiveyear", controllers.GetMandorPerFiveYear).Methods("GET")
+
 	//rekap endpoint
 	protected.HandleFunc("/rekap", controllers.ServeRekapPage).Methods("GET")
 	protected.HandleFunc("/rekap/today", controllers.GetBakuDetailToday).Methods("GET")
