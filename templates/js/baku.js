@@ -15,9 +15,10 @@ document.addEventListener("DOMContentLoaded", () => {
     return Number.isFinite(x) ? x : def;
   }
 
-  let allBakuData = [];   // DETAIL per penyadap untuk Edit/Delete → dari /api/baku?tanggal=YYYY-MM-DD
-  let editingId = null;   // simpan sebagai STRING
-  let mandorDataCache = []; // Cache untuk data mandor
+  let allBakuData = [];
+  let editingId = null;
+  let mandorDataCache = [];
+  let penyadapDataCache = []; // Cache untuk data penyadap
 
   // ========= Popup Mandor =========
   const tambahMandorBtn = document.getElementById("tambahMandor");
@@ -101,240 +102,285 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         });
       } else {
-        mandorTableBody.innerHTML = `<tr><td colspan="5">Tidak ada data mandor.</td></tr>`;
+        mandorTableBody.innerHTML = `<tr><td colspan="6">Tidak ada data mandor.</td></tr>`;
       }
     } catch (e) {
-      mandorTableBody.innerHTML = `<tr><td colspan="5">Error: ${e.message}</td></tr>`;
+      mandorTableBody.innerHTML = `<tr><td colspan="6">Error: ${e.message}</td></tr>`;
     }
   }
 
-async function loadMandorOptions() {
+  async function loadMandorOptions() {
     const input = document.getElementById("mandor");
     const datalist = document.getElementById("mandor-list");
     if (!input || !datalist) return;
     
-    // Kosongkan datalist sebelum mengisi ulang
     datalist.innerHTML = '';
     
     try {
-        const res = await fetch("/api/mandor");
-        const data = await res.json();
-        if (data.success && Array.isArray(data.data)) {
-            // Cache data mandor untuk digunakan nanti
-            mandorDataCache = data.data;
+      const res = await fetch("/api/mandor");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        mandorDataCache = data.data;
 
-            data.data.forEach(m => {
-                const option = document.createElement("option");
-                option.value = `${safeText(m.mandor)} (${safeText(m.afdeling, "-")}) ${safeText(m.tahun_tanam, "-")} - Tipe: ${safeText(m.tipe)}`;
-                option.setAttribute('data-id', m.id); // Menyimpan ID mandor
-                datalist.appendChild(option);
-            });
-        }
+        data.data.forEach(m => {
+          const option = document.createElement("option");
+          option.value = `${safeText(m.mandor)} (${safeText(m.afdeling, "-")}) ${safeText(m.tahun_tanam, "-")} - Tipe: ${safeText(m.tipe)}`;
+          option.setAttribute('data-id', m.id);
+          datalist.appendChild(option);
+        });
+      }
     } catch (e) {
-        // biarkan kosong
+      console.error("Error loading mandor:", e);
     }
-}
+  }
 
+  // Event listener untuk mandor autocomplete
+  const inputMandor = document.getElementById("mandor");
+  const datalistMandor = document.getElementById("mandor-list");
 
+  if (inputMandor && datalistMandor) {
+    inputMandor.addEventListener("input", function() {
+      const value = this.value;
+      const options = datalistMandor.querySelectorAll('option');
+      
+      options.forEach(option => {
+        if (option.value === value) {
+          const id = option.getAttribute('data-id');
+          // Set value input ke ID untuk dikirim ke backend
+          this.setAttribute('data-mandor-id', id);
+        }
+      });
+    });
+    
+    inputMandor.addEventListener("change", function() {
+      const value = this.value;
+      const options = datalistMandor.querySelectorAll('option');
+      
+      options.forEach(option => {
+        if (option.value === value) {
+          const id = option.getAttribute('data-id');
+          this.setAttribute('data-mandor-id', id);
+        }
+      });
+    });
+  }
 
-  // ========= Function untuk mendapatkan data mandor berdasarkan ID =========
   function getMandorById(id) {
     return mandorDataCache.find(m => String(m.id) === String(id));
   }
 
   // ========= Popup Penyadap =========
-// ========= Popup Penyadap =========
-const tambahPenyadapBtn = document.getElementById("tambahPenyadap");
-const popupPenyadap = document.getElementById("popupPenyadap");
-const closePopupPenyadapBtn = document.getElementById("closePopupPenyadap");
-const formPenyadapBaru = document.getElementById("formPenyadapBaru");
-const penyadapTableBody = document.getElementById("penyadapTableBody");
+  const tambahPenyadapBtn = document.getElementById("tambahPenyadap");
+  const popupPenyadap = document.getElementById("popupPenyadap");
+  const closePopupPenyadapBtn = document.getElementById("closePopupPenyadap");
+  const formPenyadapBaru = document.getElementById("formPenyadapBaru");
+  const penyadapTableBody = document.getElementById("penyadapTableBody");
 
-// Buka popup
-if (tambahPenyadapBtn) {
-  tambahPenyadapBtn.addEventListener("click", () => {
-    if (popupPenyadap) popupPenyadap.style.display = "flex";
-    loadPenyadapList();
-  });
-}
+  if (tambahPenyadapBtn) {
+    tambahPenyadapBtn.addEventListener("click", () => {
+      if (popupPenyadap) popupPenyadap.style.display = "flex";
+      loadPenyadapList();
+    });
+  }
 
-// Tutup popup
-if (closePopupPenyadapBtn) {
-  closePopupPenyadapBtn.addEventListener("click", () => {
-    if (popupPenyadap) popupPenyadap.style.display = "none";
-  });
-}
+  if (closePopupPenyadapBtn) {
+    closePopupPenyadapBtn.addEventListener("click", () => {
+      if (popupPenyadap) popupPenyadap.style.display = "none";
+    });
+  }
 
-// Submit form penyadap baru
-if (formPenyadapBaru) {
-  formPenyadapBaru.addEventListener("submit", async e => {
-    e.preventDefault();
+  if (formPenyadapBaru) {
+    formPenyadapBaru.addEventListener("submit", async e => {
+      e.preventDefault();
+      
+      const nama = document.getElementById("inputNamaPenyadap").value.trim();
+      const nik = document.getElementById("inputNIK").value.trim();
+      
+      if (!nama || !nik) {
+        alert("Nama Penyadap dan NIK wajib diisi!");
+        return;
+      }
+
+      const payload = {
+        nama_penyadap: nama,
+        nik: nik
+      };
+
+      try {
+        const res = await fetch("/api/penyadap", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+          alert("Penyadap berhasil ditambahkan!");
+          formPenyadapBaru.reset();
+          loadPenyadapList();
+          loadPenyadapOptions(); // Refresh datalist
+        } else {
+          alert("Gagal: " + (data.message || "Terjadi kesalahan"));
+        }
+      } catch (err) {
+        console.error("Error:", err);
+        alert("Error: " + err.message);
+      }
+    });
+  }
+
+  async function loadPenyadapList() {
+    if (!penyadapTableBody) return;
     
-    const nama = document.getElementById("inputNamaPenyadap").value.trim();
-    const nik = document.getElementById("inputNIK").value.trim();
+    penyadapTableBody.innerHTML = '<tr><td colspan="3">Memuat data...</td></tr>';
     
-    if (!nama || !nik) {
-      alert("Nama Penyadap dan NIK wajib diisi!");
-      return;
-    }
-
-    const payload = {
-      nama_penyadap: nama,
-      nik: nik
-    };
-
     try {
-      const res = await fetch("/api/penyadap", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch("/api/penyadap");
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       
       const data = await res.json();
+      penyadapTableBody.innerHTML = "";
       
-      if (res.ok && data.success) {
-        alert("Penyadap berhasil ditambahkan!");
-        formPenyadapBaru.reset();
-        loadPenyadapList();
-      } else {
-        alert("Gagal: " + (data.message || "Terjadi kesalahan"));
-      }
-    } catch (err) {
-      console.error("Error:", err);
-      alert("Error: " + err.message);
-    }
-  });
-}
-
-// Load daftar penyadap
-async function loadPenyadapList() {
-  if (!penyadapTableBody) {
-    console.error("penyadapTableBody tidak ditemukan!");
-    return;
-  }
-  
-  console.log("Loading penyadap list...");
-  penyadapTableBody.innerHTML = '<tr><td colspan="3">Memuat data...</td></tr>';
-  
-  try {
-    const res = await fetch("/api/penyadap");
-    console.log("Response status:", res.status);
-    
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
-    
-    const data = await res.json();
-    console.log("Data received:", data);
-    
-    penyadapTableBody.innerHTML = "";
-    
-    if (data.success && Array.isArray(data.data) && data.data.length > 0) {
-      console.log("Rendering", data.data.length, "penyadaps");
-      
-      data.data.forEach(p => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${safeText(p.nama_penyadap)}</td>
-          <td>${safeText(p.nik)}</td>
-          <td>
-            <button data-id="${String(p.id)}" class="delete-penyadap-btn">
-              <span class="action-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"/>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
-                  <line x1="10" y1="11" x2="10" y2="17"/>
-                  <line x1="14" y1="11" x2="14" y2="17"/>
-                </svg>
-              </span>
-            </button>
-          </td>
-        `;
-        penyadapTableBody.appendChild(tr);
-      });
-      
-      // Pasang event listener setelah semua row ditambahkan
-      const deleteButtons = penyadapTableBody.querySelectorAll(".delete-penyadap-btn");
-      console.log("Found delete buttons:", deleteButtons.length);
-      
-      deleteButtons.forEach(btn => {
-        btn.addEventListener("click", async function() {
-          const id = String(this.getAttribute("data-id"));
-          console.log("Delete clicked for ID:", id);
-          
-          if (confirm("Hapus penyadap ini?")) {
-            try {
-              console.log("Sending DELETE request to:", `/api/penyadap/${id}`);
-              
-              const res = await fetch(`/api/penyadap/${encodeURIComponent(id)}`, { 
-                method: "DELETE" 
-              });
-              
-              console.log("DELETE response status:", res.status);
-              const data = await res.json();
-              console.log("DELETE response data:", data);
-              
-              if (res.ok && data.success) {
-                alert("Penyadap berhasil dihapus!");
-                loadPenyadapList();
-              } else {
-                alert("Gagal menghapus: " + (data.message || "Unknown error"));
-              }
-            } catch (err) {
-              console.error("Delete error:", err);
-              alert("Error: " + err.message);
-            }
-          }
+      if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        data.data.forEach(p => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${safeText(p.nama_penyadap)}</td>
+            <td>${safeText(p.nik)}</td>
+            <td>
+              <button data-id="${String(p.id)}" class="delete-penyadap-btn">
+                <span class="action-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+                    <line x1="10" y1="11" x2="10" y2="17"/>
+                    <line x1="14" y1="11" x2="14" y2="17"/>
+                  </svg>
+                </span>
+              </button>
+            </td>
+          `;
+          penyadapTableBody.appendChild(tr);
         });
-      });
-      
-    } else {
-      console.log("No data found");
-      penyadapTableBody.innerHTML = `<tr><td colspan="3">Belum ada data penyadap.</td></tr>`;
+        
+        penyadapTableBody.querySelectorAll(".delete-penyadap-btn").forEach(btn => {
+          btn.addEventListener("click", async function() {
+            const id = String(this.getAttribute("data-id"));
+            
+            if (confirm("Hapus penyadap ini?")) {
+              try {
+                const res = await fetch(`/api/penyadap/${encodeURIComponent(id)}`, { 
+                  method: "DELETE" 
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok && data.success) {
+                  alert("Penyadap berhasil dihapus!");
+                  loadPenyadapList();
+                  loadPenyadapOptions(); // Refresh datalist
+                } else {
+                  alert("Gagal menghapus: " + (data.message || "Unknown error"));
+                }
+              } catch (err) {
+                console.error("Delete error:", err);
+                alert("Error: " + err.message);
+              }
+            }
+          });
+        });
+        
+      } else {
+        penyadapTableBody.innerHTML = `<tr><td colspan="3">Belum ada data penyadap.</td></tr>`;
+      }
+    } catch (e) {
+      console.error("Error loading penyadap:", e);
+      penyadapTableBody.innerHTML = `<tr><td colspan="3" style="color: red;">Error: ${safeText(e.message)}</td></tr>`;
     }
-  } catch (e) {
-    console.error("Error loading penyadap:", e);
-    penyadapTableBody.innerHTML = `<tr><td colspan="3" style="color: red;">Error: ${safeText(e.message)}</td></tr>`;
   }
-}  // ========= Autocomplete Penyadap =========
-  const inputNama = document.getElementById("namaPenyadap");
+
+  // ========= Autocomplete Penyadap dengan Datalist =========
+  async function loadPenyadapOptions() {
+    const input = document.getElementById("namaPenyadap");
+    const datalist = document.getElementById("penyadap-list");
+    if (!input || !datalist) return;
+    
+    datalist.innerHTML = '';
+    
+    try {
+      const res = await fetch("/api/penyadap");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        penyadapDataCache = data.data;
+
+        data.data.forEach(p => {
+          const option = document.createElement("option");
+          option.value = `${safeText(p.nama_penyadap)} - NIK: ${safeText(p.nik)}`;
+          option.setAttribute('data-id', p.id);
+          option.setAttribute('data-nama', p.nama_penyadap);
+          option.setAttribute('data-nik', p.nik);
+          datalist.appendChild(option);
+        });
+      }
+    } catch (e) {
+      console.error("Error loading penyadap options:", e);
+    }
+  }
+
+  const inputNamaPenyadap = document.getElementById("namaPenyadap");
   const inputNik = document.getElementById("nik");
   const inputIdPenyadap = document.getElementById("idPenyadap");
-  const dropdown = document.getElementById("namaDropdown");
+  const datalistPenyadap = document.getElementById("penyadap-list");
 
-  if (inputNama && dropdown) {
-    inputNama.addEventListener("input", async () => {
-      const q = inputNama.value.trim();
-      if (q.length < 2) { dropdown.style.display = "none"; return; }
-      try {
-        const res = await fetch(`/api/penyadap/search?nama=${encodeURIComponent(q)}`);
-        const data = await res.json();
-        dropdown.innerHTML = "";
-        if (!data.success || !data.data || !data.data.length) {
-          dropdown.innerHTML = "<div style='padding:8px'>Tidak ditemukan</div>";
-          dropdown.style.display = "block"; return;
+  if (inputNamaPenyadap && datalistPenyadap) {
+    inputNamaPenyadap.addEventListener("input", function() {
+      const value = this.value;
+      const options = datalistPenyadap.querySelectorAll('option');
+      let found = false;
+      
+      options.forEach(option => {
+        if (option.value === value) {
+          const id = option.getAttribute('data-id');
+          const nama = option.getAttribute('data-nama');
+          const nik = option.getAttribute('data-nik');
+          
+          if (inputIdPenyadap) inputIdPenyadap.value = id || "";
+          if (inputNik) inputNik.value = nik || "";
+          
+          found = true;
         }
-        data.data.forEach(item => {
-          const opt = document.createElement("div");
-          opt.textContent = `${safeText(item.nama_penyadap)} (${safeText(item.nik)})`;
-          opt.className = "dropdown-item";
-          opt.addEventListener("click", () => {
-            inputNama.value = safeText(item.nama_penyadap, "");
-            inputNik.value = safeText(item.nik, "");
-            inputIdPenyadap.value = String(item.id || "");
-            dropdown.style.display = "none";
-          });
-          dropdown.appendChild(opt);
-        });
-        dropdown.style.display = "block";
-      } catch (e) {
-        dropdown.innerHTML = "<div style='padding:8px'>Gagal memuat</div>";
-        dropdown.style.display = "block";
+      });
+      
+      if (!found) {
+        if (inputIdPenyadap) inputIdPenyadap.value = "";
+        if (inputNik) inputNik.value = "";
       }
     });
-    document.addEventListener("click", e => {
-      if (!dropdown.contains(e.target) && e.target !== inputNama) dropdown.style.display = "none";
+    
+    inputNamaPenyadap.addEventListener("change", function() {
+      const value = this.value;
+      const options = datalistPenyadap.querySelectorAll('option');
+      
+      options.forEach(option => {
+        if (option.value === value) {
+          const id = option.getAttribute('data-id');
+          const nama = option.getAttribute('data-nama');
+          const nik = option.getAttribute('data-nik');
+          
+          if (inputIdPenyadap) inputIdPenyadap.value = id || "";
+          if (inputNik) inputNik.value = nik || "";
+          this.value = nama;
+        }
+      });
     });
+  }
+
+  function getPenyadapById(id) {
+    return penyadapDataCache.find(p => String(p.id) === String(id));
   }
 
   // ========= Submit Form (Create/Update) =========
@@ -342,24 +388,24 @@ async function loadPenyadapList() {
   if (form) {
     form.addEventListener("submit", async e => {
       e.preventDefault();
-      const idMandorStr = document.getElementById("mandor").value;
+      
+      // Ambil ID mandor dari data attribute
+      const mandorInput = document.getElementById("mandor");
+      const idMandorStr = mandorInput ? mandorInput.getAttribute('data-mandor-id') : "";
       const idPenyadapStr = inputIdPenyadap ? inputIdPenyadap.value : "";
 
-      // Dapatkan data mandor untuk mengambil tahun tanam
       const selectedMandor = getMandorById(idMandorStr);
       const tahunTanam = selectedMandor ? selectedMandor.tahun_tanam : null;
 
       const payload = {
         idBakuMandor: idMandorStr ? parseInt(idMandorStr) : null,
         idPenyadap: idPenyadapStr ? parseInt(idPenyadapStr) : null,
-        tahunTanam: tahunTanam, // Tambahkan tahun tanam ke payload
+        tahunTanam: tahunTanam,
         basahLatex: n(document.getElementById("latek").value),
         basahLump: n(document.getElementById("lump").value),
         sheet: n(document.getElementById("sheet").value),
         brCr: n(document.getElementById("brcr").value),
       };
-
-      console.log("Payload yang dikirim:", payload); // Debug log
 
       const url = editingId ? `/api/baku/${encodeURIComponent(editingId)}` : "/api/baku";
       const method = editingId ? "PUT" : "POST";
@@ -377,9 +423,9 @@ async function loadPenyadapList() {
           form.reset();
           if (inputNik) inputNik.value = "";
           if (inputIdPenyadap) inputIdPenyadap.value = "";
+          if (mandorInput) mandorInput.removeAttribute('data-mandor-id');
           const submitBtn = document.querySelector('button[type="submit"]');
           if (submitBtn) submitBtn.textContent = "Save";
-          // refresh kedua tampilan
           renderRekapMandor();
           renderDetailBaku();
         } else {
@@ -391,7 +437,7 @@ async function loadPenyadapList() {
     });
   }
 
-  // ========= Rekap Mandor (PAKAI /api/baku/detail) =========
+  // ========= Rekap Mandor =========
   async function renderRekapMandor() {
     const body = document.querySelector("#summaryTable tbody");
     if (!body) return;
@@ -424,96 +470,82 @@ async function loadPenyadapList() {
     } catch (e) {
       body.innerHTML = `<tr><td colspan="11">Gagal memuat rekap.</td></tr>`;
     }
-          function safeText(value, defaultValue = "") {
-      if (value === null || value === undefined || value === "") {
-        return defaultValue;
-      }
-      
-      // Jika nilai berupa angka, batasi angka desimal hingga 2
-      if (!isNaN(value)) {
-        return parseFloat(value).toFixed(2); // Ubah '2' sesuai jumlah angka desimal yang diinginkan
-      }
+  }
 
-      return value;
+  async function renderDetailBaku() {
+    const wrapper = document.getElementById("bakuTableWrapper");
+    if (!wrapper) return;
+    wrapper.innerHTML = "";
+
+    const today = todayLocalYYYYMMDD();
+    let dataArr = [];
+    try {
+      const res = await fetch(`/api/baku?tanggal=${encodeURIComponent(today)}`);
+      const json = await res.json();
+      if (json && json.success && Array.isArray(json.data)) {
+        dataArr = json.data;
+      }
+    } catch (e) {
+      // biarkan kosong
     }
 
-  }
+    allBakuData = Array.isArray(dataArr) ? dataArr : [];
 
-async function renderDetailBaku() {
-  const wrapper = document.getElementById("bakuTableWrapper");
-  if (!wrapper) return;
-  wrapper.innerHTML = "";
-
-  const today = todayLocalYYYYMMDD();
-  let dataArr = [];
-  try {
-    const res = await fetch(`/api/baku?tanggal=${encodeURIComponent(today)}`);
-    const json = await res.json();
-    if (json && json.success && Array.isArray(json.data)) {
-      dataArr = json.data;
-    }
-  } catch (e) {
-    // biarkan kosong; akan tampil empty-state
-  }
-
-  allBakuData = Array.isArray(dataArr) ? dataArr : [];
-
-  // group by tahunTanam
-  const groupsByTahunTanam = {};
-  allBakuData.forEach(it => {
-    const key = it.tahunTanam || it.tahun_tanam || "Unknown";
-    if (!groupsByTahunTanam[key]) groupsByTahunTanam[key] = [];
-    groupsByTahunTanam[key].push(it);
-  });
-
-  const tahunTanamNames = Object.keys(groupsByTahunTanam);
-  if (!tahunTanamNames.length) {
-    wrapper.innerHTML = `<div class="empty-state">Belum ada data detail untuk hari ini (${today}).</div>`;
-    return;
-  }
-
-  tahunTanamNames.forEach(tahunTanam => {
-    const table = document.createElement("table");
-    table.className = "baku-table";
-    table.innerHTML = `
-      <caption>Tahun Tanam: ${safeText(tahunTanam)}</caption>
-      <thead>
-        <tr><th>Mandor</th><th>NIK</th><th>Penyadap</th><th>Latek</th><th>Lump</th><th>Sheet</th><th>Br.Cr</th><th>Action</th></tr>
-      </thead>
-      <tbody></tbody>`;
-    const tbody = table.querySelector("tbody");
-
-    groupsByTahunTanam[tahunTanam].forEach(it => {
-      const nik  = (it && it.penyadap && it.penyadap.nik) ? it.penyadap.nik : "-";
-      const nama = (it && it.penyadap && it.penyadap.nama_penyadap) ? it.penyadap.nama_penyadap : "-";
-      const mandor = (it && it.mandor && it.mandor.mandor) ? it.mandor.mandor : "Unknown";
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${safeText(mandor, "-")}</td>
-        <td>${nik}</td>
-        <td>${nama}</td>
-        <td>${safeText(it.basahLatex, 0)}</td>
-        <td>${safeText(it.basahLump, 0)}</td>
-        <td>${safeText(it.sheet, 0)}</td>
-        <td>${safeText(it.brCr, 0)}</td>
-        <td>
-          <button class="edit-btn" data-id="${String(it.id)}">
-            <span class="action-icon"> 
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0093E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
-            </span>
-          </button>
-          <button class="delete-btn" data-id="${String(it.id)}">
-            <span class="action-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-            </span>
-          </button>
-        </td>`;
-      tbody.appendChild(tr);
+    const groupsByTahunTanam = {};
+    allBakuData.forEach(it => {
+      const key = it.tahunTanam || it.tahun_tanam || "Unknown";
+      if (!groupsByTahunTanam[key]) groupsByTahunTanam[key] = [];
+      groupsByTahunTanam[key].push(it);
     });
-    wrapper.appendChild(table);
-  });
-}
+
+    const tahunTanamNames = Object.keys(groupsByTahunTanam);
+    if (!tahunTanamNames.length) {
+      wrapper.innerHTML = `<div class="empty-state">Belum ada data detail untuk hari ini (${today}).</div>`;
+      return;
+    }
+
+    tahunTanamNames.forEach(tahunTanam => {
+      const table = document.createElement("table");
+      table.className = "baku-table";
+      table.innerHTML = `
+        <caption>Tahun Tanam: ${safeText(tahunTanam)}</caption>
+        <thead>
+          <tr><th>Mandor</th><th>NIK</th><th>Penyadap</th><th>Latek</th><th>Lump</th><th>Sheet</th><th>Br.Cr</th><th>Action</th></tr>
+        </thead>
+        <tbody></tbody>`;
+      const tbody = table.querySelector("tbody");
+
+      groupsByTahunTanam[tahunTanam].forEach(it => {
+        const nik  = (it && it.penyadap && it.penyadap.nik) ? it.penyadap.nik : "-";
+        const nama = (it && it.penyadap && it.penyadap.nama_penyadap) ? it.penyadap.nama_penyadap : "-";
+        const mandor = (it && it.mandor && it.mandor.mandor) ? it.mandor.mandor : "Unknown";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${safeText(mandor, "-")}</td>
+          <td>${nik}</td>
+          <td>${nama}</td>
+          <td>${safeText(it.basahLatex, 0)}</td>
+          <td>${safeText(it.basahLump, 0)}</td>
+          <td>${safeText(it.sheet, 0)}</td>
+          <td>${safeText(it.brCr, 0)}</td>
+          <td>
+            <button class="edit-btn" data-id="${String(it.id)}">
+              <span class="action-icon"> 
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0093E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+              </span>
+            </button>
+            <button class="delete-btn" data-id="${String(it.id)}">
+              <span class="action-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </span>
+            </button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+      wrapper.appendChild(table);
+    });
+  }
 
   // ========= Event Delegation untuk Edit/Delete =========
   const bakuTableWrapper = document.getElementById("bakuTableWrapper");
@@ -530,22 +562,22 @@ async function renderDetailBaku() {
           return; 
         }
 
-        // Men-scroll halaman ke atas dengan animasi smooth
         window.scrollTo({
           top: 0,
-          behavior: 'smooth' // Scroll dengan animasi smooth
+          behavior: 'smooth'
         });
 
-        // set mandor (select value = STRING)
-        const mandorSelect = document.getElementById("mandor");
-        if (mandorSelect) mandorSelect.value = String(item.idBakuMandor);
+        // Set mandor dengan mencari teks yang sesuai dari cache
+        const mandorInput = document.getElementById("mandor");
+        const selectedMandor = getMandorById(String(item.idBakuMandor));
+        if (mandorInput && selectedMandor) {
+          const mandorText = `${safeText(selectedMandor.mandor)} (${safeText(selectedMandor.afdeling, "-")}) ${safeText(selectedMandor.tahun_tanam, "-")} - Tipe: ${safeText(selectedMandor.tipe)}`;
+          mandorInput.value = mandorText;
+          mandorInput.setAttribute('data-mandor-id', String(item.idBakuMandor));
+        }
 
-        // set penyadap & angka
-        const inputNama = document.getElementById("namaPenyadap");
-        const inputNik = document.getElementById("nik");
-        const inputIdPenyadap = document.getElementById("idPenyadap");
         if (item.penyadap) {
-          if (inputNama) inputNama.value = safeText(item.penyadap.nama_penyadap, "");
+          if (inputNamaPenyadap) inputNamaPenyadap.value = safeText(item.penyadap.nama_penyadap, "");
           if (inputNik) inputNik.value = safeText(item.penyadap.nik, "");
           if (inputIdPenyadap) inputIdPenyadap.value = String(item.penyadap.id || "");
         }
@@ -558,7 +590,7 @@ async function renderDetailBaku() {
         if (sheet) sheet.value = item.sheet      ?? 0;
         if (brcr)  brcr.value  = item.brCr       ?? 0;
 
-        editingId = id; // STRING
+        editingId = id;
         const submitBtn = document.querySelector('button[type="submit"]');
         if (submitBtn) submitBtn.textContent = "Perbarui";
       }
@@ -593,6 +625,7 @@ async function renderDetailBaku() {
 
   // ========= Init =========
   loadMandorOptions();
+  loadPenyadapOptions();
   renderRekapMandor();
   renderDetailBaku();
   setInterval(renderRekapMandor, 300000);
