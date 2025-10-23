@@ -26,7 +26,9 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
 
         if (data.success) {
             alert("Login berhasil!");
-            window.location.href = "/dashboard"; // redirect ke dashboard
+            //window.location.href = "/dashboard";
+            window.location.href = "/rekap";
+             // redirect ke dashboard
         } else {
             alert("Login gagal: " + data.message);
         }

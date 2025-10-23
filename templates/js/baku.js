@@ -14,11 +14,25 @@ document.addEventListener("DOMContentLoaded", () => {
     const x = parseFloat(v);
     return Number.isFinite(x) ? x : def;
   }
+  
+  // Fungsi untuk format angka: hilangkan .00, tampilkan max 2 desimal
+  function formatNumber(value) {
+    const num = parseFloat(value);
+    if (!Number.isFinite(num)) return "0";
+    
+    // Jika angka bulat (tidak ada desimal), tampilkan tanpa desimal
+    if (num === Math.floor(num)) {
+      return num.toString();
+    }
+    
+    // Jika ada desimal, tampilkan maksimal 2 digit dan hapus trailing zeros
+    return num.toFixed(2).replace(/\.?0+$/, '');
+  }
 
   let allBakuData = [];
   let editingId = null;
   let mandorDataCache = [];
-  let penyadapDataCache = []; // Cache untuk data penyadap
+  let penyadapDataCache = [];
 
   // ========= Popup Mandor =========
   const tambahMandorBtn = document.getElementById("tambahMandor");
@@ -134,7 +148,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Event listener untuk mandor autocomplete
   const inputMandor = document.getElementById("mandor");
   const datalistMandor = document.getElementById("mandor-list");
 
@@ -146,7 +159,6 @@ document.addEventListener("DOMContentLoaded", () => {
       options.forEach(option => {
         if (option.value === value) {
           const id = option.getAttribute('data-id');
-          // Set value input ke ID untuk dikirim ke backend
           this.setAttribute('data-mandor-id', id);
         }
       });
@@ -219,7 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
           alert("Penyadap berhasil ditambahkan!");
           formPenyadapBaru.reset();
           loadPenyadapList();
-          loadPenyadapOptions(); // Refresh datalist
+          loadPenyadapOptions();
         } else {
           alert("Gagal: " + (data.message || "Terjadi kesalahan"));
         }
@@ -282,7 +294,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (res.ok && data.success) {
                   alert("Penyadap berhasil dihapus!");
                   loadPenyadapList();
-                  loadPenyadapOptions(); // Refresh datalist
+                  loadPenyadapOptions();
                 } else {
                   alert("Gagal menghapus: " + (data.message || "Unknown error"));
                 }
@@ -303,7 +315,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ========= Autocomplete Penyadap dengan Datalist =========
   async function loadPenyadapOptions() {
     const input = document.getElementById("namaPenyadap");
     const datalist = document.getElementById("penyadap-list");
@@ -389,7 +400,6 @@ document.addEventListener("DOMContentLoaded", () => {
     form.addEventListener("submit", async e => {
       e.preventDefault();
       
-      // Ambil ID mandor dari data attribute
       const mandorInput = document.getElementById("mandor");
       const idMandorStr = mandorInput ? mandorInput.getAttribute('data-mandor-id') : "";
       const idPenyadapStr = inputIdPenyadap ? inputIdPenyadap.value : "";
@@ -437,7 +447,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ========= Rekap Mandor =========
+  // ========= Rekap Mandor (DENGAN FORMAT NUMBER) =========
   async function renderRekapMandor() {
     const body = document.querySelector("#summaryTable tbody");
     if (!body) return;
@@ -454,14 +464,14 @@ document.addEventListener("DOMContentLoaded", () => {
             <td>${safeText(row.mandor)}</td>
             <td>${safeText(row.afdeling)}</td>
             <td>${safeText(row.tipe)}</td>
-            <td>${safeText(row.jumlah_pabrik_basah_latek, 0)}</td>
-            <td>${safeText(row.jumlah_kebun_basah_latek, 0)}</td>
-            <td>${safeText(row.jumlah_sheet, 0)}</td>
-            <td>${safeText(row.k3_sheet, 0)}</td>
-            <td>${safeText(row.jumlah_pabrik_basah_lump, 0)}</td>
-            <td>${safeText(row.jumlah_kebun_basah_lump, 0)}</td>
-            <td>${safeText(row.jumlah_br_cr, 0)}</td>
-            <td>${safeText(row.k3_br_cr, 0)}</td>`;
+            <td>${formatNumber(row.jumlah_pabrik_basah_latek)}</td>
+            <td>${formatNumber(row.jumlah_kebun_basah_latek)}</td>
+            <td>${formatNumber(row.jumlah_sheet)}</td>
+            <td>${formatNumber(row.k3_sheet)}</td>
+            <td>${formatNumber(row.jumlah_pabrik_basah_lump)}</td>
+            <td>${formatNumber(row.jumlah_kebun_basah_lump)}</td>
+            <td>${formatNumber(row.jumlah_br_cr)}</td>
+            <td>${formatNumber(row.k3_br_cr)}</td>`;
           body.appendChild(tr);
         });
       } else {
@@ -472,6 +482,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // ========= Detail Baku (DENGAN FORMAT NUMBER) =========
   async function renderDetailBaku() {
     const wrapper = document.getElementById("bakuTableWrapper");
     if (!wrapper) return;
@@ -525,10 +536,10 @@ document.addEventListener("DOMContentLoaded", () => {
           <td>${safeText(mandor, "-")}</td>
           <td>${nik}</td>
           <td>${nama}</td>
-          <td>${safeText(it.basahLatex, 0)}</td>
-          <td>${safeText(it.basahLump, 0)}</td>
-          <td>${safeText(it.sheet, 0)}</td>
-          <td>${safeText(it.brCr, 0)}</td>
+          <td>${formatNumber(it.basahLatex)}</td>
+          <td>${formatNumber(it.basahLump)}</td>
+          <td>${formatNumber(it.sheet)}</td>
+          <td>${formatNumber(it.brCr)}</td>
           <td>
             <button class="edit-btn" data-id="${String(it.id)}">
               <span class="action-icon"> 
@@ -567,7 +578,6 @@ document.addEventListener("DOMContentLoaded", () => {
           behavior: 'smooth'
         });
 
-        // Set mandor dengan mencari teks yang sesuai dari cache
         const mandorInput = document.getElementById("mandor");
         const selectedMandor = getMandorById(String(item.idBakuMandor));
         if (mandorInput && selectedMandor) {
