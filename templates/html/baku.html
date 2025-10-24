@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Input Produksi Baku</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/input-baku.css">
@@ -22,13 +21,13 @@
                     <div class="form-row" style="grid-template-columns: 1fr;">
                         <div class="form-group">
                             <label for="inputNamaMandor">Nama Mandor</label>
-                            <input type="text" id="inputNamaMandor"  required>
+                            <input type="text" id="inputNamaMandor" required>
                         </div>
                     </div>
                     <div class="form-row" style="grid-template-columns: 1fr;">
                         <div class="form-group">
                             <label for="inputNIKMandor">NIK</label>
-                            <input type="number" id="inputNIKmandor "  required>
+                            <input type="number" id="inputNIKMandor" required>
                         </div>
                     </div>
                     <div class="form-row" style="grid-template-columns: 1fr;">
@@ -93,7 +92,7 @@
                     <div class="form-row" style="grid-template-columns: 1fr;">
                         <div class="form-group">
                             <label for="inputNamaPenyadap">Nama Penyadap</label>
-                            <input type="text" id="inputNamaPenyadap"  required>
+                            <input type="text" id="inputNamaPenyadap" required>
                         </div>
                     </div>
                     <div class="form-row" style="grid-template-columns: 1fr;">
@@ -131,7 +130,7 @@
     <form class="baku-form" id="bakuForm">
         <div class="form-group">
             <label for="mandor">NAMA Mandor</label>
-            <div style="display:flex; flex-direction:row; gap:8px; align-items:center;">
+            <div style="display:flex; flex-direction:row; gap:8px; align-items:center; margin-bottom: 15px;">
                 <input id="mandor" name="idBakuMandor" required list="mandor-list" style="width:100%;" placeholder="Pilih Mandor...">
                 <datalist id="mandor-list">
                     <!-- Options will be added dynamically -->
@@ -142,14 +141,15 @@
             </div>
         </div>
 
-
         <div class="form-row">
             <div class="form-group">
                 <label for="namaPenyadap">Nama Penyadap</label>
                 <div style="display:flex; flex-direction:row; gap:8px; align-items:center;">
-                    <input type="text" id="namaPenyadap" placeholder="Cari nama..." autocomplete="off" required>
+                    <input type="text" id="namaPenyadap" list="penyadap-list" placeholder="Pilih Penyadap..." autocomplete="off" required>
+                    <datalist id="penyadap-list">
+                        <!-- Options will be added dynamically -->
+                    </datalist>
                     <input type="hidden" id="idPenyadap" name="idPenyadap" required>
-                    <div id="namaDropdown" class="dropdown" style="display:none;"></div>
                     <button type="button" id="tambahPenyadap" class="tambah-mandor-btn">
                         <span class="tambah-mandor-icon">+</span>
                     </button>
@@ -190,32 +190,33 @@
 
     <div class="baku-table-container">
         <h2>Ringkasan Mandor & Kebun</h2>
-        <table class="baku-table" id="summaryTable">
-            <thead>
-            <tr>
-                <th>Mandor</th>
-                <th>Afdeling</th>
-                <th>Tipe/Jenis</th>
-                <th>Jumlah Pabrik Basah Latek</th>
-                <th>Jumlah Kebun Basah Latek</th>
-                <th>Jumlah Sheet</th>
-                <th>K3 Sheet</th>
-                <th>Jumlah Pabrik Basah Lump</th>
-                <th>Jumlah Kebun Basah Lump</th>
-                <th>Jumlah Br_Cr</th>
-                <th>K3 Br_Cr</th>
-            </tr>
-            </thead>
-            <tbody>
-            <!-- Data ringkasan mandor akan diisi oleh JS -->
-            </tbody>
-        </table>
+        <div class="table-scroll-wrapper">
+            <table class="baku-table" id="summaryTable">
+                <thead>
+                <tr>
+                    <th>Mandor</th>
+                    <th>Afdeling</th>
+                    <th>Tipe/Jenis</th>
+                    <th>Jumlah Pabrik Basah Latek</th>
+                    <th>Jumlah Kebun Basah Latek</th>
+                    <th>Jumlah Sheet</th>
+                    <th>K3 Sheet</th>
+                    <th>Jumlah Pabrik Basah Lump</th>
+                    <th>Jumlah Kebun Basah Lump</th>
+                    <th>Jumlah Br_Cr</th>
+                    <th>K3 Br_Cr</th>
+                </tr>
+                </thead>
+                <tbody>
+                <!-- Data ringkasan mandor akan diisi oleh JS -->
+                </tbody>
+            </table>
+        </div>
         <button id="showBakuTableBtn" style="margin:16px 0; background:#0093E9; color:#fff; border:none; border-radius:6px; padding:8px 20px; font-weight:600; cursor:pointer;">Tampilkan Data Produksi Baku</button>
         <div id="bakuTableWrapper" style="display:none;">
         </div>
     </div>
 </div>
+<script src="/js/baku.js"></script>
 </body>
-<script src="/js/baku.js"> </script>
-
 </html>
