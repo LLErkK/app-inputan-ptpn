@@ -18,19 +18,41 @@
             <a href="/baku" target="mainFrame">Input</a>
             <a href="/monitoring" target="mainFrame">Monitoring</a>
             <a href="/visualisasi" target="mainFrame">Visualisasi</a>
-
         </div>
+
         <div class="logout" id="btn-logout" style="cursor: pointer;">Logout</div>
     </div>
 
     <!-- Content pakai iframe -->
     <div class="content">
-        <iframe name="mainFrame" src="" frameborder="0"></iframe>
+        <iframe name="mainFrame" id="mainFrame" frameborder="0"></iframe>
     </div>
 </div>
 
-</body>
 <script src="/js/script.js"></script>
-
 <script src="/js/baku.js"></script>
+
+<script>
+    // Script untuk menentukan halaman awal berdasarkan query ?tab=
+    document.addEventListener("DOMContentLoaded", () => {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get("tab") || "rekap"; // default: /rekap
+        const frame = document.getElementById("mainFrame");
+        frame.src = "/" + tab;
+    });
+
+    // Tombol logout
+    const btnLogout = document.getElementById("btn-logout");
+    if (btnLogout) {
+        btnLogout.addEventListener("click", async () => {
+            try {
+                await fetch("/logout", { method: "GET" });
+                window.location.href = "/";
+            } catch (err) {
+                console.error("Gagal logout:", err);
+            }
+        });
+    }
+</script>
+</body>
 </html>

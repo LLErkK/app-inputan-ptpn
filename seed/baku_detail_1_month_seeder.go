@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 )
@@ -66,11 +67,10 @@ func SeedData() {
 		return
 	}
 
-	// Simpan token global
 	SessionToken = sessionToken
 	fmt.Printf("  ✓ Login berhasil (Token: %s...)\n", sessionToken[:20])
 
-	// 2. Validasi bahwa Mandor ID 1 dan Penyadap ID 1 ada
+	// 2. Validasi master data
 	fmt.Println("\n→ Validasi data master...")
 
 	client := &http.Client{}
@@ -87,7 +87,6 @@ func SeedData() {
 		} else {
 			log.Printf("     Status: %d\n", mandorResp.StatusCode)
 		}
-		log.Println("     Solusi: Pastikan seed.SeedMandor() menghasilkan mandor dengan ID 1")
 		return
 	}
 	mandorResp.Body.Close()
@@ -110,7 +109,7 @@ func SeedData() {
 	penyadapResp.Body.Close()
 	fmt.Println("  ✓ Data penyadap dapat diakses")
 
-	// 3. Siapkan tanggal untuk 3 bulan: bulan kemarin, bulan ini, bulan depan
+	// 3. Siapkan tanggal untuk 3 bulan (kemarin, ini, depan)
 	now := time.Now()
 	year, month, _ := now.Date()
 	loc := now.Location()
@@ -128,9 +127,19 @@ func SeedData() {
 		startOfPrevMonth.Format("2006-01-02"),
 		endOfNextMonth.Format("2006-01-02"))
 
+	// Seed random dengan waktu saat ini
+	rand.Seed(time.Now().UnixNano())
+
 	// 4. Loop tanggal & kirim data ke API
 	for d := startOfPrevMonth; !d.After(endOfNextMonth); d = d.AddDate(0, 0, 1) {
 		totalDays++
+
+		// --- Nilai random untuk setiap hari ---
+		basahLatex := float64(rand.Intn(2600-2000+1) + 2000)
+		sheet := float64(rand.Intn(1200-900+1) + 900)
+		basahLump := float64(rand.Intn(1200-900+1) + 900)
+		brcr := float64(rand.Intn(1000-600+1) + 600)
+		// --------------------------------------
 
 		penyadap := map[string]interface{}{
 			"IdBakuMandor": 43,
@@ -138,19 +147,16 @@ func SeedData() {
 			"Tanggal":      d.Format("2006-01-02T15:04:05Z07:00"),
 			"Tipe":         "BAKU_INTERNAL",
 			"TahunTanam":   2020,
-			"BasahLatex":   10.0,
-			"Sheet":        20.0,
-			"BasahLump":    15.0,
-			"BrCr":         5.0,
+			"BasahLatex":   basahLatex,
+			"Sheet":        sheet,
+			"BasahLump":    basahLump,
+			"BrCr":         brcr,
 		}
 
 		body, _ := json.Marshal(penyadap)
 		req, _ := http.NewRequest("POST", "http://localhost:8080/api/baku", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
-		req.AddCookie(&http.Cookie{
-			Name:  "session_token",
-			Value: SessionToken,
-		})
+		req.AddCookie(&http.Cookie{Name: "session_token", Value: SessionToken})
 
 		res, err := client.Do(req)
 		if err != nil {
@@ -171,10 +177,10 @@ func SeedData() {
 			errorDetails[errorMsg]++
 			errorCount++
 		} else {
-			if totalDays%5 == 0 || totalDays == 1 {
-				fmt.Printf("  ✓ Progress: %d/%d hari berhasil\n", successCount+1, endOfNextMonth.Sub(startOfPrevMonth).Hours()/24+1)
-			}
 			successCount++
+			if totalDays%5 == 0 || totalDays == 1 {
+				fmt.Printf("  ✓ Progress: %d/%d hari berhasil\n", successCount, int(endOfNextMonth.Sub(startOfPrevMonth).Hours()/24)+1)
+			}
 		}
 		res.Body.Close()
 
@@ -192,10 +198,10 @@ func SeedData() {
 		}
 
 		fmt.Println("\n💡 KEMUNGKINAN PENYEBAB & SOLUSI:")
-		fmt.Println("   1. Mandor ID 1 tidak ada → Jalankan seed.SeedMandor() dengan benar")
-		fmt.Println("   2. Penyadap ID 1 tidak ada → Jalankan seed.SeedPenyadap() dengan benar")
-		fmt.Println("   3. Tipe 'BAKU' tidak valid → Cek models/baku.go untuk TipeProduksi")
+		fmt.Println("   1. Mandor ID 1 tidak ada → Jalankan seed.SeedMandor()")
+		fmt.Println("   2. Penyadap ID 1 tidak ada → Jalankan seed.SeedPenyadap()")
+		fmt.Println("   3. Tipe 'BAKU' tidak valid → Cek models/baku.go")
 		fmt.Println("   4. Session expired → Coba perpanjang waktu tunggu di main.go")
-		fmt.Println("   5. Duplikasi data → Cek apakah ada constraint unique yang dilanggar")
+		fmt.Println("   5. Duplikasi data → Cek constraint unique di tabel baku")
 	}
 }
