@@ -88,14 +88,11 @@ func parseNumber(raw string) (float64, error) {
 		return 0, fmt.Errorf("parse error: %v (%s)", err, s)
 	}
 
-	// keep percent as plain number (12.5% -> 12.5). If you want fraction, divide by 100 here.
 	_ = hasPercent
-
 	return num, nil
 }
 
-// findHeaderRowAndBaseIndex: cari row & kolom yang mengandung "TAHUN TANAM" (atau "NIK")
-// return (headerRowIndex, baseColIndex) or (-1,-1) kalau tidak ditemukan
+// findHeaderRowAndBaseIndex: cari row & kolom yang mengandung "TAHUN TANAM"
 func findHeaderRowAndBaseIndex(rows [][]string, maxScan int) (int, int) {
 	limit := maxScan
 	if len(rows) < limit {
@@ -108,7 +105,6 @@ func findHeaderRowAndBaseIndex(rows [][]string, maxScan int) (int, int) {
 			if clean == "" {
 				continue
 			}
-			// normalize common variations
 			c := strings.ReplaceAll(clean, "_", " ")
 			c = strings.ReplaceAll(c, "\"", "")
 			c = strings.TrimSpace(c)
@@ -116,7 +112,6 @@ func findHeaderRowAndBaseIndex(rows [][]string, maxScan int) (int, int) {
 				return i, j
 			}
 			if c == "NIK" {
-				// jika hanya NIK ditemukan, assume tahun tanam ada di kolom sebelumnya
 				return i, j - 1
 			}
 		}
@@ -124,7 +119,7 @@ func findHeaderRowAndBaseIndex(rows [][]string, maxScan int) (int, int) {
 	return -1, -1
 }
 
-// isLikelySummaryRow: cek apakah row pada posisi baseIdx+1 (nik) berisi kata ringkasan seperti "JUMLAH", "SELISIH", "%", "K3", dll.
+// isLikelySummaryRow: cek apakah row adalah baris ringkasan
 func isLikelySummaryRow(row []string, baseIdx int) bool {
 	checkIdx := baseIdx + 1
 	if checkIdx < 0 || checkIdx >= len(row) {
@@ -132,33 +127,31 @@ func isLikelySummaryRow(row []string, baseIdx int) bool {
 	}
 	cell := strings.ToUpper(strings.TrimSpace(row[checkIdx]))
 	if cell == "" {
-		// kadang ringkasan berada di kolom tahun_tanam, cek juga
 		c0 := strings.ToUpper(strings.TrimSpace(row[baseIdx]))
-		if strings.Contains(c0, "JUMLAH") || strings.Contains(c0, "SELISIH") || strings.Contains(c0, "%") || strings.Contains(c0, "K3") {
+		if strings.Contains(c0, "JUMLAH") || strings.Contains(c0, "SELISIH") ||
+			strings.Contains(c0, "%") || strings.Contains(c0, "K3") ||
+			strings.HasPrefix(c0, "√") || c0 == "OW" {
 			return true
 		}
 		return false
 	}
-	// kata-kata umum summary
-	summaryKeys := []string{"JUMLAH", "SELISIH", "TOTAL", "K3", "%", "JUMLAH PABRIK", "JUMLAH KEBUN", "RATA", "RATA-RATA"}
+	summaryKeys := []string{"JUMLAH", "SELISIH", "TOTAL", "K3", "%",
+		"JUMLAH PABRIK", "JUMLAH KEBUN", "RATA",
+		"RATA-RATA", "REKAPITULASI", "OW"}
 	for _, k := range summaryKeys {
 		if strings.Contains(cell, k) {
 			return true
 		}
 	}
-	// jika cell cuma berupa kata non-numeric dan pendek seperti "K3", treat summary
-	if regexp.MustCompile(`^[A-Z ]+$`).MatchString(cell) && len(cell) <= 6 && !regexp.MustCompile(`[0-9]`).MatchString(cell) {
-		// probably label row like "K3", "TOTAL", "JUMLAH"
+	if regexp.MustCompile(`^[A-Z ]+$`).MatchString(cell) && len(cell) <= 6 &&
+		!regexp.MustCompile(`[0-9]`).MatchString(cell) {
 		return true
 	}
 	return false
 }
 
-// isValidDataRow: cek minimal validitas baris data
-// - tahun_tanam harus angka (4 digit antara 1900..2100)
-// - nik harus mengandung digit minimal length (>=5) atau numeric
+// isValidDataRow: validasi minimal baris data
 func isValidDataRow(row []string, baseIdx int) bool {
-	// check tahun
 	tyIdx := baseIdx
 	if tyIdx < 0 || tyIdx >= len(row) {
 		return false
@@ -167,19 +160,15 @@ func isValidDataRow(row []string, baseIdx int) bool {
 	if ty == "" {
 		return false
 	}
-	// some headers have "TAHUN TANAM" text; ensure ty is numeric year
 	tyDigits := regexp.MustCompile(`\d{4}`)
 	if !tyDigits.MatchString(ty) {
-		// maybe ty includes extra text but contains 4-digit year -> accept
 		return false
 	}
-	// parse year
 	yearStr := tyDigits.FindString(ty)
 	if y, err := strconv.Atoi(yearStr); err != nil || y < 1900 || y > 2100 {
 		return false
 	}
 
-	// check NIK
 	nikIdx := baseIdx + 1
 	if nikIdx < 0 || nikIdx >= len(row) {
 		return false
@@ -188,26 +177,48 @@ func isValidDataRow(row []string, baseIdx int) bool {
 	if nik == "" {
 		return false
 	}
-	// clean nik: remove dots/spaces
 	nikClean := strings.ReplaceAll(nik, ".", "")
 	nikClean = strings.ReplaceAll(nikClean, " ", "")
-	// if contains letters only like "JUMLAH PABRIK" -> invalid
 	if !regexp.MustCompile(`\d`).MatchString(nikClean) {
 		return false
 	}
-	// require at least 4-5 digits to be likely NIK/id
 	digits := regexp.MustCompile(`\d+`).FindString(nikClean)
 	if len(digits) < 4 {
-		// but allow cases where NIK is actually name and the id is next column (rare)
-		// conservatively mark invalid
 		return false
 	}
 
 	return true
 }
 
-// mapRowRelative: mapping relatif terhadap baseIdx.
-// expects: tahun = row[baseIdx], nik=row[baseIdx+1], mandor=row[baseIdx+2], numbers start at baseIdx+3
+// mapRowRelative: mapping urut sesuai struktur model Rekap
+// Urutan kolom dari CSV (setelah baseIdx):
+// 0: TAHUN TANAM
+// 1: NIK
+// 2: MANDOR
+// 3: HKO HR INI
+// 4: HKO S/D HR INI
+// 5: BASAH LATEK KEBUN (HR INI)
+// 6: BASAH LATEK PABRIK (HR INI)
+// 7: BASAH LATEK % (HR INI)
+// 8: BASAH LUMP KEBUN (HR INI)
+// 9: BASAH LUMP PABRIK (HR INI)
+// 10: BASAH LUMP % (HR INI)
+// 11: K3 SHEET (HR INI)
+// 12: KERING SHEET (HR INI)
+// 13: KERING BR.CR (HR INI)
+// 14: KERING JUMLAH (HR INI)
+// 15: BASAH LATEK KEBUN (S/D HR INI)
+// 16: BASAH LATEK PABRIK (S/D HR INI)
+// 17: BASAH LATEK % (S/D HR INI)
+// 18: BASAH LUMP KEBUN (S/D HR INI)
+// 19: BASAH LUMP PABRIK (S/D HR INI)
+// 20: BASAH LUMP % (S/D HR INI)
+// 21: K3 SHEET (S/D HR INI)
+// 22: KERING SHEET (S/D HR INI)
+// 23: KERING BR.CR (S/D HR INI)
+// 24: KERING JUMLAH (S/D HR INI)
+// 25: PRODUKSI PER TAPER HR INI
+// 26: PRODUKSI PER TAPER S/D HR INI
 func mapRowRelative(row []string, baseIdx int, tanggal time.Time) (*models.Rekap, error) {
 	rekap := &models.Rekap{}
 
@@ -217,6 +228,7 @@ func mapRowRelative(row []string, baseIdx int, tanggal time.Time) (*models.Rekap
 		}
 		return strings.TrimSpace(strings.ReplaceAll(row[idx], "\"", ""))
 	}
+
 	getFloat := func(idx int) float64 {
 		if idx < 0 || idx >= len(row) {
 			return 0
@@ -230,6 +242,7 @@ func mapRowRelative(row []string, baseIdx int, tanggal time.Time) (*models.Rekap
 		}
 		return 0
 	}
+
 	getInt := func(idx int) int {
 		if idx < 0 || idx >= len(row) {
 			return 0
@@ -247,45 +260,53 @@ func mapRowRelative(row []string, baseIdx int, tanggal time.Time) (*models.Rekap
 		return 0
 	}
 
+	// Set tanggal
 	rekap.Tanggal = tanggal
-	rekap.TahunTanam = getStr(baseIdx)
+
+	// Data identitas (kolom 0-2 dari baseIdx)
+	rekap.TahunTanam = getStr(baseIdx + 0)
 	rekap.NIK = getStr(baseIdx + 1)
 	rekap.Mandor = getStr(baseIdx + 2)
 
-	// numeric mapping starting at baseIdx+3 (adjust based on CSV)
-	k := baseIdx + 3
+	// HKO (kolom 3-4)
+	rekap.HKOHariIni = getInt(baseIdx + 3)
+	rekap.HKOSampaiHariIni = getInt(baseIdx + 4)
 
-	rekap.HKOHariIni = getInt(k + 0)
-	rekap.HKOSampaiHariIni = getInt(k + 1)
+	// Produksi Hari Ini - Basah Latek (kolom 5-7)
+	rekap.HariIniBasahLatekKebun = getFloat(baseIdx + 5)
+	rekap.HariIniBasahLatekPabrik = getFloat(baseIdx + 6)
+	rekap.HariIniBasahLatekPersen = getFloat(baseIdx + 7)
 
-	rekap.HariIniBasahLatekKebun = getFloat(k + 2)
-	rekap.HariIniBasahLatekPabrik = getFloat(k + 3)
-	rekap.HariIniBasahLatekPersen = getFloat(k + 4)
+	// Produksi Hari Ini - Basah Lump (kolom 8-10)
+	rekap.HariIniBasahLumpKebun = getFloat(baseIdx + 8)
+	rekap.HariIniBasahLumpPabrik = getFloat(baseIdx + 9)
+	rekap.HariIniBasahLumpPersen = getFloat(baseIdx + 10)
 
-	rekap.HariIniBasahLumpKebun = getFloat(k + 5)
-	rekap.HariIniBasahLumpPabrik = getFloat(k + 6)
-	rekap.HariIniBasahLumpPersen = getFloat(k + 7)
+	// Produksi Hari Ini - Kering (kolom 11-14)
+	rekap.HariIniK3Sheet = getFloat(baseIdx + 11)
+	rekap.HariIniKeringSheet = getFloat(baseIdx + 12)
+	rekap.HariIniKeringBrCr = getFloat(baseIdx + 13)
+	rekap.HariIniKeringJumlah = getFloat(baseIdx + 14)
 
-	rekap.HariIniK3Sheet = getFloat(k + 8)
-	rekap.HariIniKeringSheet = getFloat(k + 9)
-	rekap.HariIniKeringBrCr = getFloat(k + 10)
-	rekap.HariIniKeringJumlah = getFloat(k + 11)
+	// Produksi Sampai Hari Ini - Basah Latek (kolom 15-17)
+	rekap.SampaiHariIniBasahLatekKebun = getFloat(baseIdx + 15)
+	rekap.SampaiHariIniBasahLatekPabrik = getFloat(baseIdx + 16)
+	rekap.SampaiHariIniBasahLatekPersen = getFloat(baseIdx + 17)
 
-	rekap.SampaiHariIniBasahLatekKebun = getFloat(k + 12)
-	rekap.SampaiHariIniBasahLatekPabrik = getFloat(k + 13)
-	rekap.SampaiHariIniBasahLatekPersen = getFloat(k + 14)
+	// Produksi Sampai Hari Ini - Basah Lump (kolom 18-20)
+	rekap.SampaiHariIniBasahLumpKebun = getFloat(baseIdx + 18)
+	rekap.SampaiHariIniBasahLumpPabrik = getFloat(baseIdx + 19)
+	rekap.SampaiHariIniBasahLumpPersen = getFloat(baseIdx + 20)
 
-	rekap.SampaiHariIniBasahLumpKebun = getFloat(k + 15)
-	rekap.SampaiHariIniBasahLumpPabrik = getFloat(k + 16)
-	rekap.SampaiHariIniBasahLumpPersen = getFloat(k + 17)
+	// Produksi Sampai Hari Ini - Kering (kolom 21-24)
+	rekap.SampaiHariIniK3Sheet = getFloat(baseIdx + 21)
+	rekap.SampaiHariIniKeringSheet = getFloat(baseIdx + 22)
+	rekap.SampaiHariIniKeringBrCr = getFloat(baseIdx + 23)
+	rekap.SampaiHariIniKeringJumlah = getFloat(baseIdx + 24)
 
-	rekap.SampaiHariIniK3Sheet = getFloat(k + 18)
-	rekap.SampaiHariIniKeringSheet = getFloat(k + 19)
-	rekap.SampaiHariIniKeringBrCr = getFloat(k + 20)
-	rekap.SampaiHariIniKeringJumlah = getFloat(k + 21)
-
-	rekap.ProduksiPerTaperHariIni = getFloat(k + 22)
-	rekap.ProduksiPerTaperSampaiHariIni = getFloat(k + 23)
+	// Produktivitas Per Taper (kolom 25-26)
+	rekap.ProduksiPerTaperHariIni = getFloat(baseIdx + 25)
+	rekap.ProduksiPerTaperSampaiHariIni = getFloat(baseIdx + 26)
 
 	return rekap, nil
 }
@@ -329,10 +350,10 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 
 	headerRow, baseIdx := findHeaderRowAndBaseIndex(rows, 30)
 	if headerRow == -1 || baseIdx == -1 {
-		// fallback: search first row directly
 		baseIdx = -1
 		for j, c := range rows[0] {
-			if strings.Contains(strings.ToUpper(c), "TAHUN TANAM") || strings.Contains(strings.ToUpper(c), "NIK") {
+			if strings.Contains(strings.ToUpper(c), "TAHUN TANAM") ||
+				strings.Contains(strings.ToUpper(c), "NIK") {
 				baseIdx = j
 				headerRow = 0
 				break
@@ -345,6 +366,7 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 
 	start := headerRow + 1
 	saved, failed := 0, 0
+
 	for i := start; i < len(rows); i++ {
 		row := rows[i]
 
@@ -367,7 +389,6 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 
 		// validate minimal data pattern
 		if !isValidDataRow(row, baseIdx) {
-			// not a valid data row -> skip (counts as skipped, not fail)
 			continue
 		}
 

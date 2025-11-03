@@ -5,6 +5,7 @@ import "time"
 type Rekap struct {
 	ID               uint      `gorm:"primaryKey;autoIncrement"`
 	Tanggal          time.Time `gorm:"type:date;not null;index"`
+	TipeProduksi     string    `gorm:"type:text;not null"`
 	TahunTanam       string    `gorm:"type:varchar(10);not null"`
 	NIK              string    `gorm:"type:varchar(20);not null;index"`
 	Mandor           string    `gorm:"type:varchar(100);not null"`
