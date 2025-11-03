@@ -258,7 +258,7 @@ func isValidDataRow(row []string, baseIdx int) bool {
 // 24: KERING JUMLAH (S/D HR INI)
 // 25: PRODUKSI PER TAPER HR INI
 // 26: PRODUKSI PER TAPER S/D HR INI
-func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi string) (*models.Rekap, error) {
+func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi string, afdeling string) (*models.Rekap, error) {
 	rekap := &models.Rekap{}
 
 	getStr := func(idx int) string {
@@ -348,6 +348,8 @@ func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi s
 	rekap.ProduksiPerTaperHariIni = getFloat(baseIdx + 25)
 	rekap.ProduksiPerTaperSampaiHariIni = getFloat(baseIdx + 26)
 
+	rekap.Afdeling = afdeling
+
 	return rekap, nil
 }
 
@@ -369,7 +371,7 @@ func saveRekap(db *gorm.DB, rekap *models.Rekap) error {
 }
 
 // processCSVFileAutoBaseWithFilter: detect baseIdx, filter summary rows, detect tipe produksi, save valid rows
-func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Time) (int, int, error) {
+func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Time, afdeling string) (int, int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, 0, fmt.Errorf("gagal buka file %s: %w", path, err)
@@ -442,7 +444,7 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 			continue
 		}
 
-		rekap, err := mapRowRelative(row, baseIdx, tanggal, currentTipeProduksi)
+		rekap, err := mapRowRelative(row, baseIdx, tanggal, currentTipeProduksi, afdeling)
 		if err != nil {
 			failed++
 			continue
@@ -474,7 +476,7 @@ func ConvertCSVAutoBaseWithFilter(tanggal time.Time, afdeling string) (int, int,
 	}
 
 	var errors []string
-	saved, failed, err := processCSVFileAutoBaseWithFilter(db, path, tanggal)
+	saved, failed, err := processCSVFileAutoBaseWithFilter(db, path, tanggal, afdeling)
 	if err != nil {
 		errors = append(errors, fmt.Sprintf("REKAP.csv: %v", err))
 	}

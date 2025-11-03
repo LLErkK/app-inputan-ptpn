@@ -201,7 +201,7 @@ func parseNumberNoRekap(s string) (float64, error) {
 // mapRowTanggalFormat: mapping row dengan format tanggal ke model Produksi
 // Base columns: No, Tahun Tanam, Mandor, NIK, Nama Penyadap
 // Production columns (4 kolom berurutan dari firstColIdx): Basah Latek, Sheet, Basah Lump, Br.Cr
-func mapRowTanggalFormat(row []string, baseColIndices map[string]int, firstColIdx int, tanggal time.Time, tipeProduksi string) (*models.Produksi, error) {
+func mapRowTanggalFormat(row []string, baseColIndices map[string]int, firstColIdx int, tanggal time.Time, tipeProduksi string, afdeling string) (*models.Produksi, error) {
 	produksi := &models.Produksi{}
 
 	getStr := func(colName string) string {
@@ -242,12 +242,13 @@ func mapRowTanggalFormat(row []string, baseColIndices map[string]int, firstColId
 		produksi.BasahLump = getFloat(firstColIdx + 2)  // Basah Lump
 		produksi.BrCr = getFloat(firstColIdx + 3)       // Br.Cr
 	}
+	produksi.Afdeling = afdeling
 
 	return produksi, nil
 }
 
 // processCSVTanggalFormat: proses CSV dengan format tanggal
-func processCSVTanggalFormat(db *gorm.DB, path string, targetDate int, tipeProduksi string) (int, int, error) {
+func processCSVTanggalFormat(db *gorm.DB, path string, targetDate int, tipeProduksi string, afdeling string) (int, int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, 0, fmt.Errorf("gagal buka file %s: %w", path, err)
@@ -493,7 +494,7 @@ func processCSVTanggalFormat(db *gorm.DB, path string, targetDate int, tipeProdu
 		}
 
 		// Map row to Produksi
-		produksi, err := mapRowTanggalFormat(row, baseColIndices, firstColIdx, tanggal, tipeProduksi)
+		produksi, err := mapRowTanggalFormat(row, baseColIndices, firstColIdx, tanggal, tipeProduksi, afdeling)
 		if err != nil {
 			failed++
 			continue
@@ -557,7 +558,7 @@ func ConvertCSVTanggalFormat(targetDate int, afdeling string) (int, int, []strin
 		tipeProduksi := extractTipeProduksiFromFilename(filename)
 
 		path := filepath.Join("csv", filename)
-		saved, failed, err := processCSVTanggalFormat(db, path, targetDate, tipeProduksi)
+		saved, failed, err := processCSVTanggalFormat(db, path, targetDate, tipeProduksi, afdeling)
 		totalSaved += saved
 		totalFailed += failed
 

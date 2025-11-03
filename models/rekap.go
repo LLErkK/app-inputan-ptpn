@@ -40,7 +40,7 @@ type Rekap struct {
 	ProduksiPerTaperHariIni       float64 `gorm:"type:decimal(10,2);default:0"`
 	ProduksiPerTaperSampaiHariIni float64 `gorm:"type:decimal(10,2);default:0"`
 
-	afdeling string `gorm:"type:text;not null;index"`
+	Afdeling string `gorm:"type:text;not null;index"`
 
 	// Timestamps
 	CreatedAt time.Time `gorm:"autoCreateTime"`

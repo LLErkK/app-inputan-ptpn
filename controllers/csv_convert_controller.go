@@ -12,7 +12,7 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-func excelToCSV(excelFile string, outputFolder string, tanggal time.Time) error {
+func excelToCSV(excelFile string, outputFolder string, tanggal time.Time, afdeling string) error {
 	// Jika outputFolder kosong, gunakan folder yang sama dengan file Excel
 	if outputFolder == "" {
 		outputFolder = filepath.Dir(excelFile)
@@ -80,7 +80,7 @@ func excelToCSV(excelFile string, outputFolder string, tanggal time.Time) error 
 	fmt.Println("\nMemproses CSV ke database...")
 
 	// --- Jalankan fungsi pertama ---
-	saved1, failed1, errs1, err1 := ConvertCSVAutoBaseWithFilter(tanggal)
+	saved1, failed1, errs1, err1 := ConvertCSVAutoBaseWithFilter(tanggal, afdeling)
 	if err1 != nil {
 		fmt.Printf("✗ ConvertCSVAutoBaseWithFilter gagal: %v\n", err1)
 	} else {
@@ -94,7 +94,7 @@ func excelToCSV(excelFile string, outputFolder string, tanggal time.Time) error 
 	}
 
 	// --- Jalankan fungsi kedua ---
-	saved2, failed2, errs2, err2 := ConvertCSVTanggalFormat(tanggalInt)
+	saved2, failed2, errs2, err2 := ConvertCSVTanggalFormat(tanggalInt, afdeling)
 	if err2 != nil {
 		fmt.Printf("✗ ConvertCSVTanggalFormat gagal: %v\n", err2)
 	} else {

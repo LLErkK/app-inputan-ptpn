@@ -36,7 +36,8 @@ func CreateUpload(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
+	//Get afdeling from form
+	afdeling := r.FormValue("afdeling")
 	// Get tanggal from form
 	tanggalStr := r.FormValue("tanggal")
 	if tanggalStr == "" {
@@ -131,7 +132,7 @@ func CreateUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//convert ke csv
-	if err := excelToCSV(uploadPath, "csv", tanggal); err != nil {
+	if err := excelToCSV(uploadPath, "csv", tanggal, afdeling); err != nil {
 		log.Fatal(err)
 	}
 

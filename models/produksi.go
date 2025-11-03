@@ -14,7 +14,7 @@ type Produksi struct {
 	Sheet        float64   `gorm:"not null;default:0"`
 	BasahLump    float64   `gorm:"not null;default:0"`
 	BrCr         float64   `gorm:"not null;default:0"`
-	afdeling     string    `gorm:"type:text;not null"`
+	Afdeling     string    `gorm:"type:text;not null"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
