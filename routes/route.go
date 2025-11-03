@@ -138,6 +138,9 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/upload/{id}", controllers.DeleteUpload).Methods("DELETE")
 	protected.HandleFunc("/api/upload/{id}/download", controllers.DownloadFile).Methods("GET")
 
+	protected.HandleFunc("/api/master", controllers.GetAllMaster).Methods("GET")
+	protected.HandleFunc("/api/master/{masterId}", controllers.DeleteMaster).Methods("DELETE") //
+
 	// ================== ADDITIONAL MONITORING ENDPOINTS ==================
 	protected.HandleFunc("/api/monitoring/today/summary", func(w http.ResponseWriter, r *http.Request) {
 		// Redirect ke smart search dengan tanggal hari ini

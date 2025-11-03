@@ -201,7 +201,7 @@ func parseNumberNoRekap(s string) (float64, error) {
 // mapRowTanggalFormat: mapping row dengan format tanggal ke model Produksi
 // Base columns: No, Tahun Tanam, Mandor, NIK, Nama Penyadap
 // Production columns (4 kolom berurutan dari firstColIdx): Basah Latek, Sheet, Basah Lump, Br.Cr
-func mapRowTanggalFormat(row []string, baseColIndices map[string]int, firstColIdx int, tanggal time.Time, tipeProduksi string, afdeling string) (*models.Produksi, error) {
+func mapRowTanggalFormat(row []string, baseColIndices map[string]int, firstColIdx int, tanggal time.Time, tipeProduksi string, afdeling string, idMaster uint64) (*models.Produksi, error) {
 	produksi := &models.Produksi{}
 
 	getStr := func(colName string) string {
@@ -243,12 +243,13 @@ func mapRowTanggalFormat(row []string, baseColIndices map[string]int, firstColId
 		produksi.BrCr = getFloat(firstColIdx + 3)       // Br.Cr
 	}
 	produksi.Afdeling = afdeling
+	produksi.IdMaster = idMaster
 
 	return produksi, nil
 }
 
 // processCSVTanggalFormat: proses CSV dengan format tanggal
-func processCSVTanggalFormat(db *gorm.DB, path string, targetDate int, tipeProduksi string, afdeling string) (int, int, error) {
+func processCSVTanggalFormat(db *gorm.DB, path string, targetDate int, tipeProduksi string, afdeling string, idMaster uint64) (int, int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, 0, fmt.Errorf("gagal buka file %s: %w", path, err)
@@ -494,7 +495,7 @@ func processCSVTanggalFormat(db *gorm.DB, path string, targetDate int, tipeProdu
 		}
 
 		// Map row to Produksi
-		produksi, err := mapRowTanggalFormat(row, baseColIndices, firstColIdx, tanggal, tipeProduksi, afdeling)
+		produksi, err := mapRowTanggalFormat(row, baseColIndices, firstColIdx, tanggal, tipeProduksi, afdeling, idMaster)
 		if err != nil {
 			failed++
 			continue
@@ -522,7 +523,7 @@ func processCSVTanggalFormat(db *gorm.DB, path string, targetDate int, tipeProdu
 }
 
 // ConvertCSVTanggalFormat: public function to process all CSVs except REKAP.csv
-func ConvertCSVTanggalFormat(targetDate int, afdeling string) (int, int, []string, error) {
+func ConvertCSVTanggalFormat(targetDate int, afdeling string, idMaster uint64) (int, int, []string, error) {
 	files, err := os.ReadDir("csv")
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("gagal baca folder csv: %w", err)
@@ -558,7 +559,7 @@ func ConvertCSVTanggalFormat(targetDate int, afdeling string) (int, int, []strin
 		tipeProduksi := extractTipeProduksiFromFilename(filename)
 
 		path := filepath.Join("csv", filename)
-		saved, failed, err := processCSVTanggalFormat(db, path, targetDate, tipeProduksi, afdeling)
+		saved, failed, err := processCSVTanggalFormat(db, path, targetDate, tipeProduksi, afdeling, idMaster)
 		totalSaved += saved
 		totalFailed += failed
 

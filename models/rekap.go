@@ -12,7 +12,6 @@ type Rekap struct {
 	HKOHariIni       int       `gorm:"default:0"`
 	HKOSampaiHariIni int       `gorm:"default:0"`
 
-	// Produksi Hari Ini
 	HariIniBasahLatekKebun  float64 `gorm:"type:decimal(10,2);default:0"`
 	HariIniBasahLatekPabrik float64 `gorm:"type:decimal(10,2);default:0"`
 	HariIniBasahLatekPersen float64 `gorm:"type:decimal(5,2);default:0"`
@@ -24,7 +23,6 @@ type Rekap struct {
 	HariIniKeringBrCr       float64 `gorm:"type:decimal(10,2);default:0"`
 	HariIniKeringJumlah     float64 `gorm:"type:decimal(10,2);default:0"`
 
-	// Produksi Sampai Hari Ini (Kumulatif)
 	SampaiHariIniBasahLatekKebun  float64 `gorm:"type:decimal(10,2);default:0"`
 	SampaiHariIniBasahLatekPabrik float64 `gorm:"type:decimal(10,2);default:0"`
 	SampaiHariIniBasahLatekPersen float64 `gorm:"type:decimal(5,2);default:0"`
@@ -36,18 +34,19 @@ type Rekap struct {
 	SampaiHariIniKeringBrCr       float64 `gorm:"type:decimal(10,2);default:0"`
 	SampaiHariIniKeringJumlah     float64 `gorm:"type:decimal(10,2);default:0"`
 
-	// Produktivitas
 	ProduksiPerTaperHariIni       float64 `gorm:"type:decimal(10,2);default:0"`
 	ProduksiPerTaperSampaiHariIni float64 `gorm:"type:decimal(10,2);default:0"`
 
 	Afdeling string `gorm:"type:text;not null;index"`
 
-	// Timestamps
+	// Foreign key
+	IdMaster uint64 `gorm:"not null;index"`
+	Master   Master `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime"`
 }
 
-// TableName overrides the table name
 func (Rekap) TableName() string {
 	return "rekap"
 }

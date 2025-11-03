@@ -15,8 +15,13 @@ type Produksi struct {
 	BasahLump    float64   `gorm:"not null;default:0"`
 	BrCr         float64   `gorm:"not null;default:0"`
 	Afdeling     string    `gorm:"type:text;not null"`
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+
+	// Foreign key
+	IdMaster uint64 `gorm:"not null;index"`
+	Master   Master `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (Produksi) TableName() string {

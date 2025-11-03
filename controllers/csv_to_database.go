@@ -258,7 +258,7 @@ func isValidDataRow(row []string, baseIdx int) bool {
 // 24: KERING JUMLAH (S/D HR INI)
 // 25: PRODUKSI PER TAPER HR INI
 // 26: PRODUKSI PER TAPER S/D HR INI
-func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi string, afdeling string) (*models.Rekap, error) {
+func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi string, afdeling string, idMaster uint64) (*models.Rekap, error) {
 	rekap := &models.Rekap{}
 
 	getStr := func(idx int) string {
@@ -350,6 +350,8 @@ func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi s
 
 	rekap.Afdeling = afdeling
 
+	rekap.IdMaster = idMaster
+
 	return rekap, nil
 }
 
@@ -371,7 +373,7 @@ func saveRekap(db *gorm.DB, rekap *models.Rekap) error {
 }
 
 // processCSVFileAutoBaseWithFilter: detect baseIdx, filter summary rows, detect tipe produksi, save valid rows
-func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Time, afdeling string) (int, int, error) {
+func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Time, afdeling string, idMaster uint64) (int, int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, 0, fmt.Errorf("gagal buka file %s: %w", path, err)
@@ -444,7 +446,7 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 			continue
 		}
 
-		rekap, err := mapRowRelative(row, baseIdx, tanggal, currentTipeProduksi, afdeling)
+		rekap, err := mapRowRelative(row, baseIdx, tanggal, currentTipeProduksi, afdeling, idMaster)
 		if err != nil {
 			failed++
 			continue
@@ -461,7 +463,7 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 }
 
 // ConvertCSVAutoBaseWithFilter: public function to process all CSVs in csv/ folder
-func ConvertCSVAutoBaseWithFilter(tanggal time.Time, afdeling string) (int, int, []string, error) {
+func ConvertCSVAutoBaseWithFilter(tanggal time.Time, afdeling string, idMaster uint64) (int, int, []string, error) {
 	db := config.GetDB()
 	if db == nil {
 		return 0, 0, nil, fmt.Errorf("database belum dikonfigurasi (config.GetDB() == nil)")
@@ -476,7 +478,7 @@ func ConvertCSVAutoBaseWithFilter(tanggal time.Time, afdeling string) (int, int,
 	}
 
 	var errors []string
-	saved, failed, err := processCSVFileAutoBaseWithFilter(db, path, tanggal, afdeling)
+	saved, failed, err := processCSVFileAutoBaseWithFilter(db, path, tanggal, afdeling, idMaster)
 	if err != nil {
 		errors = append(errors, fmt.Sprintf("REKAP.csv: %v", err))
 	}
