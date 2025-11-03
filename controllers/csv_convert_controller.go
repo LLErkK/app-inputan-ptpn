@@ -74,7 +74,84 @@ func excelToCSV(excelFile string, outputFolder string, tanggal time.Time) error 
 
 	fmt.Printf("\nSelesai! %d file CSV telah dibuat di: %s\n", len(sheets), outputFolder)
 
-	//masukan ke database
-	ConvertCSVAutoBaseWithFilter(tanggal)
+	// Ambil tanggal (hari) sebagai int
+	tanggalInt := tanggal.Day()
+
+	fmt.Println("\nMemproses CSV ke database...")
+
+	// --- Jalankan fungsi pertama ---
+	saved1, failed1, errs1, err1 := ConvertCSVAutoBaseWithFilter(tanggal)
+	if err1 != nil {
+		fmt.Printf("✗ ConvertCSVAutoBaseWithFilter gagal: %v\n", err1)
+	} else {
+		fmt.Printf("✓ ConvertCSVAutoBaseWithFilter: %d berhasil, %d gagal\n", saved1, failed1)
+		if len(errs1) > 0 {
+			fmt.Println("  Detail error:")
+			for _, e := range errs1 {
+				fmt.Printf("   - %s\n", e)
+			}
+		}
+	}
+
+	// --- Jalankan fungsi kedua ---
+	saved2, failed2, errs2, err2 := ConvertCSVTanggalFormat(tanggalInt)
+	if err2 != nil {
+		fmt.Printf("✗ ConvertCSVTanggalFormat gagal: %v\n", err2)
+	} else {
+		fmt.Printf("✓ ConvertCSVTanggalFormat: %d berhasil, %d gagal\n", saved2, failed2)
+		if len(errs2) > 0 {
+			fmt.Println("  Detail error:")
+			for _, e := range errs2 {
+				fmt.Printf("   - %s\n", e)
+			}
+		}
+	}
+
+	// --- Evaluasi hasil ---
+	if err1 == nil && err2 == nil {
+		fmt.Println("\n✅ Semua proses berhasil dilakukan!")
+
+		// Jika kedua fungsi berhasil → hapus isi folder uploads & csv
+		if err := clearFolder("uploads"); err != nil {
+			fmt.Printf("⚠️  Gagal menghapus isi folder uploads: %v\n", err)
+		} else {
+			fmt.Println("🗑️  Folder 'uploads' telah dibersihkan.")
+		}
+
+		if err := clearFolder("csv"); err != nil {
+			fmt.Printf("⚠️  Gagal menghapus isi folder csv: %v\n", err)
+		} else {
+			fmt.Println("🗑️  Folder 'csv' telah dibersihkan.")
+		}
+
+	} else {
+		fmt.Println("\n⚠️  Beberapa proses gagal, periksa log di atas.")
+	}
+
+	return nil
+}
+
+// Fungsi bantu untuk menghapus semua file di dalam folder tertentu
+func clearFolder(folder string) error {
+	files, err := os.ReadDir(folder)
+	if err != nil {
+		return fmt.Errorf("gagal membaca folder %s: %w", folder, err)
+	}
+
+	for _, file := range files {
+		path := filepath.Join(folder, file.Name())
+		if file.IsDir() {
+			// hapus folder secara rekursif
+			if err := os.RemoveAll(path); err != nil {
+				log.Printf("Gagal menghapus subfolder %s: %v", path, err)
+			}
+		} else {
+			// hapus file biasa
+			if err := os.Remove(path); err != nil {
+				log.Printf("Gagal menghapus file %s: %v", path, err)
+			}
+		}
+	}
+
 	return nil
 }

@@ -18,7 +18,7 @@ import (
 )
 
 // =====================
-// Controller CSV -> DB (deteksi base index + filter summary rows)
+// Controller CSV -> DB (deteksi base index + filter summary rows + tipe produksi)
 // =====================
 
 // parseNumber: robust untuk "1.234,56", "1,234.56", "(123)", "12,5%" dll.
@@ -119,6 +119,45 @@ func findHeaderRowAndBaseIndex(rows [][]string, maxScan int) (int, int) {
 	return -1, -1
 }
 
+// detectTipeProduksi: deteksi tipe produksi dari baris kategori
+// Mengembalikan tipe produksi yang terdeteksi atau string kosong
+func detectTipeProduksi(row []string, baseIdx int) string {
+	// Cek di sekitar kolom baseIdx untuk teks tipe produksi
+	for i := 0; i < len(row); i++ {
+		cell := strings.ToUpper(strings.TrimSpace(row[i]))
+		if cell == "" {
+			continue
+		}
+
+		// Deteksi berbagai variasi tipe produksi
+		if strings.Contains(cell, "PRODUKSI BAKU BORONG") {
+			return "PRODUKSI BAKU BORONG"
+		}
+		if strings.Contains(cell, "PRODUKSI BAKU") && !strings.Contains(cell, "BORONG") {
+			return "PRODUKSI BAKU"
+		}
+		if strings.Contains(cell, "PRODUKSI BORONG MINGGU") || strings.Contains(cell, "BORONG MINGGU") {
+			return "PRODUKSI BORONG MINGGU"
+		}
+		if strings.Contains(cell, "PRODUKSI BORONG INTERNAL") || strings.Contains(cell, "BORONG INTERNAL") {
+			return "PRODUKSI BORONG INTERNAL"
+		}
+		if strings.Contains(cell, "PRODUKSI BORONG EKSTERNAL") || strings.Contains(cell, "BORONG EKSTERNAL") {
+			return "PRODUKSI BORONG EKSTERNAL"
+		}
+		if strings.Contains(cell, "PRODUKSI TETES LANJUT") || strings.Contains(cell, "TETES LANJUT") {
+			return "PRODUKSI TETES LANJUT"
+		}
+	}
+	return ""
+}
+
+// isTipeProduksiRow: cek apakah baris ini adalah baris kategori tipe produksi
+func isTipeProduksiRow(row []string, baseIdx int) bool {
+	tipe := detectTipeProduksi(row, baseIdx)
+	return tipe != ""
+}
+
 // isLikelySummaryRow: cek apakah row adalah baris ringkasan
 func isLikelySummaryRow(row []string, baseIdx int) bool {
 	checkIdx := baseIdx + 1
@@ -137,7 +176,7 @@ func isLikelySummaryRow(row []string, baseIdx int) bool {
 	}
 	summaryKeys := []string{"JUMLAH", "SELISIH", "TOTAL", "K3", "%",
 		"JUMLAH PABRIK", "JUMLAH KEBUN", "RATA",
-		"RATA-RATA", "REKAPITULASI", "OW"}
+		"RATA-RATA", "REKAPITULASI", "OW", "PROD. OW"}
 	for _, k := range summaryKeys {
 		if strings.Contains(cell, k) {
 			return true
@@ -219,7 +258,7 @@ func isValidDataRow(row []string, baseIdx int) bool {
 // 24: KERING JUMLAH (S/D HR INI)
 // 25: PRODUKSI PER TAPER HR INI
 // 26: PRODUKSI PER TAPER S/D HR INI
-func mapRowRelative(row []string, baseIdx int, tanggal time.Time) (*models.Rekap, error) {
+func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi string) (*models.Rekap, error) {
 	rekap := &models.Rekap{}
 
 	getStr := func(idx int) string {
@@ -260,8 +299,9 @@ func mapRowRelative(row []string, baseIdx int, tanggal time.Time) (*models.Rekap
 		return 0
 	}
 
-	// Set tanggal
+	// Set tanggal dan tipe produksi
 	rekap.Tanggal = tanggal
+	rekap.TipeProduksi = tipeProduksi
 
 	// Data identitas (kolom 0-2 dari baseIdx)
 	rekap.TahunTanam = getStr(baseIdx + 0)
@@ -314,8 +354,8 @@ func mapRowRelative(row []string, baseIdx int, tanggal time.Time) (*models.Rekap
 // saveRekap: upsert-like save via GORM
 func saveRekap(db *gorm.DB, rekap *models.Rekap) error {
 	var existing models.Rekap
-	res := db.Where("tanggal = ? AND nik = ? AND mandor = ? AND tahun_tanam = ?",
-		rekap.Tanggal, rekap.NIK, rekap.Mandor, rekap.TahunTanam).First(&existing)
+	res := db.Where("tanggal = ? AND tipe_produksi = ? AND nik = ? AND mandor = ? AND tahun_tanam = ?",
+		rekap.Tanggal, rekap.TipeProduksi, rekap.NIK, rekap.Mandor, rekap.TahunTanam).First(&existing)
 
 	if res.Error == nil {
 		rekap.ID = existing.ID
@@ -328,7 +368,7 @@ func saveRekap(db *gorm.DB, rekap *models.Rekap) error {
 	return db.Create(rekap).Error
 }
 
-// processCSVFileAutoBaseWithFilter: detect baseIdx, filter summary rows, save valid rows
+// processCSVFileAutoBaseWithFilter: detect baseIdx, filter summary rows, detect tipe produksi, save valid rows
 func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Time) (int, int, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -366,6 +406,7 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 
 	start := headerRow + 1
 	saved, failed := 0, 0
+	currentTipeProduksi := "PRODUKSI BAKU" // default tipe produksi
 
 	for i := start; i < len(rows); i++ {
 		row := rows[i]
@@ -382,6 +423,15 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 			continue
 		}
 
+		// deteksi tipe produksi baru
+		if isTipeProduksiRow(row, baseIdx) {
+			newTipe := detectTipeProduksi(row, baseIdx)
+			if newTipe != "" {
+				currentTipeProduksi = newTipe
+			}
+			continue
+		}
+
 		// skip likely summary rows
 		if isLikelySummaryRow(row, baseIdx) {
 			continue
@@ -392,7 +442,7 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 			continue
 		}
 
-		rekap, err := mapRowRelative(row, baseIdx, tanggal)
+		rekap, err := mapRowRelative(row, baseIdx, tanggal, currentTipeProduksi)
 		if err != nil {
 			failed++
 			continue
@@ -409,36 +459,25 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 }
 
 // ConvertCSVAutoBaseWithFilter: public function to process all CSVs in csv/ folder
-func ConvertCSVAutoBaseWithFilter(tanggal time.Time) (int, int, []string, error) {
-	files, err := os.ReadDir("csv")
-	if err != nil {
-		return 0, 0, nil, fmt.Errorf("gagal baca folder csv: %w", err)
-	}
-
+func ConvertCSVAutoBaseWithFilter(tanggal time.Time, afdeling string) (int, int, []string, error) {
 	db := config.GetDB()
 	if db == nil {
 		return 0, 0, nil, fmt.Errorf("database belum dikonfigurasi (config.GetDB() == nil)")
 	}
 
-	totalSaved := 0
-	totalFailed := 0
-	var errors []string
+	// Hanya proses file REKAP.csv
+	path := filepath.Join("csv", "REKAP.csv")
 
-	for _, fi := range files {
-		if fi.IsDir() {
-			continue
-		}
-		if !strings.HasSuffix(strings.ToLower(fi.Name()), ".csv") {
-			continue
-		}
-		path := filepath.Join("csv", fi.Name())
-		saved, failed, err := processCSVFileAutoBaseWithFilter(db, path, tanggal)
-		totalSaved += saved
-		totalFailed += failed
-		if err != nil {
-			errors = append(errors, fmt.Sprintf("%s: %v", fi.Name(), err))
-		}
+	// Cek apakah file ada
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return 0, 0, nil, fmt.Errorf("file REKAP.csv tidak ditemukan di folder csv/")
 	}
 
-	return totalSaved, totalFailed, errors, nil
+	var errors []string
+	saved, failed, err := processCSVFileAutoBaseWithFilter(db, path, tanggal)
+	if err != nil {
+		errors = append(errors, fmt.Sprintf("REKAP.csv: %v", err))
+	}
+
+	return saved, failed, errors, nil
 }

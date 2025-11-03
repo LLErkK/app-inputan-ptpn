@@ -30,6 +30,7 @@ func InitDB() {
 		&models.BakuDetail{},
 		&models.Upload{},
 		&models.Rekap{},
+		&models.Produksi{},
 	)
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
