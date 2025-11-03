@@ -129,6 +129,15 @@ func SetupRoutes() {
 	protected.HandleFunc("/rekap/today", controllers.GetBakuDetailToday).Methods("GET")
 	protected.HandleFunc("/rekap/until-today", controllers.GetBakuDetailUntilTodayThisMonth).Methods("GET")
 
+	//upload excell
+	protected.HandleFunc("/upload", controllers.ServeUploadPage).Methods("GET")
+	protected.HandleFunc("/api/upload", controllers.CreateUpload).Methods("POST")
+	protected.HandleFunc("/api/upload", controllers.GetAllUploads).Methods("GET")
+	protected.HandleFunc("/api/upload/range", controllers.GetUploadsByDateRange).Methods("GET")
+	protected.HandleFunc("/api/upload/{id}", controllers.GetUploadByID).Methods("GET")
+	protected.HandleFunc("/api/upload/{id}", controllers.DeleteUpload).Methods("DELETE")
+	protected.HandleFunc("/api/upload/{id}/download", controllers.DownloadFile).Methods("GET")
+
 	// ================== ADDITIONAL MONITORING ENDPOINTS ==================
 	protected.HandleFunc("/api/monitoring/today/summary", func(w http.ResponseWriter, r *http.Request) {
 		// Redirect ke smart search dengan tanggal hari ini

@@ -28,6 +28,8 @@ func InitDB() {
 		&models.BakuPenyadap{},
 		&models.BakuMandor{},
 		&models.BakuDetail{},
+		&models.Upload{},
+		&models.Rekap{},
 	)
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
