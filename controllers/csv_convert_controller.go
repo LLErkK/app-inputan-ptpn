@@ -113,6 +113,9 @@ func excelToCSV(excelFile string, outputFolder string, tanggal time.Time, afdeli
 	if err1 == nil && err2 == nil {
 		fmt.Println("\n✅ Semua proses berhasil dilakukan!")
 
+		//update table mandor dan penyadap
+		UpdatePenyadapMandor(idMaster)
+
 		// Jika kedua fungsi berhasil → hapus isi folder uploads & csv
 		if err := clearFolder("uploads"); err != nil {
 			fmt.Printf("⚠️  Gagal menghapus isi folder uploads: %v\n", err)

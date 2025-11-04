@@ -148,6 +148,9 @@ func detectTipeProduksi(row []string, baseIdx int) string {
 		if strings.Contains(cell, "PRODUKSI TETES LANJUT") || strings.Contains(cell, "TETES LANJUT") {
 			return "PRODUKSI TETES LANJUT"
 		}
+		if strings.Contains(cell, "REKAPITULASI") || strings.Contains(cell, "REKAPITULASI") {
+			return "REKAPITULASI"
+		}
 	}
 	return ""
 }

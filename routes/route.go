@@ -36,6 +36,7 @@ func SetupRoutes() {
 
 	// Dashboard
 	protected.HandleFunc("/dashboard", controllers.ServeDashboardPage).Methods("GET")
+	protected.HandleFunc("/api/dashboard", controllers.GetDashboardData).Methods("GET")
 
 	// ================== BAKU PAGE (HTML) ==================
 	protected.HandleFunc("/baku", controllers.ServeBakuPage).Methods("GET")

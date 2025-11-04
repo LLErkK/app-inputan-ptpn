@@ -16,9 +16,9 @@ type Produksi struct {
 	BrCr         float64   `gorm:"not null;default:0"`
 	Afdeling     string    `gorm:"type:text;not null"`
 
-	// Foreign key
+	// Foreign key - FIXED: Menambahkan referensi yang jelas
 	IdMaster uint64 `gorm:"not null;index"`
-	Master   Master `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Master   Master `gorm:"foreignKey:IdMaster;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 
 	CreatedAt time.Time
 	UpdatedAt time.Time

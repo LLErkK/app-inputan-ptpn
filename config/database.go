@@ -29,9 +29,13 @@ func InitDB() {
 		&models.BakuMandor{},
 		&models.BakuDetail{},
 		&models.Upload{},
+		&models.Master{}, // ⬅️ letakkan di sini sebelum rekap/produksi
 		&models.Rekap{},
 		&models.Produksi{},
+		&models.Penyadap{},
+		&models.Mandor{},
 	)
+
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
