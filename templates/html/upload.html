@@ -85,7 +85,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-direction: column;
+            gap: 6px;
         }
+        .file-meta { font-size: 12px; color: #888; }
         .submit-btn {
             width: 100%;
             padding: 15px;
@@ -127,6 +130,8 @@
             animation: spin 1s linear infinite;
             margin: 0 auto;
         }
+        .hint { font-size: 13px; color: #666; margin-top: 8px; }
+        .file-badge { font-size: 12px; color: #444; font-weight: 600; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -134,7 +139,7 @@
 <div class="container">
     <h2>📋 Form Upload</h2>
 
-    <form id="uploadForm">
+    <form id="uploadForm" novalidate>
         <div class="form-group">
             <label for="tanggal">Pilih Tanggal</label>
             <input type="date" id="tanggal" name="tanggal" required>
@@ -154,16 +159,20 @@
         <div class="form-group">
             <label>Upload File</label>
             <div class="file-upload-wrapper">
-                <input type="file" id="fileInput" name="file" required>
+                <input type="file" id="fileInput" name="file" accept=".csv,.xlsx,.xls" required>
                 <label for="fileInput" class="file-upload-label">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
                     Pilih File
                 </label>
             </div>
-            <div class="file-name" id="fileName">Belum ada file dipilih</div>
+            <div class="file-name" id="fileName">
+                <div class="file-badge">Belum ada file dipilih</div>
+                <div class="file-meta" id="fileMeta"></div>
+            </div>
+            <div class="hint" id="filenameDateHint" style="display:none;"></div>
         </div>
 
         <button type="submit" class="submit-btn" id="submitBtn">Submit</button>
@@ -186,38 +195,115 @@
 <script>
     const fileInput = document.getElementById('fileInput');
     const fileName = document.getElementById('fileName');
+    const fileMeta = document.getElementById('fileMeta');
+    const filenameDateHint = document.getElementById('filenameDateHint');
     const uploadForm = document.getElementById('uploadForm');
     const result = document.getElementById('result');
     const loading = document.getElementById('loading');
     const submitBtn = document.getElementById('submitBtn');
 
+    // Keep last parsed date from filename (ISO yyyy-mm-dd) or null
+    let parsedFileDate = null;
+
+    // Extract a date from filename using common patterns and return ISO 'yyyy-mm-dd' or null
+    function extractDateFromFilename(name) {
+        if (!name) return null;
+        // Patterns:
+        // dd-mm-yyyy, dd_mm_yyyy, dd.mm.yyyy
+        // yyyy-mm-dd, yyyy_mm_dd, yyyy.mm.dd
+        const patterns = [
+            /(\b[0-3]?\d)[\-_\.]([0-1]?\d)[\-_\.](\d{4})/, // dd-mm-yyyy or variations
+            /(\d{4})[\-_\.]([0-1]?\d)[\-_\.]([0-3]?\d)/    // yyyy-mm-dd or variations
+        ];
+
+        // Try (dd,mm,yyyy)
+        let m = name.match(patterns[0]);
+        if (m) {
+            const d = m[1].padStart(2, '0');
+            const mth = m[2].padStart(2, '0');
+            const y = m[3];
+            // Validate numbers roughly
+            if (Number(mth) >= 1 && Number(mth) <= 12 && Number(d) >= 1 && Number(d) <= 31) {
+                return `${y}-${mth}-${d}`;
+            }
+        }
+
+        // Try (yyyy,mm,dd)
+        m = name.match(patterns[1]);
+        if (m) {
+            const y = m[1];
+            const mth = m[2].padStart(2, '0');
+            const d = m[3].padStart(2, '0');
+            if (Number(mth) >= 1 && Number(mth) <= 12 && Number(d) >= 1 && Number(d) <= 31) {
+                return `${y}-${mth}-${d}`;
+            }
+        }
+
+        return null;
+    }
+
     fileInput.addEventListener('change', function() {
+        parsedFileDate = null;
         if (this.files && this.files[0]) {
             const file = this.files[0];
-            const size = (file.size / 1024 / 1024).toFixed(2);
-            fileName.textContent = `${file.name} (${size} MB)`;
+            const sizeKB = (file.size / 1024).toFixed(2);
+            const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+            const name = file.name;
+            fileName.querySelector('.file-badge').textContent = name;
+            fileMeta.textContent = `${sizeMB} MB (${sizeKB} KB)`;
+
+            // parse date from filename
+            const detected = extractDateFromFilename(name);
+            parsedFileDate = detected; // may be null
+
+            if (detected) {
+                filenameDateHint.style.display = 'block';
+                filenameDateHint.style.color = '#2e7d32';
+                filenameDateHint.textContent = `Tanggal terdeteksi dari nama file: ${detected} (yyyy-mm-dd). File hanya dapat di-submit jika cocok dengan tanggal yang dipilih.`;
+            } else {
+                filenameDateHint.style.display = 'block';
+                filenameDateHint.style.color = '#c62828';
+                filenameDateHint.textContent = 'Tidak menemukan tanggal pada nama file. Upload akan diblokir kecuali nama file mengandung tanggal yang sesuai.';
+            }
         } else {
-            fileName.textContent = 'Belum ada file dipilih';
+            fileName.querySelector('.file-badge').textContent = 'Belum ada file dipilih';
+            fileMeta.textContent = '';
+            filenameDateHint.style.display = 'none';
         }
     });
 
     uploadForm.addEventListener('submit', async function(e) {
         e.preventDefault();
 
-        const tanggal = document.getElementById('tanggal').value;
+        const tanggal = document.getElementById('tanggal').value; // format yyyy-mm-dd
         const afdeling = document.getElementById('afdeling').value;
         const file = fileInput.files[0];
 
+        // Basic required checks
         if (!tanggal || !file || !afdeling) {
             showResult(false, 'Tanggal, afdeling, dan file wajib diisi');
             return;
         }
 
+        // File size limit
         if (file.size > 10 * 1024 * 1024) {
             showResult(false, 'Ukuran file terlalu besar (maksimal 10MB)');
             return;
         }
 
+        // Validate parsedFileDate against tanggal
+        // parsedFileDate must be non-null and equal to tanggal (both yyyy-mm-dd)
+        if (!parsedFileDate) {
+            showResult(false, 'Nama file tidak mengandung tanggal yang valid. Pastikan nama file mengandung tanggal (mis. 01-09-2025 atau 2025-09-01).');
+            return;
+        }
+        if (parsedFileDate !== tanggal) {
+            // Additional helpful feedback: show both dates in user-friendly format
+            showResult(false, `Tanggal pada file (${parsedFileDate}) tidak cocok dengan tanggal yang dipilih (${tanggal}). Perbaiki nama file atau pilih tanggal yang sesuai.`);
+            return;
+        }
+
+        // All good — prepare to upload
         const formData = new FormData();
         formData.append('tanggal', tanggal);
         formData.append('afdeling', afdeling);
@@ -243,7 +329,10 @@
                     fileSize: data.fileSize
                 });
                 uploadForm.reset();
-                fileName.textContent = 'Belum ada file dipilih';
+                fileName.querySelector('.file-badge').textContent = 'Belum ada file dipilih';
+                fileMeta.textContent = '';
+                filenameDateHint.style.display = 'none';
+                parsedFileDate = null;
             } else {
                 showResult(false, data.message);
             }
