@@ -116,19 +116,6 @@ func excelToCSV(excelFile string, outputFolder string, tanggal time.Time, afdeli
 		//update table mandor dan penyadap
 		UpdatePenyadapMandor(idMaster)
 
-		// Jika kedua fungsi berhasil → hapus isi folder uploads & csv
-		if err := clearFolder("uploads"); err != nil {
-			fmt.Printf("⚠️  Gagal menghapus isi folder uploads: %v\n", err)
-		} else {
-			fmt.Println("🗑️  Folder 'uploads' telah dibersihkan.")
-		}
-
-		if err := clearFolder("csv"); err != nil {
-			fmt.Printf("⚠️  Gagal menghapus isi folder csv: %v\n", err)
-		} else {
-			fmt.Println("🗑️  Folder 'csv' telah dibersihkan.")
-		}
-
 	} else {
 		fmt.Println("\n⚠️  Beberapa proses gagal, periksa log di atas.")
 	}

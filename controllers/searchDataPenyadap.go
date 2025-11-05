@@ -32,6 +32,7 @@ type SummaryData struct {
 // - tanggalAwal (opsional): tanggal mulai pencarian
 // - tanggalAkhir (opsional): tanggal akhir pencarian
 // - tipeProduksi (opsional): jenis tipe produksi
+// - afdeling (opsional): filter berdasarkan afdeling
 func SearchPenyadap(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -39,6 +40,7 @@ func SearchPenyadap(w http.ResponseWriter, r *http.Request) {
 	tanggalAwal := r.URL.Query().Get("tanggalAwal")
 	tanggalAkhir := r.URL.Query().Get("tanggalAkhir")
 	tipeProduksi := r.URL.Query().Get("tipeProduksi")
+	afdeling := r.URL.Query().Get("afdeling")
 
 	if idPenyadapStr == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -84,22 +86,16 @@ func SearchPenyadap(w http.ResponseWriter, r *http.Request) {
 	// STEP 2: Cari data produksi berdasarkan NIK yang didapat
 	db := config.GetDB()
 	var produksiList []models.Produksi
+	// Base query dengan filter NIK
 	query := db.Model(&models.Produksi{}).Where("nik = ?", nik)
 
-	// Jika hanya ada idPenyadap
-	if tanggalAwal == "" && tanggalAkhir == "" && tipeProduksi == "" {
-		if err := query.Order("tanggal DESC").Find(&produksiList).Error; err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(SearchResponse{
-				Success: false,
-				Message: "Gagal mengambil data: " + err.Error(),
-			})
-			return
-		}
+	// Filter berdasarkan afdeling jika ada
+	if afdeling != "" {
+		query = query.Where("afdeling = ?", afdeling)
 	}
 
-	// Jika hanya ada tanggal awal saja
-	if tanggalAwal != "" && tanggalAkhir == "" && tipeProduksi == "" {
+	// Filter berdasarkan tanggal
+	if tanggalAwal != "" {
 		tglAwal, err := time.Parse("2006-01-02", tanggalAwal)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -110,96 +106,35 @@ func SearchPenyadap(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		query = query.Where("tanggal >= ?", tglAwal)
-		if err := query.Order("tanggal DESC").Find(&produksiList).Error; err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(SearchResponse{
-				Success: false,
-				Message: "Gagal mengambil data: " + err.Error(),
-			})
-			return
+		if tanggalAkhir != "" {
+			tglAkhir, err := time.Parse("2006-01-02", tanggalAkhir)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(SearchResponse{
+					Success: false,
+					Message: "Format tanggal akhir tidak valid (gunakan: YYYY-MM-DD)",
+				})
+				return
+			}
+			query = query.Where("tanggal BETWEEN ? AND ?", tglAwal, tglAkhir)
+		} else {
+			query = query.Where("tanggal >= ?", tglAwal)
 		}
 	}
 
-	// Jika hanya ada tanggal awal dan akhir saja
-	if tanggalAwal != "" && tanggalAkhir != "" && tipeProduksi == "" {
-		tglAwal, err := time.Parse("2006-01-02", tanggalAwal)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchResponse{
-				Success: false,
-				Message: "Format tanggal awal tidak valid (gunakan: YYYY-MM-DD)",
-			})
-			return
-		}
-
-		tglAkhir, err := time.Parse("2006-01-02", tanggalAkhir)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchResponse{
-				Success: false,
-				Message: "Format tanggal akhir tidak valid (gunakan: YYYY-MM-DD)",
-			})
-			return
-		}
-
-		query = query.Where("tanggal BETWEEN ? AND ?", tglAwal, tglAkhir)
-		if err := query.Order("tanggal DESC").Find(&produksiList).Error; err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(SearchResponse{
-				Success: false,
-				Message: "Gagal mengambil data: " + err.Error(),
-			})
-			return
-		}
-	}
-
-	// Jika hanya ada tipe produksi
-	if tanggalAwal == "" && tanggalAkhir == "" && tipeProduksi != "" {
+	// Filter berdasarkan tipe produksi jika ada
+	if tipeProduksi != "" {
 		query = query.Where("tipe_produksi = ?", tipeProduksi)
-		if err := query.Order("tanggal DESC").Find(&produksiList).Error; err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(SearchResponse{
-				Success: false,
-				Message: "Gagal mengambil data: " + err.Error(),
-			})
-			return
-		}
 	}
 
-	// Jika ada semua parameter
-	if tipeProduksi != "" && tanggalAwal != "" && tanggalAkhir != "" {
-		tglAwal, err := time.Parse("2006-01-02", tanggalAwal)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchResponse{
-				Success: false,
-				Message: "Format tanggal awal tidak valid (gunakan: YYYY-MM-DD)",
-			})
-			return
-		}
-
-		tglAkhir, err := time.Parse("2006-01-02", tanggalAkhir)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchResponse{
-				Success: false,
-				Message: "Format tanggal akhir tidak valid (gunakan: YYYY-MM-DD)",
-			})
-			return
-		}
-
-		query = query.Where("tanggal BETWEEN ? AND ?", tglAwal, tglAkhir).
-			Where("tipe_produksi = ?", tipeProduksi)
-
-		if err := query.Order("tanggal DESC").Find(&produksiList).Error; err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(SearchResponse{
-				Success: false,
-				Message: "Gagal mengambil data: " + err.Error(),
-			})
-			return
-		}
+	// Execute query
+	if err := query.Order("tanggal DESC").Find(&produksiList).Error; err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(SearchResponse{
+			Success: false,
+			Message: "Gagal mengambil data: " + err.Error(),
+		})
+		return
 	}
 
 	// Hitung summary

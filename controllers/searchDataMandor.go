@@ -41,6 +41,7 @@ type SummaryMandor struct {
 // - tanggalAwal (opsional): tanggal mulai pencarian
 // - tanggalAkhir (opsional): tanggal akhir pencarian
 // - tipeProduksi (opsional): jenis tipe produksi
+// - afdeling (opsional): filter berdasarkan afdeling
 func SearchMandor(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -48,6 +49,7 @@ func SearchMandor(w http.ResponseWriter, r *http.Request) {
 	tanggalAwal := r.URL.Query().Get("tanggalAwal")
 	tanggalAkhir := r.URL.Query().Get("tanggalAkhir")
 	tipeProduksi := r.URL.Query().Get("tipeProduksi")
+	afdeling := r.URL.Query().Get("afdeling")
 
 	if idMandorStr == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -93,22 +95,16 @@ func SearchMandor(w http.ResponseWriter, r *http.Request) {
 	// STEP 2: Cari data rekap berdasarkan NIK yang didapat
 	db := config.GetDB()
 	var rekapList []models.Rekap
+	// Base query dengan filter NIK dan exclude REKAPITULASI
 	query := db.Model(&models.Rekap{}).Where("nik = ?", nik).Where("tipe_produksi != ?", "REKAPITULASI")
 
-	// Jika hanya ada idMandor
-	if tanggalAwal == "" && tanggalAkhir == "" && tipeProduksi == "" {
-		if err := query.Order("tanggal DESC").Find(&rekapList).Error; err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(SearchMandorResponse{
-				Success: false,
-				Message: "Gagal mengambil data: " + err.Error(),
-			})
-			return
-		}
+	// Filter berdasarkan afdeling jika ada
+	if afdeling != "" {
+		query = query.Where("afdeling = ?", afdeling)
 	}
 
-	// Jika hanya ada tanggal awal saja
-	if tanggalAwal != "" && tanggalAkhir == "" && tipeProduksi == "" {
+	// Filter berdasarkan tanggal
+	if tanggalAwal != "" {
 		tglAwal, err := time.Parse("2006-01-02", tanggalAwal)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -119,96 +115,35 @@ func SearchMandor(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		query = query.Where("tanggal >= ?", tglAwal)
-		if err := query.Order("tanggal DESC").Find(&rekapList).Error; err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(SearchMandorResponse{
-				Success: false,
-				Message: "Gagal mengambil data: " + err.Error(),
-			})
-			return
+		if tanggalAkhir != "" {
+			tglAkhir, err := time.Parse("2006-01-02", tanggalAkhir)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(SearchMandorResponse{
+					Success: false,
+					Message: "Format tanggal akhir tidak valid (gunakan: YYYY-MM-DD)",
+				})
+				return
+			}
+			query = query.Where("tanggal BETWEEN ? AND ?", tglAwal, tglAkhir)
+		} else {
+			query = query.Where("tanggal >= ?", tglAwal)
 		}
 	}
 
-	// Jika hanya ada tanggal awal dan akhir saja
-	if tanggalAwal != "" && tanggalAkhir != "" && tipeProduksi == "" {
-		tglAwal, err := time.Parse("2006-01-02", tanggalAwal)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchMandorResponse{
-				Success: false,
-				Message: "Format tanggal awal tidak valid (gunakan: YYYY-MM-DD)",
-			})
-			return
-		}
-
-		tglAkhir, err := time.Parse("2006-01-02", tanggalAkhir)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchMandorResponse{
-				Success: false,
-				Message: "Format tanggal akhir tidak valid (gunakan: YYYY-MM-DD)",
-			})
-			return
-		}
-
-		query = query.Where("tanggal BETWEEN ? AND ?", tglAwal, tglAkhir)
-		if err := query.Order("tanggal DESC").Find(&rekapList).Error; err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(SearchMandorResponse{
-				Success: false,
-				Message: "Gagal mengambil data: " + err.Error(),
-			})
-			return
-		}
-	}
-
-	// Jika hanya ada tipe produksi
-	if tanggalAwal == "" && tanggalAkhir == "" && tipeProduksi != "" {
+	// Filter berdasarkan tipe produksi jika ada
+	if tipeProduksi != "" {
 		query = query.Where("tipe_produksi = ?", tipeProduksi)
-		if err := query.Order("tanggal DESC").Find(&rekapList).Error; err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(SearchMandorResponse{
-				Success: false,
-				Message: "Gagal mengambil data: " + err.Error(),
-			})
-			return
-		}
 	}
 
-	// Jika ada semua parameter
-	if tipeProduksi != "" && tanggalAwal != "" && tanggalAkhir != "" {
-		tglAwal, err := time.Parse("2006-01-02", tanggalAwal)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchMandorResponse{
-				Success: false,
-				Message: "Format tanggal awal tidak valid (gunakan: YYYY-MM-DD)",
-			})
-			return
-		}
-
-		tglAkhir, err := time.Parse("2006-01-02", tanggalAkhir)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchMandorResponse{
-				Success: false,
-				Message: "Format tanggal akhir tidak valid (gunakan: YYYY-MM-DD)",
-			})
-			return
-		}
-
-		query = query.Where("tanggal BETWEEN ? AND ?", tglAwal, tglAkhir).
-			Where("tipe_produksi = ?", tipeProduksi)
-
-		if err := query.Order("tanggal DESC").Find(&rekapList).Error; err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(SearchMandorResponse{
-				Success: false,
-				Message: "Gagal mengambil data: " + err.Error(),
-			})
-			return
-		}
+	// Execute query
+	if err := query.Order("tanggal DESC").Find(&rekapList).Error; err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(SearchMandorResponse{
+			Success: false,
+			Message: "Gagal mengambil data: " + err.Error(),
+		})
+		return
 	}
 
 	// Hitung summary
@@ -255,12 +190,22 @@ func calculateMandorSummary(data []models.Rekap) *SummaryMandor {
 			countProduksiPerTaper++
 		}
 	}
-	//hitung k3
-	summary.TotalK3Sheet = summary.TotalKeringSheet / summary.TotalBasahLatekPabrik
-	//hitung persen latek
-	summary.TotalPersenLatek = (summary.TotalBasahLatekKebun - summary.TotalBasahLatekPabrik) / summary.TotalBasahLumpKebun * 100
-	//hitung persen lump
-	summary.TotalPersenLump = (summary.TotalBasahLumpKebun - summary.TotalBasahLumpPabrik) / summary.TotalBasahLumpPabrik * 100
+
+	// Hitung K3 Sheet (hindari division by zero)
+	if summary.TotalBasahLatekPabrik > 0 {
+		summary.TotalK3Sheet = summary.TotalKeringSheet / summary.TotalBasahLatekPabrik
+	}
+
+	// Hitung persen latek (hindari division by zero)
+	if summary.TotalBasahLumpKebun > 0 {
+		summary.TotalPersenLatek = (summary.TotalBasahLatekKebun - summary.TotalBasahLatekPabrik) / summary.TotalBasahLumpKebun * 100
+	}
+
+	// Hitung persen lump (hindari division by zero)
+	if summary.TotalBasahLumpPabrik > 0 {
+		summary.TotalPersenLump = (summary.TotalBasahLumpKebun - summary.TotalBasahLumpPabrik) / summary.TotalBasahLumpPabrik * 100
+	}
+
 	// Hitung rata-rata produksi per taper
 	if countProduksiPerTaper > 0 {
 		summary.RataRataProduksiPerTaper = totalProduksiPerTaper / float64(countProduksiPerTaper)

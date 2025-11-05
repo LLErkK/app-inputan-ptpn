@@ -145,6 +145,18 @@ func CreateUpload(w http.ResponseWriter, r *http.Request) {
 		"filePath": "/uploads/" + newFileName,
 	}
 
+	if err := clearFolder("uploads"); err != nil {
+		fmt.Printf("⚠️  Gagal menghapus isi folder uploads: %v\n", err)
+	} else {
+		fmt.Println("🗑️  Folder 'uploads' telah dibersihkan.")
+	}
+
+	if err := clearFolder("csv"); err != nil {
+		fmt.Printf("⚠️  Gagal menghapus isi folder csv: %v\n", err)
+	} else {
+		fmt.Println("🗑️  Folder 'csv' telah dibersihkan.")
+	}
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Message: "File berhasil diupload",
