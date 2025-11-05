@@ -1,23 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Table Layout</title>
-  <link rel="stylesheet" href="/css/rekap.css">
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>Dashboard Area Interaktif</title>
+	<link rel="stylesheet" href="/css/style.css">
+	<link rel="stylesheet" href="/css/rekap.css">
 </head>
 <body>
-  <div class="rekap-container">
-    <!-- Header yang tidak akan bergeser saat scroll -->
-    <div class="rekap-header">
-      <h1>REKAP</h1>
-    </div>
-    
-    <!-- Container untuk tabel yang bisa scroll horizontal -->
-    <div id="rekap-tables-container" class="rekap-tables-container"> 
-      <!-- Tabel-tabel akan dimuat di sini -->
-    </div>
-  </div>
+	<div class="container-card">
+		<div class="dashboard-wrap">
+		<h2 class="page-title">Dashboard Area — Klik untuk lihat rincian</h2>
+
+		<div class="quad-grid">
+			<button class="quad-btn" id="btn-setro" data-key="setro" aria-pressed="false">SETRO</button>
+			<button class="quad-btn" id="btn-jatiroenggo" data-key="jatiroenggo" aria-pressed="false">JATIROENGGO</button>
+			<button class="quad-btn" id="btn-klepu" data-key="klepu" aria-pressed="false">KLEPU</button>
+			<button class="quad-btn" id="btn-gebugan" data-key="gebugan" aria-pressed="false">GEBUGAN</button>
+			</div>
+		</div>
+
+		<div class="info-row" aria-live="polite">
+			<div class="info-box">
+				<div class="info-title">Basah Latek Kebun</div>
+				<div id="basah-latek-kebun" class="info-value">—</div>
+			</div>
+			<div class="info-box">
+				<div class="info-title">Basah Latek Pabrik</div>
+				<div id="basah-latek-pabrik" class="info-value">—</div>
+			</div>
+			<div class="info-box">
+				<div class="info-title">Basah Lump Kebun</div>
+				<div id="basah-lump-kebun" class="info-value">—</div>
+			</div>
+			<div class="info-box">
+				<div class="info-title">Basah Lump Pabrik</div>
+				<div id="basah-lump-pabrik" class="info-value">—</div>
+			</div>
+			<div class="info-box">
+				<div class="info-title">K3 Sheet</div>
+				<div id="k3-sheet" class="info-value">—</div>
+			</div>
+			<div class="info-box">
+				<div class="info-title">Jumlah Kering</div>
+				<div id="jumlah-kering" class="info-value">—</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="/js/rekap.js"></script>
 </body>
-<script src="/js/rekap.js"></script>
 </html>

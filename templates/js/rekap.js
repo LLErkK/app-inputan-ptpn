@@ -1,281 +1,294 @@
-// Fungsi untuk memformat angka dengan satu digit di belakang koma
-function formatDecimal(value) {
-  if (isNaN(value)) return value;
-  const formattedValue = parseFloat(value).toFixed(1);
-  if (formattedValue.endsWith(".0")) {
-    return formattedValue.slice(0, -2);
-  }
-  return formattedValue;
+// JS for dashboard with API integration + Debug Logging
+// Mapping quadrant keys to afdeling names
+const afdelingMap = {
+    setro: 'Setro',
+    jatiroenggo: 'Jatiroenggo',
+    klepu: 'Klepu',
+    gebugan: 'Gebugan'
+};
+
+// Cache untuk menyimpan data yang sudah diambil
+const dataCache = {};
+
+// Loading state
+let isLoading = false;
+
+// Format number dengan pemisah ribuan
+function formatNumber(num) {
+    if (num === null || num === undefined || num === '') {
+        console.log('formatNumber: value is null/undefined/empty', num);
+        return '0';
+    }
+    const parsed = parseFloat(num);
+    if (isNaN(parsed)) {
+        console.log('formatNumber: value is NaN', num);
+        return '0';
+    }
+    const formatted = parsed.toLocaleString('id-ID', { 
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 0 
+    });
+    console.log(`formatNumber: ${num} -> ${formatted}`);
+    return formatted;
 }
 
-// Fungsi untuk mengambil data dari API
-async function fetchData() {
-  try {
-    console.log("=== START LOADING DATA ===");
-    const response = await fetch('/rekap/today');
+// Fungsi untuk fetch data dari API
+async function fetchDashboardData(afdeling) {
+    const url = `/api/dashboard?afdeling=${encodeURIComponent(afdeling)}`;
+    console.log('🔄 Fetching data from:', url);
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.Message || 'Gagal memuat data');
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        });
+        
+        console.log('📡 Response status:', response.status, response.statusText);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Error response:', errorText);
+            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ Data received:', data);
+        
+        // Validate data structure
+        if (!data || typeof data !== 'object') {
+            throw new Error('Invalid data format received from API');
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('❌ Error fetching dashboard data:', error);
+        throw error;
     }
-
-    const data = await response.json();
-    console.log("Parsed JSON data:", data);
-    
-    if (data.success && Array.isArray(data.data)) {
-      console.log("Data type: " + typeof data.data);
-      console.log("Is array? " + Array.isArray(data.data));
-      console.log("Data length: " + data.data.length);
-      populateTable(data.data);
-    } else {
-      document.getElementById('rekap-tbody').innerHTML = `<tr><td colspan="14" style="text-align: center;">${data.message}</td></tr>`;
-    }
-  } catch (error) {
-    console.error('Error:', error);
-    document.getElementById('rekap-tbody').innerHTML = `<tr><td colspan="14" style="text-align: center;">${error.message}</td></tr>`;
-  }
 }
 
-// Fungsi untuk mengelompokkan data berdasarkan tipe
-function groupByTipe(details) {
-  return details.reduce((result, detail) => {
-    if (!result[detail.tipe]) {
-      result[detail.tipe] = [];
-    }
-    result[detail.tipe].push(detail);
-    return result;
-  }, {});
+// Transform API response ke format yang dibutuhkan UI
+function transformApiData(apiData) {
+    console.log('🔄 Transforming API data:', apiData);
+    
+    // Handle both camelCase and lowercase property names from API
+    const getData = (key) => {
+        return apiData[key] !== undefined ? apiData[key] : 
+               apiData[key.toLowerCase()] !== undefined ? apiData[key.toLowerCase()] : 
+               null;
+    };
+    
+    const transformed = {
+        basahLatekKebun: formatNumber(getData('totalHariIniBasahLatekKebun') || getData('totalhariinibasahlatekKebun') || 0),
+        basahLatekPabrik: formatNumber(getData('totalHariIniBasahLatekPabrik') || getData('totalhariinibasahlatekpabrik') || 0),
+        basahLumpKebun: formatNumber(getData('totalHariIniBasahLumpKebun') || getData('totalhariiinibasahlumpkebun') || 0),
+        basahLumpPabrik: formatNumber(getData('totalHariIniBasahLumpPabrik') || getData('totalhariinibasahlumppabrik') || 0),
+        k3Sheet: formatNumber(getData('totalHariIniK3Sheet') || getData('totalhariinik3sheet') || 0),
+        jumlahKering: formatNumber(getData('totalHariIniKeringJumlah') || getData('totalhariinikeringjumlah') || 0)
+    };
+    
+    console.log('✅ Transformed data:', transformed);
+    return transformed;
 }
 
-// Fungsi untuk membuat tabel dan menampilkan data berdasarkan tipe
-function populateTable(details) {
-  const container = document.getElementById('rekap-tables-container');
-  container.innerHTML = '';
+// Set loading state pada info boxes
+function setLoadingState(isLoadingState) {
+    console.log('⏳ Setting loading state:', isLoadingState);
+    isLoading = isLoadingState;
+    const infoValues = document.querySelectorAll('.info-value');
+    infoValues.forEach(el => {
+        if (isLoadingState) {
+            el.classList.add('loading');
+            el.innerText = '⏳';
+        } else {
+            el.classList.remove('loading');
+        }
+    });
+}
 
-  const groupedData = groupByTipe(details);
-
-  // Inisialisasi GRAND TOTAL untuk semua tipe
-  let grandTotalHko = 0;
-  let grandTotalJumlahKebunBasahLatek = 0;
-  let grandTotalJumlahPabrikBasahLatek = 0;
-  let grandTotalJumlahKebunBasahLump = 0;
-  let grandTotalJumlahPabrikBasahLump = 0;
-  let grandTotalK3Sheet = 0;
-  let grandTotalJumlahSheet = 0;
-  let grandTotalJumlahBrCr = 0;
-  let grandTotalJumlahKering = 0;
-
-  // Loop untuk setiap tipe dan membuat tabel
-  Object.keys(groupedData).forEach(tipe => {
-    const tipeHeader = document.createElement('h2');
-    tipeHeader.textContent = `Tipe: ${tipe}`;
+// Set error state
+function setErrorState(errorMessage = 'Error') {
+    console.error('❌ Setting error state:', errorMessage);
+    const infoValues = document.querySelectorAll('.info-value');
+    infoValues.forEach(el => {
+        el.innerText = '—';
+        el.classList.add('error');
+    });
     
-    const tableContainer = document.createElement('div');
-    const table = document.createElement('table');
-    const tbody = document.createElement('tbody');
-    const thead = document.createElement('thead');
+    // Show error notification
+    showNotification(`Error: ${errorMessage}`, 'error');
+}
+
+// Show notification to user
+function showNotification(message, type = 'info') {
+    // Check if notification element exists, if not create it
+    let notification = document.getElementById('dashboard-notification');
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'dashboard-notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            font-size: 14px;
+            font-weight: 600;
+            max-width: 300px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        `;
+        document.body.appendChild(notification);
+    }
     
-    tableContainer.classList.add('rekap-table-container');
-    table.classList.add('rekap-table');
-    table.appendChild(thead);
-    table.appendChild(tbody);
-    tableContainer.appendChild(tipeHeader);
-    tableContainer.appendChild(table);
-    container.appendChild(tableContainer);
+    // Set color based on type
+    const colors = {
+        error: '#ef4444',
+        success: '#10b981',
+        info: '#3b82f6'
+    };
+    
+    notification.style.borderLeft = `4px solid ${colors[type] || colors.info}`;
+    notification.textContent = message;
+    notification.style.opacity = '1';
+    
+    // Auto hide after 5 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+    }, 5000);
+}
 
-    thead.innerHTML = `
-      <tr>
-        <th rowspan="4">TAHUN<br>TANAM</th>
-        <th rowspan="4">NIK</th>
-        <th rowspan="4">MANDOR</th>
-        <th rowspan="2">HKO</th>
-        <th colspan="10">PRODUKSI HARI INI</th>
-      </tr>
-      <tr>
-        <th colspan="6">BASAH</th>
-        <th rowspan="3">KKK<br>SHEET</th>
-        <th colspan="3">KERING</th>
-      </tr>
-      <tr>
-        <th rowspan="2">HR INI</th>
-        <th colspan="3">LATEX</th>
-        <th colspan="3">LUMP</th>
-        <th rowspan="2">SHEET</th>
-        <th rowspan="2">BR.CR</th>
-        <th rowspan="2">JUMLAH</th>
-      </tr>
-      <tr>
-        <th>KEBUN</th>
-        <th>PABRIK</th>
-        <th>%</th>
-        <th>KEBUN</th>
-        <th>PABRIK</th>
-        <th>%</th>
-      </tr>
-    `;
-
-    // Inisialisasi total PER TIPE (reset untuk setiap tipe)
-    let tipeHko = 0;
-    let tipeJumlahKebunBasahLatek = 0;
-    let tipeJumlahPabrikBasahLatek = 0;
-    let tipeJumlahKebunBasahLump = 0;
-    let tipeJumlahPabrikBasahLump = 0;
-    let tipeK3Sheet = 0;
-    let tipeJumlahSheet = 0;
-    let tipeJumlahBrCr = 0;
-    let tipeJumlahKering = 0;
-
-    // Menambahkan data ke dalam tabel
-    groupedData[tipe].forEach(detail => {
-      const row = document.createElement('tr');
-
-      row.innerHTML = `
-        <td>${detail.tahun_tanam}</td>
-        <td>${detail.nik}</td>
-        <td>${detail.mandor}</td>
-        <td>${formatDecimal(detail.hko)}</td>
-        <td>${formatDecimal(detail.jumlah_kebun_basah_latek)}</td>
-        <td>${formatDecimal(detail.jumlah_pabrik_basah_latek)}</td>
-        <td>${formatDecimal(detail.persentase_selisih_basah_latek)}</td>
-        <td>${formatDecimal(detail.jumlah_kebun_basah_lump)}</td>
-        <td>${formatDecimal(detail.jumlah_pabrik_basah_lump)}</td>
-        <td>${formatDecimal(detail.persentase_selisih_basah_lump)}</td>
-        <td>${formatDecimal(detail.k3_sheet)}</td>
-        <td>${formatDecimal(detail.jumlah_sheet)}</td>
-        <td>${formatDecimal(detail.jumlah_br_cr)}</td>
-        <td>${formatDecimal(detail.jumlah_kering)}</td>
-      `;
-
-      // Akumulasi untuk total per tipe
-      tipeHko += parseFloat(detail.hko) || 0;
-      tipeJumlahKebunBasahLatek += parseFloat(detail.jumlah_kebun_basah_latek) || 0;
-      tipeJumlahPabrikBasahLatek += parseFloat(detail.jumlah_pabrik_basah_latek) || 0;
-      tipeJumlahKebunBasahLump += parseFloat(detail.jumlah_kebun_basah_lump) || 0;
-      tipeJumlahPabrikBasahLump += parseFloat(detail.jumlah_pabrik_basah_lump) || 0;
-      tipeK3Sheet += parseFloat(detail.k3_sheet) || 0;
-      tipeJumlahSheet += parseFloat(detail.jumlah_sheet) || 0;
-      tipeJumlahBrCr += parseFloat(detail.jumlah_br_cr) || 0;
-      tipeJumlahKering += parseFloat(detail.jumlah_kering) || 0;
-
-      tbody.appendChild(row);
+async function setActiveQuadrant(key) {
+    console.log('🎯 Active quadrant changed to:', key);
+    
+    if (isLoading) {
+        console.warn('⚠️ Already loading, skipping request');
+        return;
+    }
+    
+    // Toggle active class & aria-pressed
+    document.querySelectorAll('.quad-btn').forEach(btn => {
+        const isActive = btn.dataset.key === key;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
 
-    // Hitung persentase untuk total per tipe
-    const tipePersenLatek = tipeJumlahPabrikBasahLatek > 0 
-      ? ((tipeJumlahKebunBasahLatek - tipeJumlahPabrikBasahLatek) / tipeJumlahPabrikBasahLatek * 100)
-      : 0;
+    const afdeling = afdelingMap[key];
+    if (!afdeling) {
+        console.error('❌ Afdeling not found for key:', key);
+        setErrorState('Afdeling tidak ditemukan');
+        return;
+    }
     
-    const tipePersenLump = tipeJumlahPabrikBasahLump > 0
-      ? ((tipeJumlahKebunBasahLump - tipeJumlahPabrikBasahLump) / tipeJumlahPabrikBasahLump * 100)
-      : 0;
+    console.log('📍 Afdeling:', afdeling);
 
-    // Baris TOTAL per tipe
-    const totalRow = document.createElement('tr');
-    totalRow.innerHTML = `
-      <td colspan="3" style="font-weight: bold;">TOTAL</td>
-      <td>${formatDecimal(tipeHko)}</td>
-      <td>${formatDecimal(tipeJumlahKebunBasahLatek)}</td>
-      <td>${formatDecimal(tipeJumlahPabrikBasahLatek)}</td>
-      <td>${formatDecimal(tipePersenLatek)}</td>
-      <td>${formatDecimal(tipeJumlahKebunBasahLump)}</td>
-      <td>${formatDecimal(tipeJumlahPabrikBasahLump)}</td>
-      <td>${formatDecimal(tipePersenLump)}</td>
-      <td>${formatDecimal(tipeK3Sheet)}</td>
-      <td>${formatDecimal(tipeJumlahSheet)}</td>
-      <td>${formatDecimal(tipeJumlahBrCr)}</td>
-      <td>${formatDecimal(tipeJumlahKering)}</td>
-    `;
-    tbody.appendChild(totalRow);
+    // Check cache first
+    if (dataCache[key]) {
+        console.log('💾 Using cached data for:', key);
+        updateUIWithData(dataCache[key]);
+        return;
+    }
 
-    // Akumulasi ke grand total
-    grandTotalHko += tipeHko;
-    grandTotalJumlahKebunBasahLatek += tipeJumlahKebunBasahLatek;
-    grandTotalJumlahPabrikBasahLatek += tipeJumlahPabrikBasahLatek;
-    grandTotalJumlahKebunBasahLump += tipeJumlahKebunBasahLump;
-    grandTotalJumlahPabrikBasahLump += tipeJumlahPabrikBasahLump;
-    grandTotalK3Sheet += tipeK3Sheet;
-    grandTotalJumlahSheet += tipeJumlahSheet;
-    grandTotalJumlahBrCr += tipeJumlahBrCr;
-    grandTotalJumlahKering += tipeJumlahKering;
-  });
-
-  // Hitung persentase untuk grand total
-  const grandPersenLatek = grandTotalJumlahPabrikBasahLatek > 0
-    ? ((grandTotalJumlahKebunBasahLatek - grandTotalJumlahPabrikBasahLatek) / grandTotalJumlahPabrikBasahLatek * 100)
-    : 0;
-  
-  const grandPersenLump = grandTotalJumlahPabrikBasahLump > 0
-    ? ((grandTotalJumlahKebunBasahLump - grandTotalJumlahPabrikBasahLump) / grandTotalJumlahPabrikBasahLump * 100)
-    : 0;
-
-  // Membuat tabel terpisah untuk JUMLAH PRODUKSI
-  const grandTotalContainer = document.createElement('div');
-  grandTotalContainer.classList.add('rekap-table-container');
-  
-  const grandTotalHeader = document.createElement('h2');
-  grandTotalHeader.textContent = 'JUMLAH PRODUKSI';
-  grandTotalHeader.style.marginTop = '20px';
-  
-  const grandTotalTable = document.createElement('table');
-  grandTotalTable.classList.add('rekap-table');
-  
-  // Membuat thead yang sama dengan tabel di atas
-  const grandTotalThead = document.createElement('thead');
-  grandTotalThead.innerHTML = `
-    <tr>
-      <th rowspan="4">TAHUN<br>TANAM</th>
-      <th rowspan="4">NIK</th>
-      <th rowspan="4">MANDOR</th>
-      <th rowspan="2">HKO</th>
-      <th colspan="10">PRODUKSI HARI INI</th>
-    </tr>
-    <tr>
-      <th colspan="6">BASAH</th>
-      <th rowspan="3">KKK<br>SHEET</th>
-      <th colspan="3">KERING</th>
-    </tr>
-    <tr>
-      <th rowspan="2">HR INI</th>
-      <th colspan="3">LATEX</th>
-      <th colspan="3">LUMP</th>
-      <th rowspan="2">SHEET</th>
-      <th rowspan="2">BR.CR</th>
-      <th rowspan="2">JUMLAH</th>
-    </tr>
-    <tr>
-      <th>KEBUN</th>
-      <th>PABRIK</th>
-      <th>%</th>
-      <th>KEBUN</th>
-      <th>PABRIK</th>
-      <th>%</th>
-    </tr>
-  `;
-  
-  const grandTotalTbody = document.createElement('tbody');
-  const grandTotalRow = document.createElement('tr');
-  grandTotalRow.innerHTML = `
-    <td colspan="3" style="font-weight: bold;">TOTAL SEMUA TIPE</td>
-    <td>${formatDecimal(grandTotalHko)}</td>
-    <td>${formatDecimal(grandTotalJumlahKebunBasahLatek)}</td>
-    <td>${formatDecimal(grandTotalJumlahPabrikBasahLatek)}</td>
-    <td>${formatDecimal(grandPersenLatek)}</td>
-    <td>${formatDecimal(grandTotalJumlahKebunBasahLump)}</td>
-    <td>${formatDecimal(grandTotalJumlahPabrikBasahLump)}</td>
-    <td>${formatDecimal(grandPersenLump)}</td>
-    <td>${formatDecimal(grandTotalK3Sheet)}</td>
-    <td>${formatDecimal(grandTotalJumlahSheet)}</td>
-    <td>${formatDecimal(grandTotalJumlahBrCr)}</td>
-    <td>${formatDecimal(grandTotalJumlahKering)}</td>
-  `;
-  
-  grandTotalTbody.appendChild(grandTotalRow);
-  grandTotalTable.appendChild(grandTotalThead);
-  grandTotalTable.appendChild(grandTotalTbody);
-  grandTotalContainer.appendChild(grandTotalHeader);
-  grandTotalContainer.appendChild(grandTotalTable);
-  container.appendChild(grandTotalContainer);
+    // Fetch data from API
+    setLoadingState(true);
+    
+    try {
+        const apiData = await fetchDashboardData(afdeling);
+        
+        // Check if data is empty or all zeros
+        const hasData = Object.values(apiData).some(val => 
+            val !== null && val !== undefined && val !== 0 && val !== '0'
+        );
+        console.log('📊 Has non-zero data:', hasData);
+        
+        const transformedData = transformApiData(apiData);
+        
+        // Store in cache
+        dataCache[key] = transformedData;
+        
+        // Update UI
+        updateUIWithData(transformedData);
+        
+        // Show success notification
+        showNotification(`Data ${afdeling} berhasil dimuat`, 'success');
+    } catch (error) {
+        console.error('💥 Failed to load data:', error);
+        setErrorState(error.message);
+        
+        // Clear cache for this key on error
+        delete dataCache[key];
+    } finally {
+        setLoadingState(false);
+    }
 }
 
-// Memanggil fungsi fetchData saat halaman selesai dimuat
-document.addEventListener('DOMContentLoaded', fetchData);
+function updateUIWithData(data) {
+    console.log('🖼️ Updating UI with data:', data);
+    updateValue('basah-latek-kebun', data.basahLatekKebun);
+    updateValue('basah-latek-pabrik', data.basahLatekPabrik);
+    updateValue('basah-lump-kebun', data.basahLumpKebun);
+    updateValue('basah-lump-pabrik', data.basahLumpPabrik);
+    updateValue('k3-sheet', data.k3Sheet);
+    updateValue('jumlah-kering', data.jumlahKering);
+}
+
+function updateValue(id, text) {
+    const el = document.getElementById(id);
+    if (!el) {
+        console.error('❌ Element not found:', id);
+        return;
+    }
+    if (el.innerText === text) {
+        console.log('⏭️ No change for:', id);
+        return;
+    }
+    
+    console.log(`✏️ Updating ${id}: "${el.innerText}" -> "${text}"`);
+    
+    el.classList.remove('error');
+    el.innerText = text;
+    el.classList.add('updated');
+    
+    // Remove the class after animation ends
+    setTimeout(() => el.classList.remove('updated'), 550);
+}
+
+// Initialize dashboard when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 Dashboard initialized');
+    
+    // Add click handlers to quadrant buttons
+    document.querySelectorAll('.quad-btn').forEach(btn => {
+        btn.addEventListener('click', () => setActiveQuadrant(btn.dataset.key));
+        btn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setActiveQuadrant(btn.dataset.key);
+            }
+        });
+    });
+
+    // Default selection - load Setro data on page load
+    console.log('📍 Loading default quadrant: setro');
+    setActiveQuadrant('setro');
+    
+    // Add refresh button functionality if exists
+    const refreshBtn = document.getElementById('refresh-dashboard');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            console.log('🔄 Manual refresh triggered');
+            // Clear cache
+            Object.keys(dataCache).forEach(key => delete dataCache[key]);
+            // Reload current active quadrant
+            const activeBtn = document.querySelector('.quad-btn.active');
+            if (activeBtn) {
+                setActiveQuadrant(activeBtn.dataset.key);
+            }
+        });
+    }
+});
