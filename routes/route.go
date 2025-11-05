@@ -75,15 +75,8 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/reporting/penyadap/{tanggal}", controllers.GetPenyadapDetailByDate).Methods("GET")
 
 	// ================== ENHANCED SEARCH API WITH DATE RANGE SUPPORT ==================
-	protected.HandleFunc("/api/search/mandor", controllers.SearchMandorByName).Methods("GET")
-	protected.HandleFunc("/api/search/mandor/range", controllers.SearchMandorWithDateRange).Methods("GET")
-
-	protected.HandleFunc("/api/search/penyadap", controllers.SearchPenyadapByName).Methods("GET")
-	protected.HandleFunc("/api/search/penyadap/range", controllers.SearchPenyadapWithDateRange).Methods("GET")
-
-	protected.HandleFunc("/api/search/mandor/detail", controllers.GetMandorWithPenyadapDetail).Methods("GET")
-
-	protected.HandleFunc("/api/search/all", controllers.SearchAll).Methods("GET")
+	protected.HandleFunc("/api/search", controllers.SearchData).Methods("GET")
+	//parameternya idMandor/idPenyadap, tanggalAwal, tanggalAkhir, tipeProduksi
 
 	// ================== PENYADAP API (CRUD + Search) ==================
 	// Search HARUS sebelum route dengan parameter {id}

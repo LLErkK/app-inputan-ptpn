@@ -232,6 +232,43 @@ func isValidDataRow(row []string, baseIdx int) bool {
 	return true
 }
 
+// hasValidHKO: cek apakah HKO Hari Ini atau HKO Sampai Hari Ini ada nilainya (tidak kosong/0)
+func hasValidHKO(row []string, baseIdx int) bool {
+	// HKO Hari Ini ada di kolom baseIdx + 3
+	// HKO Sampai Hari Ini ada di kolom baseIdx + 4
+
+	getInt := func(idx int) int {
+		if idx < 0 || idx >= len(row) {
+			return 0
+		}
+		v := strings.TrimSpace(strings.ReplaceAll(row[idx], "\"", ""))
+		v = strings.ReplaceAll(v, "-", "")
+		v = strings.ReplaceAll(v, "—", "")
+		v = strings.TrimSpace(v)
+
+		if v == "" {
+			return 0
+		}
+		if i, err := strconv.Atoi(strings.ReplaceAll(v, ".", "")); err == nil {
+			return i
+		}
+		if f, err := parseNumber(v); err == nil {
+			return int(f)
+		}
+		return 0
+	}
+
+	hkoHariIni := getInt(baseIdx + 3)
+	hkoSampaiHariIni := getInt(baseIdx + 4)
+
+	// Skip jika KEDUA nilai HKO kosong/0
+	if hkoHariIni == 0 && hkoSampaiHariIni == 0 {
+		return false
+	}
+
+	return true
+}
+
 // mapRowRelative: mapping urut sesuai struktur model Rekap
 // Urutan kolom dari CSV (setelah baseIdx):
 // 0: TAHUN TANAM
@@ -446,6 +483,11 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 
 		// validate minimal data pattern
 		if !isValidDataRow(row, baseIdx) {
+			continue
+		}
+
+		// VALIDASI BARU: Skip jika HKO kosong
+		if !hasValidHKO(row, baseIdx) {
 			continue
 		}
 
