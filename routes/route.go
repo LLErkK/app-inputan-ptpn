@@ -2,10 +2,11 @@ package routes
 
 import (
 	"app-inputan-ptpn/controllers"
-	"github.com/gorilla/mux"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 // SetupRoutes mengatur semua routing aplikasi dengan dukungan filter range tanggal
