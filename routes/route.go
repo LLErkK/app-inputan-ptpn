@@ -26,6 +26,10 @@ func SetupRoutes() {
 	r.PathPrefix("/asset/").Handler(http.StripPrefix("/asset/",
 		http.FileServer(http.Dir("./templates/asset/"))))
 
+	// Serve KML files
+	r.PathPrefix("/kml/").Handler(http.StripPrefix("/kml/",
+		http.FileServer(http.Dir("./templates/kml/"))))
+
 	// ================== AUTH ROUTES ==================
 	r.HandleFunc("/", controllers.ServeLoginPage).Methods("GET")
 	r.HandleFunc("/login", controllers.Login).Methods("POST")
