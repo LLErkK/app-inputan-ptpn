@@ -6,19 +6,20 @@
 	<title>Dashboard Area Interaktif</title>
 	<link rel="stylesheet" href="/css/style.css">
 	<link rel="stylesheet" href="/css/rekap.css">
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  	<style>
+    	#map { height: 600px; width: 100%; }
+  	</style>
+
 </head>
 <body>
 	<div class="container-card">
-		<div class="dashboard-wrap">
-		<h2 class="page-title">Dashboard Area — Klik untuk lihat rincian</h2>
-
-		<div class="quad-grid">
-			<button class="quad-btn" id="btn-setro" data-key="setro" aria-pressed="false">SETRO</button>
-			<button class="quad-btn" id="btn-jatiroenggo" data-key="jatiroenggo" aria-pressed="false">JATIROENGGO</button>
-			<button class="quad-btn" id="btn-klepu" data-key="klepu" aria-pressed="false">KLEPU</button>
-			<button class="quad-btn" id="btn-gebugan" data-key="gebugan" aria-pressed="false">GEBUGAN</button>
-			</div>
-		</div>
+		<h2>🗺️ Peta Kebun Ngobo</h2>
+		<p style="color: #6b7280; margin-bottom: 16px;">
+			Klik pada area di peta untuk melihat data produksi
+		</p>
+		
+		<div id="map"></div>
 
 		<div class="info-row" aria-live="polite">
 			<div class="info-box">
@@ -48,6 +49,10 @@
 		</div>
 	</div>
 
+	<!-- PENTING: Urutan script harus benar! -->
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+	<script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
+	<script src="/js/peta.js"></script>
 	<script src="/js/rekap.js"></script>
 </body>
 </html>
