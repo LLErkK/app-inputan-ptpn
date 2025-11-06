@@ -12,7 +12,7 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-func excelToCSV(excelFile string, outputFolder string, tanggal time.Time, afdeling string) error {
+func excelToCSV(excelFile string, outputFolder string, tanggal time.Time, afdeling string, originalFileName string) error {
 	// Jika outputFolder kosong, gunakan folder yang sama dengan file Excel
 	if outputFolder == "" {
 		outputFolder = filepath.Dir(excelFile)
@@ -76,8 +76,13 @@ func excelToCSV(excelFile string, outputFolder string, tanggal time.Time, afdeli
 
 	// Ambil tanggal (hari) sebagai int
 	tanggalInt := tanggal.Day()
-	fmt.Printf("memproses membuat table master")
-	idMaster, err := CreateMaster(tanggal, afdeling, excelFile)
+
+	// Gunakan nama file asli yang dikirim sebagai parameter
+	fmt.Printf("Memproses membuat table master dengan nama file: %s\n", originalFileName)
+	idMaster, err := CreateMaster(tanggal, afdeling, originalFileName)
+	if err != nil {
+		return fmt.Errorf("gagal membuat master: %v", err)
+	}
 
 	fmt.Println("\nMemproses CSV ke database...")
 

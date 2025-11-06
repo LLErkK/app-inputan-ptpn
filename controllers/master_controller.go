@@ -35,8 +35,8 @@ func GetAllMaster(w http.ResponseWriter, r *http.Request) {
 	db := config.GetDB()
 	var masters []models.Master
 
-	// Load semua master beserta relasinya
-	if err := db.Preload("Rekaps").Preload("Produksis").Find(&masters).Error; err != nil {
+	// Ambil hanya data master tanpa preload relasi
+	if err := db.Find(&masters).Error; err != nil {
 		http.Error(w, "Gagal mengambil data master: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

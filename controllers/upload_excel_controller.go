@@ -132,7 +132,8 @@ func CreateUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//convert ke csv
-	if err := excelToCSV(uploadPath, "csv", tanggal, afdeling); err != nil {
+	// convert ke csv - kirim nama file asli
+	if err := excelToCSV(uploadPath, "csv", tanggal, afdeling, header.Filename); err != nil {
 		log.Fatal(err)
 	}
 
