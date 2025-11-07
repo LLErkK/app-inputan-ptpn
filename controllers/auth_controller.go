@@ -3,12 +3,16 @@ package controllers
 import (
 	"app-inputan-ptpn/config"
 	"app-inputan-ptpn/models"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"time"
+
+	"context"
+	"fmt"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type LoginResponse struct {
@@ -20,6 +24,12 @@ type LoginResponse struct {
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+// Claims struct (optional typed claims)
+type MyClaims struct {
+	Username string `json:"username"`
+	jwt.RegisteredClaims
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
@@ -66,9 +76,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify password
-	hashedPassword := HashPassword(loginReq.Password)
-	if user.Password != hashedPassword {
+	// Verify password (bcrypt)
+	if !config.ComparePassword(user.Password, loginReq.Password) {
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(LoginResponse{
 			Success: false,
@@ -77,78 +86,131 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate simple token (dalam production gunakan JWT)
-	token := generateToken(user.Username)
+	// Generate JWT token
+	expireTime := time.Now().Add(24 * time.Hour)
+	claims := MyClaims{
+		Username: user.Username,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expireTime),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Subject:   user.Username,
+		},
+	}
 
-	// Update last login time
-	config.DB.Model(&user).Update("last_login", time.Now())
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	secret := config.JWTSecret
+	tokenString, err := token.SignedString(secret)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(LoginResponse{
+			Success: false,
+			Message: "Gagal membuat token",
+		})
+		return
+	}
 
-	// Set session cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
-		Value:    token,
-		Expires:  time.Now().Add(24 * time.Hour),
+	// Update last login time (non-blocking)
+	go func() {
+		config.DB.Model(&user).Update("last_login", time.Now())
+	}()
+
+	// Set cookie (HttpOnly)
+	cookie := &http.Cookie{
+		Name:     "auth_token",
+		Value:    tokenString,
+		Expires:  expireTime,
 		HttpOnly: true,
 		Path:     "/",
-	})
+	}
+	// Set Secure true only if HTTPS (use env to force)
+	if os.Getenv("APP_ENV") == "production" {
+		cookie.Secure = true
+		cookie.SameSite = http.SameSiteStrictMode
+	}
+	http.SetCookie(w, cookie)
 
-	// Return success response
+	// Respond
 	json.NewEncoder(w).Encode(LoginResponse{
 		Success: true,
 		Message: "Login berhasil",
-		Token:   token,
+		Token:   tokenString,
 		User:    user.Username,
 	})
-
 }
+
 func Logout(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
-	// Clear session cookie
+	// Clear cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
+		Name:     "auth_token",
 		Value:    "",
 		Expires:  time.Now().Add(-1 * time.Hour),
 		HttpOnly: true,
 		Path:     "/",
 	})
-
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
-func HashPassword(password string) string {
-	hash := sha256.Sum256([]byte(password))
-	return hex.EncodeToString(hash[:])
+
+// helper untuk mengekstrak token dari header/cookie
+func extractTokenFromRequest(r *http.Request) string {
+	// 1) Authorization header: Bearer <token>
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "" {
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+			return parts[1]
+		}
+	}
+	// 2) Cookie
+	if cookie, err := r.Cookie("auth_token"); err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+	return ""
 }
-func generateToken(username string) string {
-	timestamp := time.Now().Unix()
-	data := fmt.Sprintf("%s:%d", username, timestamp)
-	hash := sha256.Sum256([]byte(data))
-	return hex.EncodeToString(hash[:])[:32]
-}
+
+// AuthMiddleware memvalidasi JWT; jika valid -> panggil next, jika tidak -> redirect ke login
 func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("session_token")
-		if err != nil {
-			// Redirect ke halaman utama jika unauthorized
+		tokenString := extractTokenFromRequest(r)
+		if tokenString == "" {
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
 
-		// Validate token (implementasi sederhana)
-		if cookie.Value == "" {
-			// Redirect ke halaman utama jika token invalid
+		// parse & validate
+		claims := &MyClaims{}
+		parsedToken, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			// Ensure expected method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return config.JWTSecret, nil
+		})
+		if err != nil || !parsedToken.Valid {
+			// token invalid or expired
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
 
-		next(w, r)
+		// Attach username to context for handlers that need it
+		ctx := context.WithValue(r.Context(), "username", claims.Username)
+		next(w, r.WithContext(ctx))
 	}
 }
+
+// ServeLoginPage kept same (with small change to check cookie)
 func ServeLoginPage(w http.ResponseWriter, r *http.Request) {
 	// Check if user is already logged in
-	if cookie, err := r.Cookie("session_token"); err == nil && cookie.Value != "" {
-		http.Redirect(w, r, "/rekap", http.StatusFound)
-		return
+	tokenString := extractTokenFromRequest(r)
+	if tokenString != "" {
+		// try to parse
+		claims := &MyClaims{}
+		if t, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return config.JWTSecret, nil
+		}); err == nil && t.Valid {
+			http.Redirect(w, r, "/rekap", http.StatusFound)
+			return
+		}
 	}
 
 	// Serve login HTML file

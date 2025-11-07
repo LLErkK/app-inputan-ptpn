@@ -199,6 +199,9 @@ func SetupRoutes() {
 // Middleware wrapper
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		controllers.AuthMiddleware(next.ServeHTTP)(w, r)
+		// convert next.ServeHTTP into http.HandlerFunc
+		controllers.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})(w, r)
 	})
 }

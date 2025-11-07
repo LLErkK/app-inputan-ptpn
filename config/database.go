@@ -2,18 +2,28 @@ package config
 
 import (
 	"app-inputan-ptpn/models"
-	"crypto/sha256"
-	"encoding/hex"
 	"log"
+	"os"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 var DB *gorm.DB
 
+// JWT secret (baca dari env JWT_SECRET jika tersedia)
+var JWTSecret []byte
+
 func InitDB() {
-	// Nama file database SQLite, akan dibuat otomatis kalau belum ada
+	// init JWT secret
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "please-change-this-secret-in-production"
+	}
+	JWTSecret = []byte(secret)
+
+	// Nama file database SQLite
 	dsn := "produksi.db"
 
 	var err error
@@ -29,7 +39,7 @@ func InitDB() {
 		&models.BakuMandor{},
 		&models.BakuDetail{},
 		&models.Upload{},
-		&models.Master{}, // ⬅️ letakkan di sini sebelum rekap/produksi
+		&models.Master{},
 		&models.Rekap{},
 		&models.Produksi{},
 		&models.Penyadap{},
@@ -50,10 +60,21 @@ func GetDB() *gorm.DB {
 	return DB
 }
 
-// HashPassword creates SHA256 hash of password
+// HashPassword menggunakan bcrypt
 func HashPassword(password string) string {
-	hash := sha256.Sum256([]byte(password))
-	return hex.EncodeToString(hash[:])
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		// fallback (jarang terjadi)
+		log.Printf("bcrypt generate error: %v", err)
+		return password
+	}
+	return string(hash)
+}
+
+// ComparePassword membandingkan bcrypt hash dengan password plain
+func ComparePassword(hash string, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
 
 // createDefaultUser creates a default admin user
