@@ -2,6 +2,7 @@ package routes
 
 import (
 	"app-inputan-ptpn/controllers"
+	"app-inputan-ptpn/dev"
 	"net/http"
 	"net/url"
 	"time"
@@ -125,6 +126,10 @@ func SetupRoutes() {
 
 	protected.HandleFunc("/api/master", controllers.GetAllMaster).Methods("GET")
 	protected.HandleFunc("/api/master/{masterId}", controllers.DeleteMaster).Methods("DELETE") //
+
+	//endpoint dev
+	protected.HandleFunc("/dev/rekap", dev.GetAllRekap).Methods("GET")
+	protected.HandleFunc("/dev/produksi", dev.GetAllProduksi).Methods("GET")
 
 	// ================== ADDITIONAL MONITORING ENDPOINTS ==================
 	protected.HandleFunc("/api/monitoring/today/summary", func(w http.ResponseWriter, r *http.Request) {
