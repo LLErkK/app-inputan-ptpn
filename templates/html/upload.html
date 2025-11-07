@@ -4,135 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload File dan Tanggal</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #ffffff 0%, #ffffff 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        .container {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 500px;
-            width: 100%;
-        }
-        h2 {
-            color: #333;
-            margin-bottom: 30px;
-            text-align: center;
-            font-size: 28px;
-        }
-        .form-group { margin-bottom: 25px; }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #555;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        input[type="date"],
-        select {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            background: #f9f9f9;
-        }
-        input[type="date"]:focus,
-        select:focus {
-            outline: none;
-            border-color: #667eea;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
-        .file-upload-wrapper input[type="file"] { position: absolute; left: -9999px; }
-        .file-upload-label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 15px 20px;
-            background: linear-gradient(135deg, #0093E9, #80D0C7);
-            color: white;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-            gap: 10px;
-        }
-        .file-upload-label:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-        .file-name {
-            margin-top: 10px;
-            padding: 10px;
-            background: #f0f0f0;
-            border-radius: 8px;
-            color: #666;
-            font-size: 14px;
-            text-align: center;
-            min-height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .file-meta { font-size: 12px; color: #888; }
-        .submit-btn {
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(135deg, #0093E9, #80D0C7);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 10px;
-        }
-        .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(17, 153, 142, 0.4);
-        }
-        .submit-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
-        .result {
-            margin-top: 20px;
-            padding: 15px;
-            background: #e8f5e9;
-            border-left: 4px solid #4caf50;
-            border-radius: 8px;
-            display: none;
-        }
-        .result.error { background: #ffebee; border-left-color: #f44336; }
-        .result h3 { color: #2e7d32; margin-bottom: 10px; font-size: 16px; }
-        .result.error h3 { color: #c62828; }
-        .result p { color: #555; font-size: 14px; margin: 5px 0; }
-        .loading { display: none; text-align: center; margin-top: 10px; }
-        .loading.show { display: block; }
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        .file-badge { font-size: 12px; color: #444; font-weight: 600; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+    <link rel="stylesheet" href="/css/upload.css">
 </head>
 <body>
 <div class="container">
@@ -179,7 +51,37 @@
             <div class="spinner"></div>
             <p style="margin-top: 10px;">Uploading...</p>
         </div>
+        
+        <div style="margin-top:18px;">
+            <button type="button" id="openDeleteMasterModalBtn" class="submit-btn" 
+                style="background: linear-gradient(135deg, #ff4d4f, #ff6b6b);">Hapus Master</button>
+        </div>
     </form>
+
+    <!-- Modal: Daftar Master untuk Hapus -->
+    <div id="deleteMasterModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; min-height:100vh;">
+      <div style="position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:#fff; width:90%; max-width:900px; border-radius:10px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="margin:0">Daftar Master</h3>
+          <button id="deleteMasterModalClose" style="background:transparent;border:0;font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <div style="max-height:60vh; overflow:auto;">
+          <table style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left; padding:8px; border-bottom:1px solid #eee">ID</th>
+                <th style="text-align:left; padding:8px; border-bottom:1px solid #eee">Tanggal</th>
+                <th style="text-align:left; padding:8px; border-bottom:1px solid #eee">Afdeling</th>
+                <th style="text-align:left; padding:8px; border-bottom:1px solid #eee">File</th>
+                <th style="text-align:right; padding:8px; border-bottom:1px solid #eee">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="masterListBody"><tr><td colspan="5" style="text-align:center; padding:12px; color:#666;">Memuat...</td></tr></tbody>
+          </table>
+        </div>
+        <div id="masterModalLoading" style="display:none; text-align:center; margin-top:8px;">Memuat...</div>
+      </div>
+    </div>
 
     <div class="result" id="result">
         <h3 id="resultTitle">✅ Data Berhasil Disubmit</h3>
@@ -190,104 +92,6 @@
     </div>
 </div>
 
-<script>
-    const fileInput = document.getElementById('fileInput');
-    const fileName = document.getElementById('fileName');
-    const fileMeta = document.getElementById('fileMeta');
-    const uploadForm = document.getElementById('uploadForm');
-    const result = document.getElementById('result');
-    const loading = document.getElementById('loading');
-    const submitBtn = document.getElementById('submitBtn');
-
-    fileInput.addEventListener('change', function() {
-        if (this.files && this.files[0]) {
-            const file = this.files[0];
-            const sizeKB = (file.size / 1024).toFixed(2);
-            const sizeMB = (file.size / 1024 / 1024).toFixed(2);
-            const name = file.name;
-            fileName.querySelector('.file-badge').textContent = name;
-            fileMeta.textContent = `${sizeMB} MB (${sizeKB} KB)`;
-        } else {
-            fileName.querySelector('.file-badge').textContent = 'Belum ada file dipilih';
-            fileMeta.textContent = '';
-        }
-    });
-
-    uploadForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-
-        const tanggal = document.getElementById('tanggal').value;
-        const afdeling = document.getElementById('afdeling').value;
-        const file = fileInput.files[0];
-
-        if (!tanggal || !file || !afdeling) {
-            showResult(false, 'Tanggal, afdeling, dan file wajib diisi');
-            return;
-        }
-
-        if (file.size > 10 * 1024 * 1024) {
-            showResult(false, 'Ukuran file terlalu besar (maksimal 10MB)');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('tanggal', tanggal);
-        formData.append('afdeling', afdeling);
-        formData.append('file', file);
-
-        loading.classList.add('show');
-        submitBtn.disabled = true;
-        result.style.display = 'none';
-
-        try {
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                showResult(true, data.message, {
-                    tanggal: data.tanggal,
-                    afdeling: data.afdeling,
-                    fileName: data.fileName,
-                    fileSize: data.fileSize
-                });
-                uploadForm.reset();
-                fileName.querySelector('.file-badge').textContent = 'Belum ada file dipilih';
-                fileMeta.textContent = '';
-            } else {
-                showResult(false, data.message);
-            }
-        } catch (error) {
-            showResult(false, 'Terjadi kesalahan saat upload: ' + error.message);
-        } finally {
-            loading.classList.remove('show');
-            submitBtn.disabled = false;
-        }
-    });
-
-    function showResult(success, message, data = null) {
-        result.classList.remove('error');
-        if (!success) {
-            result.classList.add('error');
-            document.getElementById('resultTitle').textContent = '❌ ' + message;
-            document.getElementById('resultDate').textContent = '-';
-            document.getElementById('resultAfdeling').textContent = '-';
-            document.getElementById('resultFile').textContent = '-';
-            document.getElementById('resultSize').textContent = '-';
-        } else {
-            document.getElementById('resultTitle').textContent = '✅ ' + message;
-            if (data) {
-                document.getElementById('resultDate').textContent = data.tanggal;
-                document.getElementById('resultAfdeling').textContent = data.afdeling;
-                document.getElementById('resultFile').textContent = data.fileName;
-                document.getElementById('resultSize').textContent = (data.fileSize / 1024).toFixed(2) + ' KB';
-            }
-        }
-        result.style.display = 'block';
-    }
-</script>
+<script src="/js/upload.js"></script>
 </body>
 </html>
