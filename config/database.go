@@ -32,6 +32,26 @@ func InitDB() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
+	// PENTING: Aktifkan foreign key constraints untuk SQLite
+	sqlDB, err := DB.DB()
+	if err != nil {
+		log.Fatal("Failed to get database instance:", err)
+	}
+
+	// Enable foreign key constraints
+	if _, err := sqlDB.Exec("PRAGMA foreign_keys = ON;"); err != nil {
+		log.Fatal("Failed to enable foreign keys:", err)
+	}
+
+	// Verifikasi foreign key sudah aktif
+	var fkEnabled int
+	DB.Raw("PRAGMA foreign_keys").Scan(&fkEnabled)
+	if fkEnabled == 1 {
+		log.Println("✓ Foreign key constraints enabled")
+	} else {
+		log.Println("✗ WARNING: Foreign key constraints NOT enabled")
+	}
+
 	// Auto migrate tables
 	err = DB.AutoMigrate(
 		&models.User{},
@@ -40,8 +60,8 @@ func InitDB() {
 		&models.BakuDetail{},
 		&models.Upload{},
 		&models.Master{},
-		&models.Rekap{},
 		&models.Produksi{},
+		&models.Rekap{},
 		&models.Penyadap{},
 		&models.Mandor{},
 	)

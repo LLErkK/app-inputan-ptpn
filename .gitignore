@@ -3,3 +3,4 @@ produksi.db
 /csv
 .idea
 .vscode
+.env
