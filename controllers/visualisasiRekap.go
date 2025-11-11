@@ -147,7 +147,6 @@ func visualisasiAfdeling(tipeProduksi, afdeling, tanggalAwal, tanggalAkhir, satu
 
 	return aggregateData(rekaps, satuan), nil
 }
-
 func visualisasiMandor(tipeProduksi, afdeling, nikMandor, tahunTanam, tanggalAwal, tanggalAkhir, satuan string) (VisualisasiResponse, error) {
 	var rekaps []models.Rekap
 	db := config.GetDB()
@@ -156,7 +155,14 @@ func visualisasiMandor(tipeProduksi, afdeling, nikMandor, tahunTanam, tanggalAwa
 	startDate, _ := time.Parse("2006-01-02", tanggalAwal)
 	endDate, _ := time.Parse("2006-01-02", tanggalAkhir)
 	query = query.Where("tanggal BETWEEN ? AND ?", startDate, endDate)
-	query = query.Where("nik = ? AND tahun_tanam = ?", nikMandor, tahunTanam)
+
+	// Wajib filter berdasarkan NIK mandor
+	query = query.Where("nik = ?", nikMandor)
+
+	// Jika tahunTanam dikirim (tidak kosong dan tidak "-"), tambahkan filter
+	if tahunTanam != "" && tahunTanam != "-" {
+		query = query.Where("tahun_tanam = ?", tahunTanam)
+	}
 
 	if afdeling != "" && afdeling != "-" {
 		query = query.Where("afdeling = ?", afdeling)
