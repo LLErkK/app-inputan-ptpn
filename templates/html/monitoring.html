@@ -7,37 +7,73 @@
     <link rel="stylesheet" href="/css/monitoring.css">
 </head>
 <body>
-    <div class="monitoring-container">
-        <h1>MONITORING</h1>
-        <form class="monitoring-form" id="monitoringForm">
-            <!-- Quick Actions -->
-            <div class="quick-actions">
-                <button type="button" class="quick-btn" onclick="loadTodayData()">📅 Hari Ini</button>
-                <button type="button" class="quick-btn" onclick="loadWeekData()">📊 Minggu Ini</button>
-                <button type="button" class="quick-btn" onclick="loadMonthData()">📈 Bulan Ini</button>
-                <button type="button" class="quick-btn" onclick="clearAll()">🔄 Reset</button>
-                <button type="button" class="export-btn" onclick="window.exportSearchData()">💾 Export Excel</button>
+   <!-- Popup Overlay -->
+    <div class="popup-overlay active" id="viewModePopup">
+        <div class="popup-container">
+            <div class="popup-header">
+                <h2>Pilih Mode Tampilan</h2>
+                <p>Silakan pilih cara Anda ingin melihat data monitoring</p>
             </div>
-            <div class="form-row">
+            <div class="popup-options">
+                <div class="option-card penyadap" onclick="selectViewMode('penyadap')">
+                    <div class="option-icon">👤</div>
+                    <div class="option-title">Penyadap</div>
+                    <div class="option-desc">Lihat data berdasarkan penyadap</div>
+                </div>
+                <div class="option-card mandor" onclick="selectViewMode('mandor')">
+                    <div class="option-icon">👥</div>
+                    <div class="option-title">Mandor</div>
+                    <div class="option-desc">Lihat data berdasarkan mandor</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Monitoring Container -->
+    <div class="monitoring-container" id="monitoringContainer">
+        <h1>MONITORING</h1>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <span class="view-mode-badge" id="viewModeBadge">Mode: Penyadap</span>
+            <button class="change-view-btn" onclick="changeViewMode()">🔄 Ganti Mode</button>
+        </div>
+        
+        <form class="monitoring-form" id="monitoringForm" novalidate>
+            <!-- Form untuk Mode Penyadap -->
+            <div class="form-row" id="formPenyadap">
                 <div class="form-group">
-                    <label for="namaMandor">Nama Mandor</label>
-                    <input type="text" id="namaMandor" name="namaMandor" placeholder="Isi nama mandor..." autocomplete="off" style="width:100%;">
+                    <label for="namaPenyadap">Nama Penyadap <span style="color: red;">*</span></label>
+                    <div class="autocomplete-wrapper">
+                        <input type="text" 
+                               id="namaPenyadap" 
+                               name="namaPenyadap" 
+                               placeholder="Ketik nama penyadap..." 
+                               autocomplete="off" 
+                               oninput="handlePenyadapInput(this)">
+                        <div id="penyadapDropdown" class="autocomplete-dropdown"></div>
+                    </div>
+                    <small style="color: #666; font-size: 0.85em;">Pilih dari daftar yang tersedia</small>
                 </div>
                 <div class="form-group">
-                    <label for="namaPenyadap">Nama Penyadap</label>
-                    <input type="text" id="namaPenyadap" name="namaPenyadap" placeholder="Isi nama penyadap..." autocomplete="off" style="width:100%;">
+                    <label for="afdelingPenyadap">Afdeling</label>
+                    <select id="afdelingPenyadap" name="afdeling">
+                        <option value="">-- Pilih Afdeling --</option>
+                        <option value="Setro">Setro</option>
+                        <option value="Klepu">Klepu</option>
+                        <option value="Jatiroenggo">Jatiroenggo</option>
+                        <option value="Gebugan">Gebugan</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label for="filterTanggalAwal">Tanggal Awal</label>
-                    <input type="date" id="searchTanggalAwal" name="filterTanggalAwal" style="width:100%;">
+                    <label for="searchTanggalAwal">Tanggal Awal <span style="color: red;">*</span></label>
+                    <input type="date" id="searchTanggalAwal" name="filterTanggalAwal">
                 </div>
                 <div class="form-group">
-                    <label for="filterTanggalAkhir">Tanggal Akhir</label>
-                    <input type="date" id="searchTanggalAkhir" name="filterTanggalAkhir" style="width:100%;">
+                    <label for="searchTanggalAkhir">Tanggal Akhir <span style="color: red;">*</span></label>
+                    <input type="date" id="searchTanggalAkhir" name="filterTanggalAkhir">
                 </div>
                 <div class="form-group">
                     <label for="filterJenis">Type Produksi</label>
-                    <select id="filterJenis" name="filterJenis" style="width:100%;">
+                    <select id="filterJenis" name="filterJenis">
                         <option value="">-- Pilih Jenis --</option>
                         <option value="BAKU">Baku</option>
                         <option value="BAKU_BORONG">Baku Borong</option>
@@ -48,34 +84,170 @@
                     </select>
                 </div>
             </div>
+
+            <!-- Form untuk Mode Mandor -->
+            <div class="form-row" id="formMandor" style="display: none;">
+                <div class="form-group">
+                    <label for="namaMandor">Nama Mandor <span style="color: red;">*</span></label>
+                    <div class="autocomplete-wrapper">
+                        <input type="text" 
+                               id="namaMandor" 
+                               name="namaMandor" 
+                               placeholder="Ketik nama mandor..." 
+                               autocomplete="off" 
+                               oninput="handleMandorInput(this)">
+                        <div id="mandorDropdown" class="autocomplete-dropdown"></div>
+                    </div>
+                    <small style="color: #666; font-size: 0.85em;">Pilih dari daftar yang tersedia</small>
+                </div>
+                <div class="form-group">
+                    <label for="afdelingMandor">Afdeling</label>
+                    <select id="afdelingMandor" name="afdeling">
+                        <option value="">-- Pilih Afdeling --</option>
+                        <option value="Setro">Setro</option>
+                        <option value="Klepu">Klepu</option>
+                        <option value="Jatiroenggo">Jatiroenggo</option>
+                        <option value="Gebugan">Gebugan</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="searchTanggalAwalMandor">Tanggal Awal <span style="color: red;">*</span></label>
+                    <input type="date" id="searchTanggalAwalMandor" name="filterTanggalAwal">
+                </div>
+                <div class="form-group">
+                    <label for="searchTanggalAkhirMandor">Tanggal Akhir <span style="color: red;">*</span></label>
+                    <input type="date" id="searchTanggalAkhirMandor" name="filterTanggalAkhir">
+                </div>
+                <div class="form-group">
+                    <label for="filterJenisMandor">Type Produksi</label>
+                    <select id="filterJenisMandor" name="filterJenis">
+                        <option value="">-- Pilih Jenis --</option>
+                        <option value="PRODUKSI BAKU">Baku</option>
+                        <option value="PRODUKSI BAKU BORONG">Baku Borong</option>
+                        <option value="PRODUKSI BORONG EXTERNAL">Borong Eksternal</option>
+                        <option value="PRODUKSI BORONG INTERNAL">Borong Internal</option>
+                        <option value="PRODUKSI BORONG MINGGU">Borong Minggu</option>
+                        <option value="PRODUKSI TETES LANJUT">Tetes Lanjut</option>
+                    </select>
+                </div>
+            </div>
+            
             <div class="form-action-row">
                 <button type="submit" id="searchBtn" class="search-btn">Search</button>
+                <button type="button" onclick="clearAll()" class="clear-btn">Reset</button>
             </div>
         </form>
-        <div id="bakuTableWrapper" class="monitoring-table-container">
-            <table class="monitoring-table">
-            <thead>
-                <tr>
-                    <th>Tanggal</th>
-                    <th>MANDOR</th>
-                    <th>TIPE</th>
-                    <th>Tahun Tanam</th>
-                    <th>AFDELING</th>
-                    <th>NIK</th>
-                    <th>Nama Penyadap</th>
-                    <th>Basah Latek</th>
-                    <th>Sheet</th>
-                    <th>Basah Lump</th>
-                    <th>Br.Cr</th>
-                </tr>
-            </thead>
-            <tbody id="bakuTableBody">
-                    <!-- Data will be injected here dynamically -->
-            </tbody>
-        </table>
+
+        <div class="monitoring-table-container">
+            <!-- Summary Section -->
+            <div id="summarySection" style="display: none; margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                <h3 style="margin-bottom: 15px; font-size: 1.2rem;">📊 Ringkasan Data</h3>
+                <div id="summaryPenyadap" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Total Records</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summaryTotalRecords">0</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Basah Latek</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summaryBasahLatek">0</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Sheet</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summarySheet">0</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Basah Lump</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summaryBasahLump">0</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Br.Cr</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summaryBrCr">0</div>
+                    </div>
+                </div>
+                
+                <div id="summaryMandor" style="display: none; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Total Records</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summaryTotalRecordsMandor">0</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Total HKO</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summaryHKO">0</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Latek Kebun</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summaryLatekKebun">0</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Latek Pabrik</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summaryLatekPabrik">0</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Sheet Kering</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summarySheetKering">0</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Rata² Per Taper</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summaryRataPerTaper">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Penyadap -->
+            <table class="monitoring-table" id="tablePenyadap">
+                <thead>
+                    <tr>
+                        <th>Tanggal</th>
+                        <th>MANDOR</th>
+                        <th>TIPE</th>
+                        <th>Tahun Tanam</th>
+                        <th>AFDELING</th>
+                        <th>NIK</th>
+                        <th>Nama Penyadap</th>
+                        <th>Basah Latek</th>
+                        <th>Sheet</th>
+                        <th>Basah Lump</th>
+                        <th>Br.Cr</th>
+                    </tr>
+                </thead>
+                <tbody id="bakuTableBody">
+                    <tr><td colspan="11" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>
+                </tbody>
+            </table>
+
+            <!-- Table Mandor -->
+            <table class="monitoring-table" id="tableMandor" style="display: none;">
+                <thead>
+                    <tr>
+                        <th rowspan="2">Tanggal</th>
+                        <th rowspan="2">Mandor</th>
+                        <th rowspan="2">Tipe</th>
+                        <th rowspan="2">Tahun Tanam</th>
+                        <th rowspan="2">Afdeling</th>
+                        <th rowspan="2">HKO</th>
+                        <th colspan="3">Basah Latek</th>
+                        <th colspan="3">Basah Lump</th>
+                        <th colspan="2">Kering</th>
+                        <th rowspan="2">Prod/Taper</th>
+                    </tr>
+                    <tr>
+                        <th>Kebun</th>
+                        <th>Pabrik</th>
+                        <th>%</th>
+                        <th>Kebun</th>
+                        <th>Pabrik</th>
+                        <th>%</th>
+                        <th>Sheet</th>
+                        <th>Br.Cr</th>
+                    </tr>
+                </thead>
+                <tbody id="mandorTableBody">
+                    <tr><td colspan="15" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
+    
+    <script src="/js/monitoring.js"></script>
 </body>
-<script src="/js/monitoring.js"></script>
-
 </html>

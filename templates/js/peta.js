@@ -2,6 +2,7 @@
 // Leaflet + omnivore KML dengan sistem debug dan handshake
 // Mengirim event 'afdelingClicked' saat polygon diklik
 // Menjawab 'rekapPing' dengan 'petaPong'
+// FITUR BARU: Mengambil data dari endpoint /api/peta?code=
 
 // -----------------------------
 // Debug helper
@@ -11,6 +12,28 @@ function sendDebug(updates) {
         window.dispatchEvent(new CustomEvent('debugUpdate', { detail: updates }));
     } catch(e) {
         console.warn('Gagal mengirim debug update:', e);
+    }
+}
+
+// -----------------------------
+// Fungsi fetch data dari API berdasarkan code
+// -----------------------------
+async function fetchPetaData(code) {
+    try {
+        console.log('🔍 Fetching data untuk code:', code);
+        const response = await fetch(`/api/peta?code=${encodeURIComponent(code)}`);
+        
+        if (!response.ok) {
+            console.warn(`⚠️ API response status: ${response.status}`);
+            return null;
+        }
+        
+        const data = await response.json();
+        console.log('✅ Data dari API:', data);
+        return data;
+    } catch (err) {
+        console.error('❌ Error fetching peta data:', err);
+        return null;
     }
 }
 
@@ -48,7 +71,7 @@ function styleAfdeling(feature) {
 }
 
 // -----------------------------
-// Parse description KML -> object key:value
+// Parse description KML -> object key:value (fallback)
 // -----------------------------
 function parseDescription(desc) {
     if (!desc) return {};
@@ -101,6 +124,36 @@ function detectAfdelingFromName(namaText) {
 }
 
 // -----------------------------
+// Generate popup HTML dari data API
+// -----------------------------
+function generatePopupHTML(nama, afdelingLabel, apiData, fallbackDescData) {
+    if (apiData) {
+        // Data dari API
+        return `<b>${nama}</b><br>
+            <b>${afdelingLabel}</b><br>
+            Blok: ${apiData.Blok || '-'}<br>
+            Lokasi: ${apiData.Afdeling || afdelingLabel}<br>
+            Luas: ${apiData.Luas ? apiData.Luas + ' ha' : 'Tidak diketahui'}<br>
+            Jumlah Pohon: ${apiData.JumlahPohon || '-'}<br>
+            Jenis Kebun: ${apiData.JenisKebun || '-'}<br>
+            Tahun Tanam: ${apiData.TahunTanam || 'Tidak diketahui'}<br>
+            Kloon: ${apiData.Kloon || '-'}`;
+    } else {
+        // Fallback ke data dari KML description
+        const luas = fallbackDescData["Luas"] || "Tidak diketahui";
+        const tahun = fallbackDescData["Tahun Tanam"] || "Tidak diketahui";
+        const lokasi = fallbackDescData["Lokasi"] || afdelingLabel;
+        
+        return `<b>${nama}</b><br>
+            <b>${afdelingLabel}</b><br>
+            Lokasi: ${lokasi}<br>
+            Luas: ${luas}<br>
+            Tahun Tanam: ${tahun}<br>
+            <em style="color: #999; font-size: 0.9em;">Data dari KML</em>`;
+    }
+}
+
+// -----------------------------
 // onEachFeature: bind popup & pasang klik handler
 // -----------------------------
 function onEachFeature(feature, layer) {
@@ -108,24 +161,28 @@ function onEachFeature(feature, layer) {
     console.log("📋 Memproses nama fitur (inisialisasi):", nama);
 
     const descData = parseDescription(feature && feature.properties && feature.properties.description);
-    const luas = descData["Luas"] || "Tidak diketahui";
-    const tahun = descData["Tahun Tanam"] || "Tidak diketahui";
-    const lokasi = descData["Lokasi"] || "Tidak diketahui";
-
+    
     // Tentukan afdeling label dan key untuk popup / event
     const afdelingInfo = detectAfdelingFromName(nama);
     const afdeling = afdelingInfo.label;
     const afdKey = afdelingInfo.key;
     console.log("🏷️ Afdeling yang terdeteksi:", afdelingInfo);
 
-    const popupHtml = `<b>${nama}</b><br>
+    // Buat popup awal dengan loading state
+    const initialPopupHtml = `<b>${nama}</b><br>
         <b>${afdelingInfo.label}</b><br>
-        Lokasi: ${lokasi}<br>
-        Luas: ${luas}<br>
-        Tahun Tanam: ${tahun}`;
+        <div style="color: #666; margin-top: 8px;">
+            <span style="display: inline-block; width: 12px; height: 12px; border: 2px solid #333; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite;"></span>
+            Memuat data...
+        </div>
+        <style>
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+        </style>`;
 
     try {
-        layer.bindPopup(popupHtml);
+        layer.bindPopup(initialPopupHtml);
     } catch (err) {
         console.warn('⚠️ Gagal bindPopup untuk feature:', err);
     }
@@ -155,11 +212,11 @@ function onEachFeature(feature, layer) {
     }
 
     // KIRIM EVENT SAAT USER KLIK POLYGON
-    layer.on('click', function (e) {
+    layer.on('click', async function (e) {
         console.log('🗺️ Polygon diklik:', nama, '→', afdeling, '(key:', afdKey, ')');
         sendDebug({ lastClick: `${nama} (${afdeling})` });
 
-        // buka popup di posisi klik
+        // buka popup di posisi klik dengan loading state
         try {
             if (layer.openPopup) {
                 layer.openPopup(e.latlng);
@@ -168,19 +225,32 @@ function onEachFeature(feature, layer) {
             console.warn('⚠️ Gagal membuka popup pada klik:', err);
         }
 
-    // simpan terakhir ke global (fallback)
-    window.lastDetectedAfdeling = afdeling;
-    window.lastAfdelingKey = afdKey;
+        // Fetch data dari API berdasarkan nama (code)
+        const apiData = await fetchPetaData(nama);
+        
+        // Update popup dengan data dari API atau fallback
+        const updatedPopupHtml = generatePopupHTML(nama, afdeling, apiData, descData);
+        try {
+            if (layer.setPopupContent) {
+                layer.setPopupContent(updatedPopupHtml);
+            }
+        } catch (err) {
+            console.warn('⚠️ Gagal update popup content:', err);
+        }
+
+        // simpan terakhir ke global (fallback)
+        window.lastDetectedAfdeling = afdeling;
+        window.lastAfdelingKey = afdKey;
 
         // kirim CustomEvent agar rekap.js bisa tangkap
         try {
-            // gunakan key yang sudah dideteksi sebelumnya
             const payload = { 
                 afdeling: afdeling,
-                afdelingKey: afdKey, // key untuk rekap.js (setro, klepu, dll)
+                afdelingKey: afdKey,
                 name: nama,
                 featureId: feature && (feature.id || (feature.properties && (feature.properties.id || feature.properties.ID))) || null,
-                descData: descData // data mentah dari KML untuk fallback
+                descData: descData,
+                apiData: apiData // tambahkan data dari API
             };
             const evt = new CustomEvent('afdelingClicked', { detail: payload });
             window.dispatchEvent(evt);
