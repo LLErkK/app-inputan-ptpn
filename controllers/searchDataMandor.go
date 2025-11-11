@@ -124,6 +124,8 @@ func SearchMandor(w http.ResponseWriter, r *http.Request) {
 					Message: "Format tanggal akhir tidak valid (gunakan: YYYY-MM-DD)",
 				})
 				return
+
+				tglAkhir = tglAkhir.AddDate(0, 0, 1)
 			}
 			query = query.Where("tanggal BETWEEN ? AND ?", tglAwal, tglAkhir)
 		} else {
