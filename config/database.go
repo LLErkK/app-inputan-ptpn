@@ -64,6 +64,7 @@ func InitDB() {
 		&models.Rekap{},
 		&models.Penyadap{},
 		&models.Mandor{},
+		&models.Peta{},
 	)
 
 	if err != nil {

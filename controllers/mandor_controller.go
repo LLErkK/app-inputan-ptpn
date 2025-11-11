@@ -38,11 +38,11 @@ func GetMandorByName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var mandors []models.BakuMandor
-	if err := config.DB.Where("mandor LIKE ?", "%"+nama+"%").Find(&mandors).Error; err != nil {
+	var mandors []models.Mandor
+	if err := config.DB.Where("nama LIKE ?", "%"+nama+"%").Find(&mandors).Error; err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
-			Message: "Gagal mencari Mandor: " + err.Error(),
+			Message: "Gagal mencari mandor: " + err.Error(),
 		})
 		return
 	}

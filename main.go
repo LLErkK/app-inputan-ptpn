@@ -3,6 +3,7 @@ package main
 import (
 	"app-inputan-ptpn/config"
 	"app-inputan-ptpn/routes"
+	"app-inputan-ptpn/seed"
 	"fmt"
 	"log"
 	"net/http"
@@ -56,7 +57,11 @@ func main() {
 			log.Fatal("❌ Server error:", err)
 		}
 	}()
+	seed.SeedPetaData()
 
+	fmt.Println("\n===========================================")
+	fmt.Println("  SEEDING SELESAI")
+	fmt.Println("===========================================")
 	// Tunggu server benar-benar siap
 	<-serverReady
 	fmt.Println("\n⏳ Menunggu server siap menerima request...")
