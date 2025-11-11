@@ -40,9 +40,11 @@ func EditPeta(w http.ResponseWriter, r *http.Request) {
 
 	// Update field
 	peta.Blok = input.Blok
+	peta.Code = input.Code
 	peta.Afdeling = input.Afdeling
-	peta.Lokasi = input.Lokasi
 	peta.Luas = input.Luas
+	peta.JumlahPohon = input.JumlahPohon
+	peta.JenisKebun = input.JenisKebun
 	peta.TahunTanam = input.TahunTanam
 
 	if err := db.Save(&peta).Error; err != nil {
@@ -53,3 +55,5 @@ func EditPeta(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(peta)
 }
+
+func GetAllPeta(w http.ResponseWriter, r *http.Request) {}
