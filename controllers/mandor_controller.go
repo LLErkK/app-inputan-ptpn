@@ -13,21 +13,23 @@ import (
 )
 
 func GetAllMandor(w http.ResponseWriter, r *http.Request) {
-	var mandors []models.BakuMandor
+	var mandors []models.Mandor
 
-	if err := config.DB.Order("created_at desc").Find(&mandors).Error; err != nil {
+	if err := config.DB.Find(&mandors).Error; err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
 			Message: "Gagal mengambil data mandor: " + err.Error(),
 		})
 		return
 	}
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Message: "Data berhasil diambil",
 		Data:    mandors,
 	})
 }
+
 func GetMandorByName(w http.ResponseWriter, r *http.Request) {
 	nama := r.URL.Query().Get("nama")
 	if nama == "" {
