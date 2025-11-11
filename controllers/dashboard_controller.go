@@ -5,6 +5,7 @@ import (
 	"app-inputan-ptpn/models"
 	"encoding/json"
 	"html/template"
+	"log"
 	"net/http"
 	"time"
 )
@@ -71,8 +72,12 @@ func GetDashboardData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Debug logging
+	log.Printf("📍 Request untuk afdeling: '%s'", afdeling)
+
 	// Dapatkan tanggal hari ini (tanpa waktu)
 	today := time.Now().Truncate(24 * time.Hour)
+	log.Printf("📅 Tanggal query: %s", today.Format("2006-01-02"))
 
 	db := config.GetDB()
 
@@ -103,6 +108,7 @@ func GetDashboardData(w http.ResponseWriter, r *http.Request) {
 
 	var result AggregateResult
 
+	// FIX: Gunakan LOWER() untuk case-insensitive comparison
 	err := db.Model(&models.Rekap{}).
 		Select(`
 			COALESCE(SUM(hko_hari_ini), 0) as total_hko_hari_ini,
@@ -124,13 +130,18 @@ func GetDashboardData(w http.ResponseWriter, r *http.Request) {
 			COALESCE(SUM(sampai_hari_ini_kering_br_cr), 0) as total_sampai_hari_ini_kering_br_cr,
 			COALESCE(SUM(sampai_hari_ini_kering_jumlah), 0) as total_sampai_hari_ini_kering_jumlah
 		`).
-		Where("DATE(tanggal) = DATE(?) AND afdeling = ? AND tipe_produksi = ?", today, afdeling, "REKAPITULASI").
+		Where("DATE(tanggal) = DATE(?) AND LOWER(afdeling) = LOWER(?) AND tipe_produksi != ?", today, afdeling, "REKAPITULASI").
 		Scan(&result).Error
 
 	if err != nil {
+		log.Printf("❌ Error query database: %v", err)
 		http.Error(w, "Error mengambil data: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Debug logging hasil query
+	log.Printf("📊 Data ditemukan - HKO Hari Ini: %d, Basah Latek Kebun: %.2f",
+		result.TotalHKOHariIni, result.TotalHariIniBasahLatekKebun)
 
 	// Copy hasil agregasi ke response
 	response.TotalHKOHariIni = result.TotalHKOHariIni
@@ -155,13 +166,13 @@ func GetDashboardData(w http.ResponseWriter, r *http.Request) {
 	// === HITUNG PERSENTASE HARI INI ===
 
 	// Persentase Basah Latek Hari Ini: (Kebun - Pabrik) / kebun * 100
-	if response.TotalHariIniBasahLatekPabrik > 0 {
+	if response.TotalHariIniBasahLatekKebun > 0 {
 		selisih := response.TotalHariIniBasahLatekKebun - response.TotalHariIniBasahLatekPabrik
 		response.TotalHariIniBasahLatekPersen = (selisih / response.TotalHariIniBasahLatekKebun) * 100
 	}
 
 	// Persentase Basah Lump Hari Ini: (Kebun - Pabrik) / kebun * 100
-	if response.TotalHariIniBasahLumpPabrik > 0 {
+	if response.TotalHariIniBasahLumpKebun > 0 {
 		selisih := response.TotalHariIniBasahLumpKebun - response.TotalHariIniBasahLumpPabrik
 		response.TotalHariIniBasahLumpPersen = (selisih / response.TotalHariIniBasahLumpKebun) * 100
 	}
@@ -179,13 +190,13 @@ func GetDashboardData(w http.ResponseWriter, r *http.Request) {
 	// === HITUNG PERSENTASE SAMPAI HARI INI ===
 
 	// Persentase Basah Latek Sampai Hari Ini: (Kebun - Pabrik) / Kebun * 100
-	if response.TotalSampaiHariIniBasahLatekPabrik > 0 {
+	if response.TotalSampaiHariIniBasahLatekKebun > 0 {
 		selisih := response.TotalSampaiHariIniBasahLatekKebun - response.TotalSampaiHariIniBasahLatekPabrik
 		response.TotalSampaiHariIniBasahLatekPersen = (selisih / response.TotalSampaiHariIniBasahLatekKebun) * 100
 	}
 
 	// Persentase Basah Lump Sampai Hari Ini: (Kebun - Pabrik) / Kebun * 100
-	if response.TotalSampaiHariIniBasahLumpPabrik > 0 {
+	if response.TotalSampaiHariIniBasahLumpKebun > 0 {
 		selisih := response.TotalSampaiHariIniBasahLumpKebun - response.TotalSampaiHariIniBasahLumpPabrik
 		response.TotalSampaiHariIniBasahLumpPersen = (selisih / response.TotalSampaiHariIniBasahLumpKebun) * 100
 	}
@@ -199,6 +210,9 @@ func GetDashboardData(w http.ResponseWriter, r *http.Request) {
 	if response.TotalHKOSampaiHariIni > 0 {
 		response.TotalProduksiPerTaperSampaiHariIni = response.TotalSampaiHariIniKeringJumlah / float64(response.TotalHKOSampaiHariIni)
 	}
+
+	// Debug logging response
+	log.Printf("✅ Response untuk %s: Total records dengan data non-zero", afdeling)
 
 	// Kirim response sebagai JSON
 	w.Header().Set("Content-Type", "application/json")
