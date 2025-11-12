@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Data Peta</title>
+    <link rel="stylesheet" href="/css/peta-style.css">
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📍 Manajemen Data Peta</h1>
+        <p>Sistem Informasi PTPN</p>
+    </div>
+
+    <div class="content">
+        <!-- Alert Messages -->
+        <div id="alertSuccess" class="alert alert-success"></div>
+        <div id="alertError" class="alert alert-error"></div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <h2 style="margin-bottom: 20px;">Data Peta</h2>
+            <button class="btn btn-primary" onclick="loadAllData()">📋 Muat Semua Data</button>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading">
+            <p>⏳ Memuat data...</p>
+        </div>
+
+        <!-- Data Display Section -->
+        <div id="dataDisplay" class="data-display">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Detail Data Peta</h2>
+                <button class="btn btn-primary btn-small" onclick="showEditForm()">✏️ Edit Data</button>
+            </div>
+            <div class="data-grid" id="dataGrid"></div>
+        </div>
+
+        <!-- Edit Form Section -->
+        <div id="editForm" class="edit-form">
+            <h2 style="margin-bottom: 20px;">Edit Data Peta</h2>
+            <input type="hidden" id="editId">
+            <div class="form-group">
+                <label>Kode *</label>
+                <input type="text" id="editCode" required>
+            </div>
+            <div class="form-group">
+                <label>Blok</label>
+                <input type="text" id="editBlok">
+            </div>
+            <div class="form-group">
+                <label>Afdeling *</label>
+                <input type="text" id="editAfdeling" required>
+            </div>
+            <div class="form-group">
+                <label>Luas (ha)</label>
+                <input type="number" step="0.01" id="editLuas">
+            </div>
+            <div class="form-group">
+                <label>Jumlah Pohon</label>
+                <input type="number" id="editJumlahPohon">
+            </div>
+            <div class="form-group">
+                <label>Jenis Kebun</label>
+                <input type="text" id="editJenisKebun">
+            </div>
+            <div class="form-group">
+                <label>Tahun Tanam</label>
+                <input type="number" id="editTahunTanam">
+            </div>
+            <div class="form-group">
+                <label>Kloon</label>
+                <input type="text" id="editKloon">
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn btn-success" onclick="saveEdit()">💾 Simpan Perubahan</button>
+                <button class="btn btn-secondary" onclick="cancelEdit()">❌ Batal</button>
+            </div>
+        </div>
+
+        <!-- Table View for All Data -->
+        <div id="tableContainer" class="table-container" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                <h2 style="margin: 0;">Daftar Semua Data Peta</h2>
+                <div style="flex: 1; max-width: 400px;">
+                    <input type="text" id="searchTable" placeholder="🔍 Cari kode, blok, afdeling, jenis kebun..." style="width: 100%; padding: 10px; border: 2px solid #667eea; border-radius: 8px;">
+                </div>
+            </div>
+            <div id="searchInfo" style="margin-bottom: 15px; color: #666; font-size: 14px;"></div>
+            <table id="dataTable">
+                <thead>
+                <tr>
+                    <th>Kode</th>
+                    <th>Blok</th>
+                    <th>Afdeling</th>
+                    <th>Luas (ha)</th>
+                    <th>Jumlah Pohon</th>
+                    <th>Jenis Kebun</th>
+                    <th>Tahun Tanam</th>
+                    <th>Kloon</th>
+                    <th>Aksi</th>
+                </tr>
+                </thead>
+                <tbody id="dataTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="/js/peta-script.js"></script>
+</body>
+</html>

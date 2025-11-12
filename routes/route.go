@@ -128,6 +128,7 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/master/{masterId}", controllers.DeleteMaster).Methods("DELETE") //
 
 	//endpoint peta
+	protected.HandleFunc("/peta", controllers.ServePetaPage).Methods("GET")
 	protected.HandleFunc("/api/peta", controllers.GetPetaByCode).Methods("GET")
 	protected.HandleFunc("/api/peta", controllers.CreatePeta).Methods("POST")
 	protected.HandleFunc("/api/peta/{id}", controllers.EditPeta).Methods("PUT")

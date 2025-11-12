@@ -7,6 +7,9 @@ import (
 	"net/http"
 )
 
+func ServePetaPage(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "templates/html/peta.html")
+}
 func GetPetaByCode(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	if code == "" {
