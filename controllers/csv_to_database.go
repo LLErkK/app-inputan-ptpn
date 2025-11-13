@@ -108,6 +108,7 @@ func findHeaderRowAndBaseIndex(rows [][]string, maxScan int) (int, int) {
 			c := strings.ReplaceAll(clean, "_", " ")
 			c = strings.ReplaceAll(c, "\"", "")
 			c = strings.TrimSpace(c)
+
 			if strings.Contains(c, "TAHUN TANAM") || c == "TAHUN" || c == "TAHUN_TANAM" {
 				return i, j
 			}
@@ -119,55 +120,92 @@ func findHeaderRowAndBaseIndex(rows [][]string, maxScan int) (int, int) {
 	return -1, -1
 }
 
-// detectTipeProduksi: deteksi tipe produksi dari baris kategori
-// Mengembalikan tipe produksi yang terdeteksi atau string kosong
+// detectTipeProduksi: PERBAIKAN - cari di SEMUA kolom, tidak peduli baseIdx
 func detectTipeProduksi(row []string, baseIdx int) string {
-	// Cek di sekitar kolom baseIdx untuk teks tipe produksi
 	for i := 0; i < len(row); i++ {
 		cell := strings.ToUpper(strings.TrimSpace(row[i]))
 		if cell == "" {
 			continue
 		}
 
-		// Deteksi berbagai variasi tipe produksi
-		if strings.Contains(cell, "PRODUKSI BAKU BORONG") {
-			return "PRODUKSI BAKU BORONG"
-		}
-		if strings.Contains(cell, "PRODUKSI BAKU") && !strings.Contains(cell, "BORONG") {
-			return "PRODUKSI BAKU"
-		}
-		if strings.Contains(cell, "PRODUKSI BORONG MINGGU") || strings.Contains(cell, "BORONG MINGGU") {
-			return "PRODUKSI BORONG MINGGU"
-		}
-		if strings.Contains(cell, "PRODUKSI BORONG INTERNAL") || strings.Contains(cell, "BORONG INTERNAL") {
-			return "PRODUKSI BORONG INTERNAL"
-		}
-		if strings.Contains(cell, "PRODUKSI BORONG EKSTERNAL") || strings.Contains(cell, "BORONG EKSTERNAL") {
-			return "PRODUKSI BORONG EKSTERNAL"
+		// PENTING: Urutan pengecekan dari yang paling spesifik ke general
+		if strings.Contains(cell, "REKAPITULASI") {
+			return "REKAPITULASI"
 		}
 		if strings.Contains(cell, "PRODUKSI TETES LANJUT") || strings.Contains(cell, "TETES LANJUT") {
 			return "PRODUKSI TETES LANJUT"
 		}
-		if strings.Contains(cell, "REKAPITULASI") || strings.Contains(cell, "REKAPITULASI") {
-			return "REKAPITULASI"
+		if strings.Contains(cell, "PRODUKSI BORONG EKSTERNAL") || strings.Contains(cell, "BORONG EKSTERNAL") {
+			return "PRODUKSI BORONG EKSTERNAL"
+		}
+		if strings.Contains(cell, "PRODUKSI BORONG INTERNAL") || strings.Contains(cell, "BORONG INTERNAL") {
+			return "PRODUKSI BORONG INTERNAL"
+		}
+		if strings.Contains(cell, "PRODUKSI BORONG MINGGU") || strings.Contains(cell, "BORONG MINGGU") {
+			return "PRODUKSI BORONG MINGGU"
+		}
+		if strings.Contains(cell, "PRODUKSI BAKU BORONG") || strings.Contains(cell, "BAKU BORONG") {
+			return "PRODUKSI BAKU BORONG"
+		}
+		// Check PRODUKSI BAKU terakhir (paling general)
+		if strings.Contains(cell, "PRODUKSI BAKU") {
+			return "PRODUKSI BAKU"
 		}
 	}
 	return ""
 }
 
-// isTipeProduksiRow: cek apakah baris ini adalah baris kategori tipe produksi
+// isTipeProduksiRow: PERBAIKAN - lebih robust dengan cek NIK dan TAHUN TANAM kosong
 func isTipeProduksiRow(row []string, baseIdx int) bool {
+	// Cek apakah ada tipe produksi di row ini
 	tipe := detectTipeProduksi(row, baseIdx)
-	return tipe != ""
+	if tipe == "" {
+		return false
+	}
+
+	// PENTING: Baris kategori produksi biasanya NIK dan TAHUN TANAM nya KOSONG
+	// Cek kolom TAHUN TANAM (baseIdx)
+	tahunTanam := ""
+	if baseIdx >= 0 && baseIdx < len(row) {
+		tahunTanam = strings.TrimSpace(row[baseIdx])
+	}
+
+	// Cek kolom NIK (baseIdx+1)
+	nik := ""
+	if baseIdx+1 >= 0 && baseIdx+1 < len(row) {
+		nik = strings.TrimSpace(row[baseIdx+1])
+	}
+
+	// Jika TAHUN TANAM dan NIK kosong, kemungkinan besar ini baris kategori
+	if tahunTanam == "" && nik == "" {
+		return true
+	}
+
+	// Jika salah satu ada isi, cek apakah isinya bukan angka (false positive)
+	// Baris kategori tidak boleh punya tahun valid
+	if tahunTanam != "" {
+		if regexp.MustCompile(`^\d{4}$`).MatchString(tahunTanam) {
+			return false // Ini data row, bukan kategori
+		}
+	}
+
+	return true
 }
 
-// isLikelySummaryRow: cek apakah row adalah baris ringkasan
+// isLikelySummaryRow: PERBAIKAN - tambah pengecekan untuk baris kategori produksi
 func isLikelySummaryRow(row []string, baseIdx int) bool {
+	// PENTING: Jangan skip baris kategori produksi!
+	if isTipeProduksiRow(row, baseIdx) {
+		return false
+	}
+
 	checkIdx := baseIdx + 1
 	if checkIdx < 0 || checkIdx >= len(row) {
 		return false
 	}
 	cell := strings.ToUpper(strings.TrimSpace(row[checkIdx]))
+
+	// Jika kolom NIK kosong, cek kolom TAHUN TANAM
 	if cell == "" {
 		c0 := strings.ToUpper(strings.TrimSpace(row[baseIdx]))
 		if strings.Contains(c0, "JUMLAH") || strings.Contains(c0, "SELISIH") ||
@@ -177,6 +215,7 @@ func isLikelySummaryRow(row []string, baseIdx int) bool {
 		}
 		return false
 	}
+
 	summaryKeys := []string{"JUMLAH", "SELISIH", "TOTAL", "K3", "%",
 		"JUMLAH PABRIK", "JUMLAH KEBUN", "RATA",
 		"RATA-RATA", "REKAPITULASI", "OW", "PROD. OW"}
@@ -185,6 +224,7 @@ func isLikelySummaryRow(row []string, baseIdx int) bool {
 			return true
 		}
 	}
+
 	if regexp.MustCompile(`^[A-Z ]+$`).MatchString(cell) && len(cell) <= 6 &&
 		!regexp.MustCompile(`[0-9]`).MatchString(cell) {
 		return true
@@ -412,7 +452,7 @@ func saveRekap(db *gorm.DB, rekap *models.Rekap) error {
 	return db.Create(rekap).Error
 }
 
-// processCSVFileAutoBaseWithFilter: detect baseIdx, filter summary rows, detect tipe produksi, save valid rows
+// processCSVFileAutoBaseWithFilter: PERBAIKAN dengan debugging lebih detail
 func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Time, afdeling string, idMaster uint64) (int, int, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -434,21 +474,14 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 
 	headerRow, baseIdx := findHeaderRowAndBaseIndex(rows, 30)
 	if headerRow == -1 || baseIdx == -1 {
-		baseIdx = -1
-		for j, c := range rows[0] {
-			if strings.Contains(strings.ToUpper(c), "TAHUN TANAM") ||
-				strings.Contains(strings.ToUpper(c), "NIK") {
-				baseIdx = j
-				headerRow = 0
-				break
-			}
-		}
-		if baseIdx == -1 {
-			return 0, 0, fmt.Errorf("tidak menemukan header 'TAHUN TANAM' atau 'NIK' di %s", path)
-		}
+		return 0, 0, fmt.Errorf("tidak menemukan header 'TAHUN TANAM' atau 'NIK' di %s", path)
 	}
 
-	start := headerRow + 1
+	fmt.Printf("DEBUG: Header found at row %d, baseIdx %d\n", headerRow, baseIdx)
+
+	// Skip 3 baris setelah header utama
+	start := headerRow + 3
+
 	saved, failed := 0, 0
 	currentTipeProduksi := "PRODUKSI BAKU" // default tipe produksi
 
@@ -467,43 +500,53 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 			continue
 		}
 
-		// deteksi tipe produksi baru
+		// PENTING: Deteksi tipe produksi SEBELUM cek summary row
 		if isTipeProduksiRow(row, baseIdx) {
 			newTipe := detectTipeProduksi(row, baseIdx)
 			if newTipe != "" {
 				currentTipeProduksi = newTipe
+				fmt.Printf("DEBUG Row %d: Category changed to '%s'\n", i, currentTipeProduksi)
 			}
 			continue
 		}
 
 		// skip likely summary rows
 		if isLikelySummaryRow(row, baseIdx) {
+			fmt.Printf("DEBUG Row %d: Skipped as summary row\n", i)
 			continue
 		}
 
 		// validate minimal data pattern
 		if !isValidDataRow(row, baseIdx) {
+			fmt.Printf("DEBUG Row %d: Invalid data row\n", i)
 			continue
 		}
 
-		// VALIDASI BARU: Skip jika HKO kosong
+		// VALIDASI: Skip jika tidak ada HKO dan tidak ada produksi
 		if !hasValidHKO(row, baseIdx) {
+			fmt.Printf("DEBUG Row %d: No HKO and no production data\n", i)
 			continue
 		}
 
 		rekap, err := mapRowRelative(row, baseIdx, tanggal, currentTipeProduksi, afdeling, idMaster)
 		if err != nil {
+			fmt.Printf("DEBUG Row %d: Failed to map - %v\n", i, err)
 			failed++
 			continue
 		}
 
 		if err := saveRekap(db, rekap); err != nil {
+			fmt.Printf("DEBUG Row %d: Failed to save - %v\n", i, err)
 			failed++
 			continue
 		}
+
 		saved++
+		fmt.Printf("DEBUG Row %d: ✓ Saved - NIK: %s, Mandor: %s, Tipe: %s\n",
+			i, rekap.NIK, rekap.Mandor, rekap.TipeProduksi)
 	}
 
+	fmt.Printf("\nSUMMARY: Saved=%d, Failed=%d, Total Processed=%d\n", saved, failed, saved+failed)
 	return saved, failed, nil
 }
 

@@ -20,12 +20,15 @@ type DataPoint struct {
 	Value   float64 `json:"value"`
 }
 
-func getMandorByID(idMandor int) (string, string) {
-	var mandor models.BakuMandor
-	if err := config.DB.First(&mandor, idMandor).Error; err != nil {
-		return "", ""
+func getMandorByID(idMandor int) (string, string, error) {
+	var mandor models.Mandor
+	db := config.GetDB().Debug() // aktifkan log query
+
+	if err := db.First(&mandor, idMandor).Error; err != nil {
+		return "", "", err
 	}
-	return mandor.NIK, strconv.Itoa(int(mandor.TahunTanam))
+
+	return mandor.NIK, mandor.TahunTanam, nil
 }
 
 func GetVisualisasiRekap(w http.ResponseWriter, r *http.Request) {
@@ -36,9 +39,6 @@ func GetVisualisasiRekap(w http.ResponseWriter, r *http.Request) {
 	tanggalAwal := r.URL.Query().Get("tanggalAwal")
 	tanggalAkhir := r.URL.Query().Get("tanggalAkhir")
 	satuan := r.URL.Query().Get("satuan")
-	//get nik dan tahuntanam
-	intidMandor, _ := strconv.Atoi(idMandor)
-	nikMandor, tahunTanam := getMandorByID(intidMandor)
 
 	// Validasi parameter wajib
 	if tipeData == "" {
@@ -75,6 +75,7 @@ func GetVisualisasiRekap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var nikMandor, tahunTanam string
 	var result VisualisasiResponse
 	var err error
 
@@ -88,10 +89,25 @@ func GetVisualisasiRekap(w http.ResponseWriter, r *http.Request) {
 		}
 		result, err = visualisasiAfdeling(tipeProduksi, afdeling, tanggalAwal, tanggalAkhir, satuan)
 	case "mandor":
-		if nikMandor == "" {
-			http.Error(w, "Parameter nikMandor tidak boleh kosong untuk tipe 'mandor'", http.StatusBadRequest)
+		// Validasi idMandor dulu sebelum konversi
+		if idMandor == "" {
+			http.Error(w, "Parameter idMandor tidak boleh kosong untuk tipe 'mandor'", http.StatusBadRequest)
 			return
 		}
+
+		// Konversi dan ambil data mandor
+		intidMandor, convErr := strconv.Atoi(idMandor)
+		if convErr != nil {
+			http.Error(w, "Parameter idMandor tidak valid", http.StatusBadRequest)
+			return
+		}
+
+		nikMandor, tahunTanam, err = getMandorByID(intidMandor)
+		if err != nil {
+			http.Error(w, "Data mandor dengan ID "+idMandor+" tidak ditemukan", http.StatusNotFound)
+			return
+		}
+
 		result, err = visualisasiMandor(tipeProduksi, afdeling, nikMandor, tahunTanam, tanggalAwal, tanggalAkhir, satuan)
 	default:
 		http.Error(w, "Parameter tipeData tidak valid. Gunakan: total, afdeling, atau mandor", http.StatusBadRequest)
@@ -116,8 +132,8 @@ func visualisasiTotal(tipeProduksi, tanggalAwal, tanggalAkhir, satuan string) (V
 	endDate, _ := time.Parse("2006-01-02", tanggalAkhir)
 	query = query.Where("tanggal BETWEEN ? AND ?", startDate, endDate)
 
-	// Exclude tipe_produksi = REKAPITULASI
-	query = query.Where("tipe_produksi != ?", "REKAPITULASI")
+	// FIX: Exclude tipe_produksi = REKAPITULASI
+	query = query.Where("tipe_produksi = ?", "REKAPITULASI")
 
 	if tipeProduksi != "" && tipeProduksi != "-" {
 		query = query.Where("tipe_produksi = ?", tipeProduksi)

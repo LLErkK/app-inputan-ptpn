@@ -6,3 +6,7 @@ type Mandor struct {
 	NIK        string `json:"nik"`
 	Nama       string `json:"nama"`
 }
+
+func (Mandor) TableName() string {
+	return "mandors"
+}
