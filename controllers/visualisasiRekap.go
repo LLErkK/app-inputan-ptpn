@@ -116,6 +116,9 @@ func visualisasiTotal(tipeProduksi, tanggalAwal, tanggalAkhir, satuan string) (V
 	endDate, _ := time.Parse("2006-01-02", tanggalAkhir)
 	query = query.Where("tanggal BETWEEN ? AND ?", startDate, endDate)
 
+	// Exclude tipe_produksi = REKAPITULASI
+	query = query.Where("tipe_produksi != ?", "REKAPITULASI")
+
 	if tipeProduksi != "" && tipeProduksi != "-" {
 		query = query.Where("tipe_produksi = ?", tipeProduksi)
 	}
@@ -137,6 +140,9 @@ func visualisasiAfdeling(tipeProduksi, afdeling, tanggalAwal, tanggalAkhir, satu
 	query = query.Where("tanggal BETWEEN ? AND ?", startDate, endDate)
 	query = query.Where("afdeling = ?", afdeling)
 
+	// Exclude tipe_produksi = REKAPITULASI
+	query = query.Where("tipe_produksi != ?", "REKAPITULASI")
+
 	if tipeProduksi != "" && tipeProduksi != "-" {
 		query = query.Where("tipe_produksi = ?", tipeProduksi)
 	}
@@ -147,6 +153,7 @@ func visualisasiAfdeling(tipeProduksi, afdeling, tanggalAwal, tanggalAkhir, satu
 
 	return aggregateData(rekaps, satuan), nil
 }
+
 func visualisasiMandor(tipeProduksi, afdeling, nikMandor, tahunTanam, tanggalAwal, tanggalAkhir, satuan string) (VisualisasiResponse, error) {
 	var rekaps []models.Rekap
 	db := config.GetDB()
@@ -158,6 +165,9 @@ func visualisasiMandor(tipeProduksi, afdeling, nikMandor, tahunTanam, tanggalAwa
 
 	// Wajib filter berdasarkan NIK mandor
 	query = query.Where("nik = ?", nikMandor)
+
+	// Exclude tipe_produksi = REKAPITULASI
+	query = query.Where("tipe_produksi != ?", "REKAPITULASI")
 
 	// Jika tahunTanam dikirim (tidak kosong dan tidak "-"), tambahkan filter
 	if tahunTanam != "" && tahunTanam != "-" {
