@@ -5,31 +5,292 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visualisasi Dashboard</title>
     <link rel="stylesheet" href="/css/visual.css">
+    <style>
+        /* Popup Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            z-index: 9999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+            animation: slideUp 0.4s ease;
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .modal-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .modal-options {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .option-card {
+            flex: 1;
+            padding: 30px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .option-card:hover {
+            border-color: #0093E9;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 147, 233, 0.2);
+        }
+
+        .option-card.selected {
+            border-color: #0093E9;
+            background: linear-gradient(135deg, #0093E9, #80D0C7);
+            color: white;
+        }
+
+        .option-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .option-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .option-card.selected .option-title,
+        .option-card.selected .option-desc {
+            color: white;
+        }
+
+        .option-desc {
+            font-size: 13px;
+            color: #666;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Autocomplete Dropdown Styles */
+        .autocomplete-wrapper {
+            position: relative;
+        }
+
+        .autocomplete-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            border: 2px solid #e8f4f8;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            margin-top: -1px;
+        }
+
+        .autocomplete-dropdown.active {
+            display: block;
+        }
+
+        .autocomplete-item {
+            padding: 12px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s ease;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:hover {
+            background-color: rgba(0, 147, 233, 0.1);
+        }
+
+        .autocomplete-no-results {
+            padding: 16px;
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+        }
+
+        /* Scrollbar styling */
+        .autocomplete-dropdown::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .autocomplete-dropdown::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 0 0 10px 0;
+        }
+
+        .autocomplete-dropdown::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        .autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        .autocomplete-item strong {
+            color: #2c3e50;
+            display: block;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        .autocomplete-item small {
+            color: #7f8c8d;
+            font-size: 0.85em;
+        }
+    </style>
 </head>
 <body>
-    <div class="visual-container">
-      <h1>VISUALISASI</h1>
+    <!-- Popup Modal -->
+    <div class="modal-overlay" id="typeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Pilih Tipe Visualisasi</h2>
+                <p>Pilih tipe data yang ingin Anda visualisasikan</p>
+            </div>
+            <div class="modal-options">
+                <div class="option-card" data-type="rekap" onclick="selectAndConfirm('rekap')">
+                    <div class="option-icon">📊</div>
+                    <div class="option-title">Rekap</div>
+                    <div class="option-desc">Data agregat mandor & total</div>
+                </div>
+                <div class="option-card" data-type="produksi" onclick="selectAndConfirm('produksi')">
+                    <div class="option-icon">🏭</div>
+                    <div class="option-title">Produksi</div>
+                    <div class="option-desc">Data detail penyadap</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="visual-container" id="mainContainer" style="display: none;">
+      <h1>VISUALISASI <span id="typeLabel"></span></h1>
       <form class="visual-form" id="visualForm">            
           <div class="form-row">
-                <div class="form-group">
-                    <label for="namaMandor">Nama Mandor</label>
-                    <input type="text" id="namaMandor" name="namaMandor" placeholder="Isi nama mandor..." autocomplete="off" style="width:100%;">
+                <div class="form-group" id="tipeDataGroup">
+                    <label for="tipeData">Tipe Data</label>
+                    <select id="tipeData" name="tipeData" style="width:100%;">
+                        <option value="total">Total</option>
+                        <option value="afdeling">Afdeling</option>
+                        <option value="mandor">Mandor</option>
+                    </select>
                 </div>
+
+                <div class="form-group" id="afdelingGroup" style="display:none;">
+                    <label for="kodeAfdeling">Kode Afdeling</label>
+                    <select id="kodeAfdeling" name="kodeAfdeling" style="width:100%;">
+                        <option value="">-- Pilih Afdeling --</option>
+                        <option value="Klepu">Klepu</option>
+                        <option value="Setro">Setro</option>
+                        <option value="Jatiroenggo">Jatiroenggo</option>
+                        <option value="Gebugan">Gebugan</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="mandorGroup" style="display:none;">
+                    <label for="nikMandor">NIK Mandor</label>
+                    <div class="autocomplete-wrapper" style="position: relative;">
+                        <input type="text" id="mandorSearch" name="mandorSearch" placeholder="Ketik nama mandor..." autocomplete="off" style="width:100%;">
+                        <input type="hidden" id="nikMandor" name="nikMandor">
+                        <div id="mandorDropdown" class="autocomplete-dropdown"></div>
+                    </div>
+                </div>
+
+                <div class="form-group" id="penyadapGroup" style="display:none;">
+                    <label for="idPenyadap">Nama Penyadap</label>
+                    <div class="autocomplete-wrapper" style="position: relative;">
+                        <input type="text" id="penyadapSearch" name="penyadapSearch" placeholder="Ketik nama penyadap..." autocomplete="off" style="width:100%;">
+                        <input type="hidden" id="idPenyadap" name="idPenyadap">
+                        <div id="penyadapDropdown" class="autocomplete-dropdown"></div>
+                    </div>
+                </div>
+
+                <div class="form-group" id="tipeProduksiGroup" style="display:none;">
+                    <label for="tipeProduksi">Tipe Produksi (Opsional)</label>
+                    <select id="tipeProduksi" name="tipeProduksi" style="width:100%;">
+                        <option value="">-- Semua Tipe --</option>
+                        <option value="PRODUKSI BAKU">Baku</option>
+                        <option value="PRODUKSI BAKU BORONG">Baku Borong</option>
+                        <option value="PRODUKSI BORONG EXTERNAL">Borong Eksternal</option>
+                        <option value="PRODUKSI BORONG INTERNAL">Borong Internal</option>
+                        <option value="PRODUKSI BORONG MINGGU">Borong Minggu</option>
+                        <option value="PRODUKSI TETES LANJUT">Tetes Lanjut</option>
+                    </select>
+                </div>
+                
                 <div class="form-group">
-                    <label for="namaPenyadap">Nama Penyadap</label>
-                    <input type="text" id="namaPenyadap" name="namaPenyadap" placeholder="Isi nama penyadap..." autocomplete="off" style="width:100%;">
-                </div>  
-                <div class="form-group">
-                    <label for="fieldSelect">Metrik yang Ditampilkan</label>
+                    <label for="fieldSelect">Satuan</label>
                     <select id="fieldSelect" name="fieldSelect" style="width:100%;">
-                        <option value="jumlah_pabrik_basah_latek">Pabrik Basah Latek</option>
-                        <option value="jumlah_kebun_basah_latek">Kebun Basah Latek</option>
-                        <option value="jumlah_sheet">Jumlah Sheet</option>
+                        <option value="hko">HKO</option>
+                        <option value="basah_latek_kebun">Basah Latek Kebun</option>
+                        <option value="basah_latek_Pabrik">Basah Latek Pabrik</option>
+                        <option value="basah_latek_persen">Basah Latek Persen</option>
+                        <option value="basah_lump_kebun">Basah Lump Kebun</option>
+                        <option value="basah_lump_pabrik">Basah Lump Pabrik</option>
+                        <option value="basah_lump_persen">Basah Lump Persen</option>
                         <option value="k3_sheet">K3 Sheet</option>
-                        <option value="jumlah_pabrik_basah_lump">Pabrik Basah Lump</option>
-                        <option value="jumlah_kebun_basah_lump">Kebun Basah Lump</option>
-                        <option value="jumlah_br_cr">Jumlah BR/CR</option>
-                        <option value="k3_br_cr">K3 BR/CR</option>
+                        <option value="kering_sheet">Kering Sheet</option>
+                        <option value="kering_br_cr">Kering Br.Cr</option>
+                        <option value="kering_jumlah">Kering Jumlah</option>
+                        <option value="produksi_per_taper">Produksi Pertaper</option>
                     </select>
                 </div>
                 
@@ -39,32 +300,19 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="bulan">Bulan</label>
-                    <select id="bulan" name="bulan" style="width:100%;">
-                        <option value="">Bulan Ini</option>
-                        <option value="1">Januari</option>
-                        <option value="2">Februari</option>
-                        <option value="3">Maret</option>
-                        <option value="4">April</option>
-                        <option value="5">Mei</option>
-                        <option value="6">Juni</option>
-                        <option value="7">Juli</option>
-                        <option value="8">Agustus</option>
-                        <option value="9">September</option>
-                        <option value="10">Oktober</option>
-                        <option value="11">November</option>
-                        <option value="12">Desember</option>
-                    </select>
+                    <label for="tanggalAwal">Tanggal Awal</label>
+                    <input type="date" id="tanggalAwal" name="tanggalAwal" style="width:100%;">
                 </div>
                 
                 <div class="form-group">
-                    <label for="tahun">Tahun</label>
-                    <input type="number" id="tahun" name="tahun" placeholder="Tahun (kosongkan untuk tahun ini)" min="2020" max="2099">
+                    <label for="tanggalAkhir">Tanggal Akhir</label>
+                    <input type="date" id="tanggalAkhir" name="tanggalAkhir" style="width:100%;">
                 </div>
           </div>
             
           <div class="form-action-row">
-              <button type="button" class="update-btn" onclick="handleJenisChange()" style="background: linear-gradient(135deg, #0093E9, #80D0C7); color: white; border: none; padding: 15px 40px; border-radius: 25px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); text-transform: uppercase; letter-spacing: 1px;">Update Grafik</button>
+              <button type="button" class="update-btn" onclick="handleUpdateGrafik()" style="background: linear-gradient(135deg, #0093E9, #80D0C7); color: white; border: none; padding: 15px 40px; border-radius: 25px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); text-transform: uppercase; letter-spacing: 1px;">Update Grafik</button>
+              <button type="button" class="update-btn" onclick="showModal()" style="background: linear-gradient(135deg, #FF6B6B, #FFE66D); color: white; border: none; padding: 15px 40px; border-radius: 25px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4); text-transform: uppercase; letter-spacing: 1px;">Ganti Tipe</button>
           </div>
       </form>
         
@@ -74,18 +322,18 @@
           <div class="time-toggle" role="tablist" aria-label="Pilih rentang waktu">
               <button type="button" class="time-btn active" data-range="day">
                   <span class="ico">📅</span>
-                  <span class="label">Hari</span>
+                  <span class="label">Harian</span>
+              </button>
+              <button type="button" class="time-btn" data-range="week">
+                  <span class="ico">📊</span>
+                  <span class="label">Mingguan</span>
               </button>
               <button type="button" class="time-btn" data-range="month">
-                  <span class="ico">📊</span>
-                  <span class="label">Bulan</span>
-              </button>
-              <button type="button" class="time-btn" data-range="years">
                   <span class="ico">📈</span>
-                  <span class="label">Tahun</span>
+                  <span class="label">Bulanan</span>
               </button>
           </div>
-          <div class="chart-subtitle" id="dynamicChartSubtitle">Ringkasan produksi harian, mingguan, dan bulanan</div>
+          <div class="chart-subtitle" id="dynamicChartSubtitle">Ringkasan produksi berdasarkan satuan waktu</div>
         </div>
           <div class="bar-controls">
               <label>

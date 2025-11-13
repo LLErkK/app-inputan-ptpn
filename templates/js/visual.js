@@ -1,115 +1,473 @@
 // State untuk menyimpan data
 let currentData = [];
 let currentApiData = [];
+let selectedVisualisationType = null; // 'rekap' atau 'produksi'
+let penyadapList = []; // Store penyadap list for autocomplete
+let mandorList = []; // Store mandor list for autocomplete
 let currentConfig = {
     threshold: 150,
     title: 'Grafik Produksi',
-    field: 'jumlah_pabrik_basah_latek',
+    field: 'hko',
     showTrend: true,
-    showThreshold: true
+    showThreshold: true,
+    satuan: 'day' // default satuan waktu untuk grouping chart
 };
 
-// Fungsi untuk fetch list mandor dari API
-async function fetchMandorList() {
+// ========== POPUP MODAL FUNCTIONS ==========
+
+function showModal() {
+    const modal = document.getElementById('typeModal');
+    modal.classList.add('active');
+    
+    // Reset selection
+    document.querySelectorAll('.option-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+}
+
+function closeModal() {
+    const modal = document.getElementById('typeModal');
+    modal.classList.remove('active');
+}
+
+function selectAndConfirm(type) {
+    selectedVisualisationType = type;
+    
+    // Highlight card sementara
+    document.querySelectorAll('.option-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    document.querySelector(`[data-type="${type}"]`).classList.add('selected');
+    
+    // Tunggu sebentar untuk animasi, lalu langsung masuk
+    setTimeout(() => {
+        closeModal();
+        initializeVisualization();
+    }, 300);
+}
+
+function initializeVisualization() {
+    const mainContainer = document.getElementById('mainContainer');
+    const typeLabel = document.getElementById('typeLabel');
+    const tipeDataSelect = document.getElementById('tipeData');
+    const tipeDataGroup = document.getElementById('tipeDataGroup');
+    
+    mainContainer.style.display = 'block';
+    
+    if (selectedVisualisationType === 'rekap') {
+        typeLabel.textContent = '- REKAP';
+        typeLabel.style.color = '#0093E9';
+        
+        // Setup untuk Rekap: total, afdeling, mandor
+        tipeDataSelect.innerHTML = `
+            <option value="total">Total</option>
+            <option value="afdeling">Afdeling</option>
+            <option value="mandor">Mandor</option>
+        `;
+        tipeDataGroup.style.display = 'block';
+        
+        // Setup autocomplete untuk mandor
+        setupMandorAutocomplete();
+        
+        // Trigger change event untuk update visibility
+        handleTipeDataChange();
+        
+    } else if (selectedVisualisationType === 'produksi') {
+        typeLabel.textContent = '- PRODUKSI';
+        typeLabel.style.color = '#FF6B6B';
+        
+        // Setup untuk Produksi: hanya penyadap
+        tipeDataSelect.innerHTML = `
+            <option value="penyadap">Penyadap</option>
+        `;
+        tipeDataGroup.style.display = 'none';
+        
+        // Setup autocomplete
+        setupPenyadapAutocomplete();
+        
+        // Auto trigger untuk show penyadap fields
+        handleTipeDataChange();
+    }
+}
+
+// ========== API FUNCTIONS ==========
+
+async function populateMandorDropdown() {
     try {
-        const response = await fetch('/api/mandor'); // Sesuaikan dengan endpoint Anda
+        const response = await fetch('/api/mandor');
         const result = await response.json();
         
         if (result.success && result.data) {
-            return result.data;
+            mandorList = result.data;
+            console.log('Mandor list loaded:', mandorList.length, 'items');
         }
-        return [];
     } catch (error) {
         console.error('Error fetching mandor list:', error);
-        return [];
+        mandorList = [];
     }
 }
 
-// Fungsi untuk fetch list penyadap dari API
-async function fetchPenyadapList() {
+// Setup autocomplete untuk mandor
+function setupMandorAutocomplete() {
+    const searchInput = document.getElementById('mandorSearch');
+    const hiddenInput = document.getElementById('nikMandor');
+    const dropdown = document.getElementById('mandorDropdown');
+    
+    if (!searchInput || !dropdown) return;
+    
+    // Event ketika user mengetik
+    searchInput.addEventListener('input', function() {
+        const value = this.value.toLowerCase();
+        
+        // Cek apakah user sudah pernah memilih
+        const storedDisplayValue = searchInput.getAttribute('data-display-value');
+        if (storedDisplayValue && searchInput.value === storedDisplayValue) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        // Jika user mengubah text, clear data attributes
+        if (storedDisplayValue && searchInput.value !== storedDisplayValue) {
+            searchInput.removeAttribute('data-nik');
+            searchInput.removeAttribute('data-nama');
+            searchInput.removeAttribute('data-display-value');
+            hiddenInput.value = '';
+        }
+        
+        if (value.length < 2) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        if (mandorList.length === 0) {
+            dropdown.innerHTML = '<div class="autocomplete-item" style="color: #e74c3c; cursor: default;">⚠️ Data mandor kosong</div>';
+            dropdown.style.display = 'block';
+            return;
+        }
+        
+        // Filter mandor berdasarkan query
+        const filtered = mandorList.filter(m => 
+            m.nama.toLowerCase().includes(value) || 
+            (m.nik && m.nik.toLowerCase().includes(value))
+        );
+        
+        if (filtered.length === 0) {
+            dropdown.innerHTML = '<div class="autocomplete-item" style="color: #999; cursor: default;">Tidak ada hasil ditemukan</div>';
+            dropdown.style.display = 'block';
+            return;
+        }
+        
+        // Render hasil
+        dropdown.innerHTML = '';
+        filtered.forEach(mandor => {
+            const item = document.createElement('div');
+            item.className = 'autocomplete-item';
+            item.innerHTML = `
+                <strong>${mandor.nama}</strong><br>
+                <small>NIK: ${mandor.nik}</small>
+            `;
+            
+            item.onclick = function() {
+                const displayValue = `${mandor.nama} (${mandor.nik})`;
+                searchInput.setAttribute('data-nik', mandor.nik);
+                searchInput.setAttribute('data-nama', mandor.nama);
+                searchInput.setAttribute('data-display-value', displayValue);
+                searchInput.value = displayValue;
+                hiddenInput.value = mandor.nik;
+                dropdown.style.display = 'none';
+                console.log('Mandor selected:', {nik: mandor.nik, nama: mandor.nama});
+            };
+            
+            dropdown.appendChild(item);
+        });
+        
+        dropdown.style.display = 'block';
+    });
+    
+    // Close dropdown ketika klik di luar
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+    
+    // Prevent form submission on Enter
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            
+            // Jika ada item di dropdown, pilih yang pertama
+            const firstItem = dropdown.querySelector('.autocomplete-item');
+            if (firstItem && firstItem.onclick) {
+                firstItem.click();
+            }
+        }
+    });
+}
+
+async function populatePenyadapDropdown() {
     try {
-        const response = await fetch('/api/penyadap'); // Sesuaikan dengan endpoint Anda
+        const response = await fetch('/api/penyadap');
         const result = await response.json();
         
         if (result.success && result.data) {
-            return result.data;
+            penyadapList = result.data;
+            console.log('Penyadap list loaded:', penyadapList.length, 'items');
+        } else if (Array.isArray(result)) {
+            penyadapList = result;
+            console.log('Penyadap list loaded:', penyadapList.length, 'items');
         }
-        return [];
     } catch (error) {
         console.error('Error fetching penyadap list:', error);
-        return [];
+        penyadapList = [];
     }
 }
 
-// Fungsi untuk populate dropdown mandor
-async function populateMandorDropdown() {
-    const select = document.getElementById('namaMandor');
-    const mandorList = await fetchMandorList();
+// Setup autocomplete untuk penyadap
+function setupPenyadapAutocomplete() {
+    const searchInput = document.getElementById('penyadapSearch');
+    const hiddenInput = document.getElementById('idPenyadap');
+    const dropdown = document.getElementById('penyadapDropdown');
     
-    // Clear existing options except first one
-    select.innerHTML = '<option value="">-- Pilih Mandor --</option>';
+    if (!searchInput || !dropdown) {
+        console.error('❌ Penyadap autocomplete elements not found!');
+        return;
+    }
     
-    mandorList.forEach(mandor => {
-        const option = document.createElement('option');
-        option.value = mandor.id; // Gunakan ID
-        option.textContent = mandor.nama; // Tampilkan nama
-        select.appendChild(option);
+    console.log('✅ Penyadap autocomplete initialized');
+    
+    // Event ketika user mengetik
+    searchInput.addEventListener('input', function() {
+        const value = this.value.toLowerCase();
+        
+        console.log('🔍 Penyadap search input:', value);
+        console.log('📊 Penyadap list length:', penyadapList.length);
+        
+        // Cek apakah user sudah pernah memilih
+        const storedDisplayValue = searchInput.getAttribute('data-display-value');
+        if (storedDisplayValue && searchInput.value === storedDisplayValue) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        // Jika user mengubah text, clear data attributes
+        if (storedDisplayValue && searchInput.value !== storedDisplayValue) {
+            searchInput.removeAttribute('data-id');
+            searchInput.removeAttribute('data-nama');
+            searchInput.removeAttribute('data-nik');
+            searchInput.removeAttribute('data-display-value');
+            hiddenInput.value = '';
+        }
+        
+        if (value.length < 2) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        if (penyadapList.length === 0) {
+            dropdown.innerHTML = '<div class="autocomplete-item" style="color: #e74c3c; cursor: default;">⚠️ Data penyadap kosong. Cek endpoint /api/penyadap</div>';
+            dropdown.style.display = 'block';
+            console.warn('⚠️ Penyadap list is empty!');
+            return;
+        }
+        
+        // Log first item structure
+        if (penyadapList.length > 0) {
+            console.log('🔑 First penyadap object keys:', Object.keys(penyadapList[0]));
+            console.log('👤 First penyadap full object:', penyadapList[0]);
+        }
+        
+        // Detect field names dynamically
+        const firstItem = penyadapList[0];
+        const nameField = Object.keys(firstItem).find(key => {
+            const lowerKey = key.toLowerCase();
+            return lowerKey === 'nama' || 
+                   lowerKey === 'nama_penyadap' || 
+                   lowerKey === 'namapenyadap';
+        }) || 'nama';
+        
+        const nikField = Object.keys(firstItem).find(key => {
+            const lowerKey = key.toLowerCase();
+            return lowerKey === 'nik';
+        }) || 'nik';
+        
+        const idField = Object.keys(firstItem).find(key => {
+            const lowerKey = key.toLowerCase();
+            return lowerKey === 'id';
+        }) || 'id';
+        
+        console.log('🎯 Detected fields:', {nameField, nikField, idField});
+        
+        // Filter penyadap berdasarkan query
+        const filtered = penyadapList.filter(p => {
+            const penyadapName = p[nameField] ? String(p[nameField]) : '';
+            const nikValue = p[nikField] ? String(p[nikField]) : '';
+            
+            const nameMatch = penyadapName.toLowerCase().includes(value);
+            const nikMatch = nikValue.includes(value);
+            
+            return nameMatch || nikMatch;
+        });
+        
+        console.log('✅ Filtered penyadap results:', filtered.length);
+        
+        if (filtered.length === 0) {
+            dropdown.innerHTML = `<div class="autocomplete-item" style="color: #999; cursor: default;">
+                Tidak ada hasil ditemukan<br>
+                <small>Total data: ${penyadapList.length} | Mencari: "${value}"</small>
+            </div>`;
+            dropdown.style.display = 'block';
+            return;
+        }
+        
+        // Render hasil
+        dropdown.innerHTML = '';
+        filtered.forEach(penyadap => {
+            const penyadapName = penyadap[nameField] || 'N/A';
+            const nikValue = penyadap[nikField] || '';
+            const idValue = penyadap[idField] || 0;
+            
+            const item = document.createElement('div');
+            item.className = 'autocomplete-item';
+            item.innerHTML = `
+                <strong>${penyadapName}</strong><br>
+                <small>${nikValue ? 'NIK: ' + nikValue : 'ID: ' + idValue}</small>
+            `;
+            
+            item.onclick = function() {
+                const displayValue = nikValue ? `${penyadapName} (${nikValue})` : penyadapName;
+                searchInput.setAttribute('data-id', idValue);
+                searchInput.setAttribute('data-nama', penyadapName);
+                if (nikValue) searchInput.setAttribute('data-nik', nikValue);
+                searchInput.setAttribute('data-display-value', displayValue);
+                searchInput.value = displayValue;
+                hiddenInput.value = idValue;
+                dropdown.style.display = 'none';
+                console.log('✅ Penyadap selected:', {id: idValue, nama: penyadapName, nik: nikValue});
+            };
+            
+            dropdown.appendChild(item);
+        });
+        
+        dropdown.style.display = 'block';
+    });
+    
+    // Close dropdown ketika klik di luar
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+    
+    // Prevent form submission on Enter
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            
+            // Jika ada item di dropdown, pilih yang pertama
+            const firstItem = dropdown.querySelector('.autocomplete-item');
+            if (firstItem && firstItem.onclick) {
+                firstItem.click();
+            }
+        }
     });
 }
 
-// Fungsi untuk populate dropdown penyadap
-async function populatePenyadapDropdown() {
-    const select = document.getElementById('namaPenyadap');
-    const penyadapList = await fetchPenyadapList();
+// ========== HANDLER FUNCTIONS ==========
+
+function handleTipeDataChange() {
+    const tipeData = document.getElementById('tipeData').value;
+    const afdelingGroup = document.getElementById('afdelingGroup');
+    const mandorGroup = document.getElementById('mandorGroup');
+    const penyadapGroup = document.getElementById('penyadapGroup');
+    const tipeProduksiGroup = document.getElementById('tipeProduksiGroup');
     
-    // Clear existing options except first one
-    select.innerHTML = '<option value="">-- Pilih Penyadap --</option>';
+    // Reset visibility
+    afdelingGroup.style.display = 'none';
+    mandorGroup.style.display = 'none';
+    penyadapGroup.style.display = 'none';
+    tipeProduksiGroup.style.display = 'none';
     
-    penyadapList.forEach(penyadap => {
-        const option = document.createElement('option');
-        option.value = penyadap.id; // Gunakan ID
-        option.textContent = penyadap.nama; // Tampilkan nama
-        select.appendChild(option);
-    });
+    // Show sesuai tipe
+    if (tipeData === 'afdeling') {
+        afdelingGroup.style.display = 'block';
+    } else if (tipeData === 'mandor') {
+        mandorGroup.style.display = 'block';
+    } else if (tipeData === 'penyadap') {
+        penyadapGroup.style.display = 'block';
+        tipeProduksiGroup.style.display = 'block';
+    }
 }
 
-// Fungsi untuk fetch data dari API
-async function fetchData(idMandor, idPenyadap, bulan, tahun) {
+async function fetchVisualisasiData(params) {
     try {
-        let url = '/api/visualisasi/default';
-        const params = [];
-        
-        // Jika ada ID mandor atau penyadap, gunakan endpoint yang sesuai
-        if (idMandor && idMandor.trim() !== '') {
-            url = '/api/visualisasi/mandor';
-            params.push(`idMandor=${encodeURIComponent(idMandor)}`);
-        } else if (idPenyadap && idPenyadap.trim() !== '') {
-            url = '/api/visualisasi/penyadap';
-            params.push(`idPenyadap=${encodeURIComponent(idPenyadap)}`);
-        }
-        
-        if (bulan) {
-            params.push(`bulan=${bulan}`);
-        }
-        if (tahun) {
-            params.push(`tahun=${tahun}`);
-        }
-        
-        if (params.length > 0) {
-            url += '?' + params.join('&');
-        }
+        const queryString = new URLSearchParams(params).toString();
+        const url = `/api/visualisasi?${queryString}`;
         
         console.log('Fetching from:', url);
+        console.log('Params:', params);
         
         const response = await fetch(url);
-        const result = await response.json();
         
-        console.log('API Response:', result);
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers.get('content-type'));
         
-        if (result.success && result.data) {
+        // Cek apakah response OK
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('API Error Response:', errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        
+        // Ambil text dulu untuk debugging
+        const responseText = await response.text();
+        console.log('Raw response:', responseText.substring(0, 500));
+        
+        // Coba parse JSON
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('JSON Parse Error:', parseError);
+            console.error('Response text:', responseText);
+            throw new Error(`Response bukan JSON valid. Response: ${responseText.substring(0, 100)}...`);
+        }
+        
+        console.log('Parsed result:', result);
+        console.log('Result type:', typeof result);
+        console.log('Is array?', Array.isArray(result));
+        if (result && typeof result === 'object') {
+            console.log('Object keys:', Object.keys(result));
+        }
+        
+        // Handle berbagai format response
+        // Format 1: {success: true, data: [...]}
+        if (result && result.success && result.data) {
+            console.log('✅ Format 1: {success, data}');
             return result.data;
-        } else {
-            throw new Error(result.message || 'Gagal mengambil data');
+        } 
+        // Format 2: Array langsung
+        else if (Array.isArray(result)) {
+            console.log('✅ Format 2: Array langsung');
+            return result;
+        }
+        // Format 3: {labels: [...], data: [...]}
+        else if (result && result.labels && Array.isArray(result.labels)) {
+            console.log('✅ Format 3: {labels, data}');
+            // Convert ke format standar
+            return result.labels.map((label, index) => ({
+                tanggal: label,
+                value: result.data && result.data[index] ? result.data[index].value : 0
+            }));
+        }
+        // Format 4: {success: false, message: '...'}
+        else if (result && result.success === false) {
+            throw new Error(result.message || 'Gagal mengambil data dari server');
+        } 
+        // Format tidak dikenali
+        else {
+            console.error('❌ Format tidak dikenali. Result:', result);
+            throw new Error('Format response tidak sesuai. Cek console untuk detail.');
         }
     } catch (error) {
         console.error('Error fetching data:', error);
@@ -118,53 +476,120 @@ async function fetchData(idMandor, idPenyadap, bulan, tahun) {
     }
 }
 
-// Fungsi untuk mengubah data API menjadi format chart
-function transformDataForChart(apiData, fieldName) {
-    // Group by tanggal dan sum nilai
-    const grouped = {};
-    
-    apiData.forEach(item => {
-        const date = new Date(item.tanggal).toLocaleDateString('id-ID', { 
-            day: '2-digit', 
-            month: 'short' 
+function transformDataForChart(apiData, fieldName, satuanWaktu) {
+    // Cek apakah data sudah dalam format yang benar dari API
+    // Format API: [{tanggal: "2025-11-10", value: 21484}, ...]
+    if (apiData.length > 0 && apiData[0].hasOwnProperty('value') && apiData[0].hasOwnProperty('tanggal')) {
+        console.log('✅ Data already aggregated from API');
+        
+        // Data sudah diagregasi dari API, tinggal grouping berdasarkan satuanWaktu
+        const grouped = {};
+        
+        apiData.forEach(item => {
+            let key;
+            const date = new Date(item.tanggal);
+            
+            // Format key berdasarkan satuan waktu untuk grouping
+            if (satuanWaktu === 'day') {
+                key = date.toLocaleDateString('id-ID', { 
+                    day: '2-digit', 
+                    month: 'short',
+                    year: 'numeric'
+                });
+            } else if (satuanWaktu === 'week') {
+                const weekNum = Math.ceil(date.getDate() / 7);
+                key = `Minggu ${weekNum} ${date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
+            } else if (satuanWaktu === 'month') {
+                key = date.toLocaleDateString('id-ID', { 
+                    month: 'long',
+                    year: 'numeric'
+                });
+            }
+            
+            if (!grouped[key]) {
+                grouped[key] = { total: 0, count: 0 };
+            }
+            
+            grouped[key].total += parseFloat(item.value) || 0;
+            grouped[key].count += 1;
         });
         
-        if (!grouped[date]) {
-            grouped[date] = 0;
+        console.log('Grouped data:', grouped);
+        
+        // Untuk weekly/monthly, gunakan rata-rata. Untuk daily, gunakan total
+        const result = Object.entries(grouped).map(([label, data]) => ({
+            label: label,
+            value: satuanWaktu === 'day' ? Math.round(data.total) : Math.round(data.total / data.count)
+        }));
+        
+        return result;
+    }
+    
+    // Fallback: jika data belum diagregasi (format lama)
+    console.log('⚠️ Using fallback transformation');
+    const grouped = {};
+    
+    // Mapping field HTML ke nama field di API response
+    const fieldMappingAPI = {
+        'hko': 'hko',
+        'basah_latek_kebun': 'basahLatexKebun',
+        'basah_latek_Pabrik': 'basahLatexPabrik',
+        'basah_latek_persen': 'basahLatexPersen',
+        'basah_lump_kebun': 'basahLumpKebun',
+        'basah_lump_pabrik': 'basahLumpPabrik',
+        'basah_lump_persen': 'basahLumpPersen',
+        'k3_sheet': 'k3Sheet',
+        'kering_sheet': 'keringSheet',
+        'kering_br_cr': 'keringBrCr',
+        'kering_jumlah': 'keringJumlah',
+        'produksi_per_taper': 'produksiPerTaper'
+    };
+    
+    const apiFieldName = fieldMappingAPI[fieldName] || fieldName;
+    
+    apiData.forEach(item => {
+        let key;
+        const date = new Date(item.tanggal);
+        
+        // Format key berdasarkan satuan waktu untuk grouping
+        if (satuanWaktu === 'day') {
+            key = date.toLocaleDateString('id-ID', { 
+                day: '2-digit', 
+                month: 'short',
+                year: 'numeric'
+            });
+        } else if (satuanWaktu === 'week') {
+            const weekNum = Math.ceil(date.getDate() / 7);
+            key = `Minggu ${weekNum} ${date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
+        } else if (satuanWaktu === 'month') {
+            key = date.toLocaleDateString('id-ID', { 
+                month: 'long',
+                year: 'numeric'
+            });
         }
         
-        // Untuk endpoint penyadap, field name berbeda (camelCase)
-        let value = 0;
-        
-        // Mapping untuk data penyadap (camelCase dari backend)
-        const penyadapFieldMap = {
-            'jumlah_pabrik_basah_latek': 'basahLatex',
-            'jumlah_kebun_basah_latek': 'basahLatex',
-            'jumlah_sheet': 'sheet',
-            'k3_sheet': 'sheet',
-            'jumlah_pabrik_basah_lump': 'basahLump',
-            'jumlah_kebun_basah_lump': 'basahLump',
-            'jumlah_br_cr': 'brCr',
-            'k3_br_cr': 'brCr'
-        };
-        
-        // Cek apakah data dari endpoint penyadap (punya field basahLatex, sheet, dll)
-        if (item.hasOwnProperty('basahLatex') || item.hasOwnProperty('basahLump')) {
-            value = item[penyadapFieldMap[fieldName]] || 0;
-        } else {
-            // Data dari endpoint default/mandor (snake_case)
-            value = item[fieldName] || 0;
+        if (!grouped[key]) {
+            grouped[key] = { total: 0, count: 0 };
         }
         
-        grouped[date] += value;
+        // Ambil nilai dari response API (bisa camelCase atau snake_case)
+        let value = item[apiFieldName] || item[fieldName] || 0;
+        
+        grouped[key].total += parseFloat(value) || 0;
+        grouped[key].count += 1;
     });
     
     console.log('Grouped data:', grouped);
     
-    return Object.values(grouped).map(val => Math.round(val));
+    // Untuk weekly/monthly, gunakan rata-rata. Untuk daily, gunakan total
+    const result = Object.entries(grouped).map(([label, data]) => ({
+        label: label,
+        value: satuanWaktu === 'day' ? Math.round(data.total) : Math.round(data.total / data.count)
+    }));
+    
+    return result;
 }
 
-// Fungsi menggambar grafik batang dengan logika warna yang disempurnakan
 function drawBarChart() {
     const canvas = document.getElementById('barChart');
     const ctx = canvas.getContext('2d');
@@ -179,65 +604,70 @@ function drawBarChart() {
     }
     
     const threshold = currentConfig.threshold;
-    const title = currentConfig.title;
-    const data = currentData;
     const showTrend = currentConfig.showTrend;
     const showThreshold = currentConfig.showThreshold;
     
-    // Subtitle tetap statis (tidak diubah oleh JS)
-    
-    // Set dimensi kanvas
-    canvas.width = Math.max(600, data.length * 60);
+    canvas.width = Math.max(600, currentData.length * 80);
     canvas.height = 300;
     
-    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Chart settings
-    const barWidth = 40;
-    const barSpacing = 60;
+    const barWidth = 50;
+    const barSpacing = 80;
     const chartHeight = 250;
     const chartTop = 30;
-    const maxValue = Math.max(...data, threshold) * 1.1;
+    const values = currentData.map(d => d.value);
+    const maxValue = Math.max(...values, threshold) * 1.1;
     
-    // Gambar batang dengan logika warna yang disempurnakan
-    data.forEach((value, index) => {
+    currentData.forEach((item, index) => {
+        const value = item.value;
         const barHeight = (value / maxValue) * chartHeight;
         const x = index * barSpacing + 30;
         const y = chartTop + chartHeight - barHeight;
-        const prevValue = index > 0 ? data[index - 1] : null;
+        const prevValue = index > 0 ? currentData[index - 1].value : null;
         
-        // Logika warna 
-        let color = '#28a745'; // default hijau (normal)
+        let color = '#28a745';
         
         if (value < threshold) {
-            // Jika lebih kecil dari threshold = merah (bahaya)
             color = '#d43636';
         } else if (prevValue !== null && value < prevValue) {
-            // Jika turun dari nilai sebelumnya tapi masih >= threshold = kuning (peringatan)
             color = '#FFD700';
         }
         
-        // Gambar batang dengan warna yang ditentukan
         ctx.fillStyle = color;
         ctx.fillRect(x, y, barWidth, barHeight);
         
-        // Tambahkan border tipis pada batang
         ctx.strokeStyle = 'rgba(0,0,0,0.1)';
         ctx.lineWidth = 1;
         ctx.strokeRect(x, y, barWidth, barHeight);
         
-        // Value labels
         ctx.fillStyle = '#333';
         ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(value, x + barWidth/2, y - 5);
         
-        // Index labels
-        ctx.font = '11px Arial';
-        ctx.fillText(`Hari ${index + 1}`, x + barWidth/2, chartTop + chartHeight + 20);
+        ctx.font = '10px Arial';
+        const maxLabelWidth = barSpacing - 10;
+        const label = item.label;
         
-        // Tambahkan indikator tren untuk peningkatan visual
+        const words = label.split(' ');
+        let line = '';
+        let lineY = chartTop + chartHeight + 15;
+        
+        words.forEach((word, i) => {
+            const testLine = line + word + ' ';
+            const metrics = ctx.measureText(testLine);
+            
+            if (metrics.width > maxLabelWidth && i > 0) {
+                ctx.fillText(line, x + barWidth/2, lineY);
+                line = word + ' ';
+                lineY += 12;
+            } else {
+                line = testLine;
+            }
+        });
+        ctx.fillText(line, x + barWidth/2, lineY);
+        
         if (showTrend && prevValue !== null) {
             const trendY = y - 20;
             ctx.font = '14px Arial';
@@ -254,7 +684,6 @@ function drawBarChart() {
         }
     });
     
-    // Gambar garis batas minimum
     if (showThreshold) {
         const thresholdY = chartTop + chartHeight - (threshold / maxValue) * chartHeight;
         ctx.strokeStyle = '#ff6b35';
@@ -264,30 +693,52 @@ function drawBarChart() {
         ctx.moveTo(20, thresholdY);
         ctx.lineTo(canvas.width - 20, thresholdY);
         ctx.stroke();
-        ctx.setLineDash([]); // Reset dash
+        ctx.setLineDash([]);
         
-        // Label batas dengan latar belakang
         ctx.fillStyle = 'rgba(255, 107, 53, 0.9)';
         ctx.fillRect(25, thresholdY - 18, 100, 16);
         ctx.fillStyle = 'white';
         ctx.font = 'bold 11px Arial';
         ctx.textAlign = 'left';
-        ctx.fillText(`Ambang Batas: ${threshold}`, 28, thresholdY - 7);
+        ctx.fillText(`Target: ${threshold}`, 28, thresholdY - 7);
     }
 }
 
-// Handler untuk update grafik (dipanggil dari tombol Update Grafik)
-async function handleJenisChange() {
-    const idMandor = document.getElementById('namaMandor').value;
-    const idPenyadap = document.getElementById('namaPenyadap').value;
+async function handleUpdateGrafik() {
+    const tipeData = document.getElementById('tipeData').value;
+    const kodeAfdeling = document.getElementById('kodeAfdeling').value;
+    const nikMandor = document.getElementById('nikMandor').value;
+    const idPenyadap = document.getElementById('idPenyadap').value;
+    const tipeProduksi = document.getElementById('tipeProduksi').value;
     const field = document.getElementById('fieldSelect').value;
-    const bulan = document.getElementById('bulan').value;
-    const tahun = document.getElementById('tahun').value;
+    const tanggalAwal = document.getElementById('tanggalAwal').value;
+    const tanggalAkhir = document.getElementById('tanggalAkhir').value;
+    const satuanWaktu = currentConfig.satuan; // untuk grouping chart (day/week/month)
     
-    // Update config
+    // Validasi input wajib
+    if (!tanggalAwal || !tanggalAkhir) {
+        alert('Tanggal awal dan akhir harus diisi');
+        return;
+    }
+    
+    if (tipeData === 'afdeling' && !kodeAfdeling) {
+        alert('Silakan pilih Kode Afdeling terlebih dahulu');
+        return;
+    }
+    
+    if (tipeData === 'mandor' && !nikMandor) {
+        alert('Silakan pilih Mandor terlebih dahulu');
+        return;
+    }
+    
+    if (tipeData === 'penyadap' && !idPenyadap) {
+        alert('Silakan pilih Penyadap terlebih dahulu');
+        return;
+    }
+    
     currentConfig.field = field;
+    currentConfig.threshold = parseInt(document.getElementById('barThreshold').value) || 150;
     
-    // Tampilkan loading
     const canvas = document.getElementById('barChart');
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -296,39 +747,113 @@ async function handleJenisChange() {
     ctx.textAlign = 'center';
     ctx.fillText('Memuat data...', canvas.width / 2, canvas.height / 2);
     
-    // Fetch data dari API
-    const apiData = await fetchData(idMandor, idPenyadap, bulan, tahun);
+    // Mapping field ke satuan API 
+    // Coba berbagai kemungkinan format berdasarkan field yang dipilih
+    const fieldToSatuanMap = {
+        // Format kemungkinan 1: snake_case
+        'hko': 'hko',
+        'basah_latek_kebun': 'basah_latek_kebun',
+        'basah_latek_Pabrik': 'basah_latek_pabrik',
+        'basah_latek_persen': 'basah_latek_persen',
+        'basah_lump_kebun': 'basah_lump_kebun',
+        'basah_lump_pabrik': 'basah_lump_pabrik',
+        'basah_lump_persen': 'basah_lump_persen',
+        'k3_sheet': 'k3_sheet',
+        'kering_sheet': 'kering_sheet',
+        'kering_br_cr': 'kering_br_cr',
+        'kering_jumlah': 'kering_jumlah',
+        'produksi_per_taper': 'produksi_per_taper'
+    };
+    
+    // Gunakan value field langsung sebagai satuan
+    const satuan = fieldToSatuanMap[field] || field;
+    
+    let params = {};
+    
+    // Logic untuk GetVisualisasiProduksi (penyadap)
+    if (tipeData === 'penyadap') {
+        params = {
+            tipeData: 'penyadap',
+            idPenyadap: idPenyadap,
+            tanggalAwal: tanggalAwal,
+            tanggalAkhir: tanggalAkhir,
+            satuan: satuan  // WAJIB untuk penyadap
+        };
+        
+        // Optional: tipeProduksi
+        if (tipeProduksi) {
+            params.tipeProduksi = tipeProduksi;
+        }
+    } 
+    // Logic untuk GetVisualisasiRekap (total, mandor, afdeling)
+    else {
+        params = {
+            tipeData: tipeData,
+            tanggalAwal: tanggalAwal,
+            tanggalAkhir: tanggalAkhir,
+            satuan: satuan  // WAJIB untuk semua tipe rekap juga
+        };
+        
+        // Conditional: mandor membutuhkan nik (bukan nikMandor)
+        if (tipeData === 'mandor') {
+            params.nik = nikMandor;  // Parameter name: "nik" bukan "nikMandor"
+        }
+        
+        // Conditional: afdeling membutuhkan afdeling (bukan kodeAfdeling)
+        if (tipeData === 'afdeling') {
+            params.afdeling = kodeAfdeling;  // Parameter name: "afdeling" bukan "kodeAfdeling"
+        }
+        
+        // tipeData 'total' hanya menggunakan parameter wajib
+    }
+    
+    console.log('=== VISUALISASI REQUEST ===');
+    console.log('Tipe Data:', tipeData);
+    console.log('Field Selected:', field);
+    console.log('Satuan Extracted:', satuan);
+    console.log('Parameters:', params);
+    console.log('URL will be:', `/api/visualisasi?${new URLSearchParams(params).toString()}`);
+    console.log('===========================');
+    
+    const apiData = await fetchVisualisasiData(params);
     
     if (apiData.length > 0) {
         currentApiData = apiData;
-        currentData = transformDataForChart(apiData, field);
+        currentData = transformDataForChart(apiData, field, satuanWaktu); // gunakan satuanWaktu untuk grouping
         
         console.log('Transformed data:', currentData);
         
-        // Update title dengan nama field yang lebih friendly
         const fieldNames = {
-            'jumlah_pabrik_basah_latek': 'Pabrik Basah Latek',
-            'jumlah_kebun_basah_latek': 'Kebun Basah Latek',
-            'jumlah_sheet': 'Jumlah Sheet',
+            'hko': 'HKO',
+            'basah_latek_kebun': 'Basah Latek Kebun',
+            'basah_latek_Pabrik': 'Basah Latek Pabrik',
+            'basah_latek_persen': 'Basah Latek Persen',
+            'basah_lump_kebun': 'Basah Lump Kebun',
+            'basah_lump_pabrik': 'Basah Lump Pabrik',
+            'basah_lump_persen': 'Basah Lump Persen',
             'k3_sheet': 'K3 Sheet',
-            'jumlah_pabrik_basah_lump': 'Pabrik Basah Lump',
-            'jumlah_kebun_basah_lump': 'Kebun Basah Lump',
-            'jumlah_br_cr': 'Jumlah BR/CR',
-            'k3_br_cr': 'K3 BR/CR'
+            'kering_sheet': 'Kering Sheet',
+            'kering_br_cr': 'Kering BR/CR',
+            'kering_jumlah': 'Kering Jumlah',
+            'produksi_per_taper': 'Produksi Per Taper'
         };
         
         let titleSuffix = '';
-        if (idMandor && idMandor.trim() !== '') {
-            const selectedOption = document.getElementById('namaMandor').selectedOptions[0];
-            titleSuffix = ` - Mandor: ${selectedOption.textContent}`;
-        } else if (idPenyadap && idPenyadap.trim() !== '') {
-            const selectedOption = document.getElementById('namaPenyadap').selectedOptions[0];
-            titleSuffix = ` - Penyadap: ${selectedOption.textContent}`;
+        if (tipeData === 'afdeling') {
+            const selectedOption = document.getElementById('kodeAfdeling').selectedOptions[0];
+            titleSuffix = ` - Afdeling: ${selectedOption.textContent}`;
+        } else if (tipeData === 'mandor') {
+            const mandorName = document.getElementById('mandorSearch').value;
+            titleSuffix = ` - Mandor: ${mandorName}`;
+        } else if (tipeData === 'penyadap') {
+            const penyadapName = document.getElementById('penyadapSearch').value;
+            titleSuffix = ` - Penyadap: ${penyadapName}`;
         } else {
             titleSuffix = ' - Total';
         }
         
         currentConfig.title = `${fieldNames[field]}${titleSuffix}`;
+        document.getElementById('dynamicChartTitle').textContent = currentConfig.title;
         
         drawBarChart();
     } else {
@@ -338,7 +863,6 @@ async function handleJenisChange() {
     }
 }
 
-// Handler untuk perubahan field
 function handleFieldChange() {
     if (currentApiData.length === 0) {
         alert('Silakan update grafik terlebih dahulu dengan klik tombol "Update Grafik"');
@@ -347,40 +871,69 @@ function handleFieldChange() {
     
     const field = document.getElementById('fieldSelect').value;
     currentConfig.field = field;
-    currentData = transformDataForChart(currentApiData, field);
+    currentData = transformDataForChart(currentApiData, field, currentConfig.satuan);
     
-    // Update title
     const fieldNames = {
-        'jumlah_pabrik_basah_latek': 'Pabrik Basah Latek',
-        'jumlah_kebun_basah_latek': 'Kebun Basah Latek',
-        'jumlah_sheet': 'Jumlah Sheet',
+        'hko': 'HKO',
+        'basah_latek_kebun': 'Basah Latek Kebun',
+        'basah_latek_Pabrik': 'Basah Latek Pabrik',
+        'basah_latek_persen': 'Basah Latek Persen',
+        'basah_lump_kebun': 'Basah Lump Kebun',
+        'basah_lump_pabrik': 'Basah Lump Pabrik',
+        'basah_lump_persen': 'Basah Lump Persen',
         'k3_sheet': 'K3 Sheet',
-        'jumlah_pabrik_basah_lump': 'Pabrik Basah Lump',
-        'jumlah_kebun_basah_lump': 'Kebun Basah Lump',
-        'jumlah_br_cr': 'Jumlah BR/CR',
-        'k3_br_cr': 'K3 BR/CR'
+        'kering_sheet': 'Kering Sheet',
+        'kering_br_cr': 'Kering BR/CR',
+        'kering_jumlah': 'Kering Jumlah',
+        'produksi_per_taper': 'Produksi Per Taper'
     };
     
-    const idMandor = document.getElementById('namaMandor').value;
-    const idPenyadap = document.getElementById('namaPenyadap').value;
-    
+    const tipeData = document.getElementById('tipeData').value;
     let titleSuffix = '';
-    if (idMandor && idMandor.trim() !== '') {
-        const selectedOption = document.getElementById('namaMandor').selectedOptions[0];
-        titleSuffix = ` - Mandor: ${selectedOption.textContent}`;
-    } else if (idPenyadap && idPenyadap.trim() !== '') {
-        const selectedOption = document.getElementById('namaPenyadap').selectedOptions[0];
-        titleSuffix = ` - Penyadap: ${selectedOption.textContent}`;
+    
+    if (tipeData === 'afdeling') {
+        const selectedOption = document.getElementById('kodeAfdeling').selectedOptions[0];
+        titleSuffix = ` - Afdeling: ${selectedOption.textContent}`;
+    } else if (tipeData === 'mandor') {
+        const mandorName = document.getElementById('mandorSearch').value;
+        titleSuffix = ` - Mandor: ${mandorName}`;
+    } else if (tipeData === 'penyadap') {
+        const penyadapName = document.getElementById('penyadapSearch').value;
+        titleSuffix = ` - Penyadap: ${penyadapName}`;
     } else {
         titleSuffix = ' - Total';
     }
     
     currentConfig.title = `${fieldNames[field]}${titleSuffix}`;
+    document.getElementById('dynamicChartTitle').textContent = currentConfig.title;
     
     drawBarChart();
 }
 
-// Event listeners
+function setVisualRange(range) {
+    const container = document.querySelector('.time-toggle');
+    if (!container) return;
+
+    const buttons = Array.from(container.querySelectorAll('.time-btn'));
+    buttons.forEach(btn => {
+        if (btn.getAttribute('data-range') === range) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    currentConfig.satuan = range;
+    
+    if (currentApiData.length > 0) {
+        currentData = transformDataForChart(currentApiData, currentConfig.field, range);
+        drawBarChart();
+    }
+}
+
+// ========== EVENT LISTENERS ==========
+
+document.getElementById('tipeData').addEventListener('change', handleTipeDataChange);
 document.getElementById('fieldSelect').addEventListener('change', handleFieldChange);
 
 document.getElementById('barThreshold').addEventListener('input', function() {
@@ -398,44 +951,10 @@ document.getElementById('showThreshold').addEventListener('change', function() {
     drawBarChart();
 });
 
-// --- Visual range (Hari/Minggu/Bulan) helpers ---
-function setVisualRange(range) {
-    // Find corresponding button and toggle active class
-    const container = document.querySelector('.time-toggle');
-    if (!container) return;
-
-    const buttons = Array.from(container.querySelectorAll('.time-btn'));
-    buttons.forEach(btn => {
-        if (btn.getAttribute('data-range') === range) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-    });
-
-    // store in form hidden input
-    let existing = document.getElementById('selectedRange');
-    if(!existing){
-        existing = document.createElement('input');
-        existing.type = 'hidden';
-        existing.id = 'selectedRange';
-        existing.name = 'selectedRange';
-        const form = document.getElementById('visualForm');
-        if (form) form.appendChild(existing);
-    }
-    existing.value = range;
-
-    // Optionally adjust bulan/tahun UI depending on range
-    // For now just call update handler to refresh chart
-    if (typeof handleJenisChange === 'function') {
-        handleJenisChange();
-    }
-}
-
-// Attach click listeners to time buttons on DOMContentLoaded
 document.addEventListener('DOMContentLoaded', function() {
     const container = document.querySelector('.time-toggle');
     if (!container) return;
+    
     container.addEventListener('click', function(e){
         const btn = e.target.closest('.time-btn');
         if (!btn) return;
@@ -443,31 +962,36 @@ document.addEventListener('DOMContentLoaded', function() {
         if (range) setVisualRange(range);
     });
 
-    // Prevent accidental clicks/double-clicks on chart title changing text or selecting it
     const titleEl = document.getElementById('dynamicChartTitle');
     if (titleEl) {
-        // Disable text selection
         titleEl.style.userSelect = 'none';
         titleEl.style.webkitUserSelect = 'none';
-        // Stop clicks from propagating to any potential handlers
-        titleEl.addEventListener('click', function(e){ e.stopPropagation(); e.preventDefault(); });
-        titleEl.addEventListener('dblclick', function(e){ e.stopPropagation(); e.preventDefault(); });
+        titleEl.addEventListener('click', function(e){ 
+            e.stopPropagation(); 
+            e.preventDefault(); 
+        });
+        titleEl.addEventListener('dblclick', function(e){ 
+            e.stopPropagation(); 
+            e.preventDefault(); 
+        });
     }
 });
 
-// Inisialisasi saat halaman dimuat
+// ========== INITIALIZATION ==========
+
 window.onload = async function() {
-    // Set bulan dan tahun saat ini sebagai default
+    // Set tanggal default
     const now = new Date();
-    const tahunInput = document.getElementById('tahun');
-    if (tahunInput && !tahunInput.value) {
-        tahunInput.value = now.getFullYear();
-    }
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     
-    // Populate dropdown mandor dan penyadap
+    document.getElementById('tanggalAwal').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('tanggalAkhir').value = lastDay.toISOString().split('T')[0];
+    
+    // Populate dropdowns
     await populateMandorDropdown();
     await populatePenyadapDropdown();
     
-    // Gambar chart kosong pertama kali
-    drawBarChart();
+    // Show modal on first load
+    showModal();
 };
