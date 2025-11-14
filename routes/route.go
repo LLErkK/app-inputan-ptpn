@@ -31,16 +31,22 @@ func SetupRoutes() {
 	r.PathPrefix("/kml/").Handler(http.StripPrefix("/kml/",
 		http.FileServer(http.Dir("./templates/kml/"))))
 
-	// ================== AUTH ROUTES ==================
-	r.HandleFunc("/", controllers.ServeLoginPage).Methods("GET")
+	// ================== AUTH ROUTES (PUBLIC) ==================
+	// FIXED: Route untuk halaman login
+	r.HandleFunc("/login", controllers.ServeLoginPage).Methods("GET")
 	r.HandleFunc("/login", controllers.Login).Methods("POST")
 	r.HandleFunc("/logout", controllers.Logout).Methods("GET")
+
+	// FIXED: Root path redirect ke login atau dashboard
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/login", http.StatusFound)
+	}).Methods("GET")
 
 	// ================== PROTECTED ROUTES ==================
 	protected := r.PathPrefix("/").Subrouter()
 	protected.Use(authMiddleware)
 
-	// Dashboard
+	// Dashboard - FIXED: Ini adalah halaman utama setelah login
 	protected.HandleFunc("/dashboard", controllers.ServeDashboardPage).Methods("GET")
 	protected.HandleFunc("/api/dashboard", controllers.GetDashboardData).Methods("GET")
 
@@ -125,7 +131,7 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/upload/{id}/download", controllers.DownloadFile).Methods("GET")
 
 	protected.HandleFunc("/api/master", controllers.GetAllMaster).Methods("GET")
-	protected.HandleFunc("/api/master/{masterId}", controllers.DeleteMaster).Methods("DELETE") //
+	protected.HandleFunc("/api/master/{masterId}", controllers.DeleteMaster).Methods("DELETE")
 
 	//endpoint peta
 	protected.HandleFunc("/peta", controllers.ServePetaPage).Methods("GET")
