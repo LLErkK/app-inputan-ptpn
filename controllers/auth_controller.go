@@ -148,7 +148,8 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Path:     "/",
 	})
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	// FIXED: Redirect ke halaman login
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 // helper untuk mengekstrak token dari header/cookie
@@ -173,7 +174,8 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenString := extractTokenFromRequest(r)
 		if tokenString == "" {
-			http.Redirect(w, r, "/", http.StatusFound)
+			// FIXED: Redirect ke /login bukan /
+			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
 
@@ -187,8 +189,8 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return config.JWTSecret, nil
 		})
 		if err != nil || !parsedToken.Valid {
-			// token invalid or expired
-			http.Redirect(w, r, "/", http.StatusFound)
+			// FIXED: token invalid or expired, redirect ke /login
+			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
 
@@ -198,7 +200,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// ServeLoginPage kept same (with small change to check cookie)
+// ServeLoginPage - menampilkan halaman login
 func ServeLoginPage(w http.ResponseWriter, r *http.Request) {
 	// Check if user is already logged in
 	tokenString := extractTokenFromRequest(r)
@@ -208,7 +210,8 @@ func ServeLoginPage(w http.ResponseWriter, r *http.Request) {
 		if t, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 			return config.JWTSecret, nil
 		}); err == nil && t.Valid {
-			http.Redirect(w, r, "/rekap", http.StatusFound)
+			// FIXED: Redirect ke /dashboard jika sudah login
+			http.Redirect(w, r, "/dashboard", http.StatusFound)
 			return
 		}
 	}
