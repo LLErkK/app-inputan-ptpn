@@ -6,7 +6,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #e9f6ff 0%, #ffffff 100%);
     min-height: 100vh;
     padding: 20px;
 }
@@ -16,12 +16,13 @@ body {
     margin: 0 auto;
     background: white;
     border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    box-shadow: 0 8px 25px rgba(0, 150, 200, 0.15);
     overflow: hidden;
 }
 
+/* HEADER */
 .header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0093E9, #80D0C7);
     color: white;
     padding: 30px;
     text-align: center;
@@ -30,17 +31,26 @@ body {
 .header h1 {
     font-size: 28px;
     margin-bottom: 10px;
+    letter-spacing: 1px;
 }
 
+.header p {
+    font-size: 16px;
+    opacity: 0.9;
+}
+
+/* CONTENT AREA */
 .content {
     padding: 30px;
 }
 
+/* SEARCH SECTION */
 .search-section {
-    background: #f8f9fa;
+    background: #f5fbff;
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 12px;
     margin-bottom: 30px;
+    border: 1px solid #d8f0ff;
 }
 
 .form-group {
@@ -51,67 +61,76 @@ label {
     display: block;
     font-weight: 600;
     margin-bottom: 8px;
-    color: #333;
+    color: #005f73;
 }
 
 input, select {
     width: 100%;
     padding: 12px;
-    border: 2px solid #e0e0e0;
+    border: 2px solid #cce7f3;
     border-radius: 8px;
     font-size: 14px;
-    transition: border-color 0.3s;
+    transition: all 0.3s ease;
 }
 
 input:focus, select:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #00b4db;
+    box-shadow: 0 0 5px rgba(0, 180, 219, 0.4);
 }
 
+/* BUTTONS */
 .btn {
     padding: 12px 30px;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
 }
 
+/* PRIMARY: biru toska */
 .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0093E9, #80D0C7);
     color: white;
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 6px 16px rgba(0, 180, 219, 0.4);
 }
 
+/* SUCCESS: hijau lembut */
 .btn-success {
-    background: #28a745;
+    background: linear-gradient(135deg, #42e695 0%, #3bb2b8 100%);
     color: white;
-    margin-right: 10px;
 }
 
 .btn-success:hover {
-    background: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(66, 230, 149, 0.4);
 }
 
+/* SECONDARY: pink-ungu */
 .btn-secondary {
-    background: #6c757d;
+    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
     color: white;
 }
 
 .btn-secondary:hover {
-    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(255, 118, 163, 0.4);
 }
 
+/* DATA DISPLAY */
 .data-display {
-    background: #f8f9fa;
+    background: #f8fbff;
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 12px;
     margin-bottom: 20px;
+    border: 1px solid #d6ebff;
     display: none;
 }
 
@@ -129,39 +148,44 @@ input:focus, select:focus {
 .data-item {
     background: white;
     padding: 15px;
-    border-radius: 8px;
-    border-left: 4px solid #667eea;
+    border-radius: 10px;
+    border-left: 4px solid #00b4db;
+    box-shadow: 0 2px 6px rgba(0, 180, 219, 0.1);
 }
 
 .data-item label {
     font-size: 12px;
-    color: #666;
+    color: #777;
     margin-bottom: 5px;
 }
 
 .data-item .value {
     font-size: 16px;
     font-weight: 600;
-    color: #333;
+    color: #004f63;
 }
 
+/* EDIT FORM */
 .edit-form {
     display: none;
-    background: #fff;
-    padding: 20px;
-    border-radius: 10px;
+    background: #ffffff;
+    padding: 25px;
+    border-radius: 12px;
     margin-top: 20px;
+    border: 1px solid #d8f0ff;
 }
 
 .edit-form.show {
     display: block;
 }
 
+/* ALERT */
 .alert {
     padding: 15px;
     border-radius: 8px;
     margin-bottom: 20px;
     display: none;
+    font-weight: 600;
 }
 
 .alert.show {
@@ -169,17 +193,18 @@ input:focus, select:focus {
 }
 
 .alert-success {
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
+    background: #d9fff1;
+    color: #007a59;
+    border: 1px solid #b7f5dc;
 }
 
 .alert-error {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+    background: #ffe5ec;
+    color: #a30030;
+    border: 1px solid #ffc2d1;
 }
 
+/* TABLE */
 .table-container {
     overflow-x: auto;
     margin-top: 30px;
@@ -189,27 +214,31 @@ table {
     width: 100%;
     border-collapse: collapse;
     background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0, 180, 219, 0.1);
 }
 
 th, td {
     padding: 12px;
     text-align: left;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e3f3fa;
 }
 
 th {
-    background: #f8f9fa;
+    background: linear-gradient(135deg, #0093E9, #80D0C7);
+    color: white;
     font-weight: 600;
-    color: #333;
 }
 
 tr:hover {
-    background: #f8f9fa;
+    background: #f0faff;
 }
 
+/* ACTION BUTTONS */
 .action-buttons {
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 
 .btn-small {
@@ -217,37 +246,36 @@ tr:hover {
     font-size: 12px;
 }
 
+/* LOADING */
 .loading {
     text-align: center;
     padding: 20px;
-    color: #667eea;
+    color: #0083b0;
     display: none;
+    font-weight: 600;
 }
 
 .loading.show {
     display: block;
 }
 
-/* Highlight untuk baris tabel saat hover */
+/* ROW HOVER */
 tbody tr {
     transition: background-color 0.2s ease;
 }
 
 tbody tr:hover {
-    background: #f0f4ff !important;
+    background: #e3f6ff !important;
     cursor: pointer;
 }
 
-/* Style untuk search info */
+/* SEARCH INFO */
 #searchInfo {
     animation: fadeIn 0.3s ease;
+    color: #0083b0;
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
