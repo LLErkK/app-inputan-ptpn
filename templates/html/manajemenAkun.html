@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Akun</title>
+    <link rel="stylesheet" href="../css/manajemenAkun.css">
+</head>
+<body>
+<!-- Modal Pilihan -->
+    <div class="modal-overlay active" id="choiceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Pilih Aksi</h2>
+                <p>Pilih apa yang ingin Anda ubah</p>
+            </div>
+            <div class="modal-options">
+                <div class="option-card" onclick="showUsernameForm()">
+                    <div class="option-icon">👤</div>
+                    <div class="option-title">Ubah Username</div>
+                    <div class="option-desc">Perbarui nama pengguna Anda</div>
+                </div>
+                <div class="option-card" onclick="showPasswordForm()">
+                    <div class="option-icon">🔒</div>
+                    <div class="option-title">Ubah Password</div>
+                    <div class="option-desc">Ganti kata sandi akun</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Form Ubah Username -->
+    <div class="modal-overlay" id="usernameModal">
+        <div class="modal-content form-modal">
+            <div class="modal-header">
+                <h2>👤 Ubah Username</h2>
+                <p>Masukkan informasi untuk mengubah username</p>
+            </div>
+            <form id="usernameForm" onsubmit="handleUsernameSubmit(event)">
+                <div class="form-group">
+                    <label for="oldUsername">Username Lama</label>
+                    <input type="text" id="oldUsername" name="oldUsername" placeholder="Masukkan username lama" required>
+                </div>
+                <div class="form-group">
+                    <label for="newUsername">Username Baru</label>
+                    <input type="text" id="newUsername" name="newUsername" placeholder="Masukkan username baru" required>
+                </div>
+                <div class="form-group">
+                    <label for="passwordUsername">Password</label>
+                    <input type="password" id="passwordUsername" name="passwordUsername" placeholder="Masukkan password untuk konfirmasi" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-back" onclick="backToChoice('usernameModal')">Kembali</button>
+                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Form Ubah Password -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal-content form-modal">
+            <div class="modal-header">
+                <h2>🔒 Ubah Password</h2>
+                <p>Masukkan informasi untuk mengubah password</p>
+            </div>
+            <form id="passwordForm" onsubmit="handlePasswordSubmit(event)">
+                <div class="form-group">
+                    <label for="usernamePassword">Username</label>
+                    <input type="text" id="usernamePassword" name="usernamePassword" placeholder="Masukkan username" required>
+                </div>
+                <div class="form-group">
+                    <label for="oldPassword">Password Lama</label>
+                    <input type="password" id="oldPassword" name="oldPassword" placeholder="Masukkan password lama" required>
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">Password Baru</label>
+                    <input type="password" id="newPassword" name="newPassword" placeholder="Masukkan password baru" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-back" onclick="backToChoice('passwordModal')">Kembali</button>
+                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="/js/manajemenakun.js"></script>
+</body>
+</html>

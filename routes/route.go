@@ -140,6 +140,11 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/peta/{id}", controllers.EditPeta).Methods("PUT")
 	protected.HandleFunc("/api/all/peta", controllers.GetAllPeta).Methods("GET")
 
+	//endpoint manajemen akun
+	protected.HandleFunc("/manajemen", controllers.ServeAccountManagementPage).Methods("GET")
+	protected.HandleFunc("/api/manajemen/change-username", controllers.ChangeUsername).Methods("POST")
+	protected.HandleFunc("/api/manajemen/change-password", controllers.ChangePassword).Methods("POST")
+
 	//endpoint dev
 	protected.HandleFunc("/dev/rekap", dev.GetAllRekap).Methods("GET")
 	protected.HandleFunc("/dev/produksi", dev.GetAllProduksi).Methods("GET")
@@ -199,12 +204,12 @@ func SetupRoutes() {
 		http.Redirect(w, r, "/api/monitoring/smart-search?"+params.Encode(), http.StatusTemporaryRedirect)
 	}).Methods("GET")
 
-	// ================== ERROR HANDLING ==================
-	protected.PathPrefix("/api/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"success": false, "message": "API endpoint not found"}`))
-	})
+	// // ================== ERROR HANDLING ==================
+	// protected.PathPrefix("/api/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	w.WriteHeader(http.StatusNotFound)
+	// 	w.Write([]byte(`{"success": false, "message": "API endpoint not found"}`))
+	// })
 
 	http.Handle("/", r)
 }
