@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -15,11 +16,8 @@ import (
 	"app-inputan-ptpn/models"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
-
-// =====================
-// Controller CSV -> DB (deteksi base index + filter summary rows + tipe produksi)
-// =====================
 
 // parseNumber: robust untuk "1.234,56", "1,234.56", "(123)", "12,5%" dll.
 func parseNumber(raw string) (float64, error) {
@@ -120,7 +118,7 @@ func findHeaderRowAndBaseIndex(rows [][]string, maxScan int) (int, int) {
 	return -1, -1
 }
 
-// detectTipeProduksi: PERBAIKAN - cari di SEMUA kolom, tidak peduli baseIdx
+// detectTipeProduksi: cari di SEMUA kolom
 func detectTipeProduksi(row []string, baseIdx int) string {
 	for i := 0; i < len(row); i++ {
 		cell := strings.ToUpper(strings.TrimSpace(row[i]))
@@ -128,7 +126,7 @@ func detectTipeProduksi(row []string, baseIdx int) string {
 			continue
 		}
 
-		// PENTING: Urutan pengecekan dari yang paling spesifik ke general
+		// Urutan pengecekan dari yang paling spesifik ke general
 		if strings.Contains(cell, "REKAPITULASI") {
 			return "REKAPITULASI"
 		}
@@ -147,7 +145,6 @@ func detectTipeProduksi(row []string, baseIdx int) string {
 		if strings.Contains(cell, "PRODUKSI BAKU BORONG") || strings.Contains(cell, "BAKU BORONG") {
 			return "PRODUKSI BAKU BORONG"
 		}
-		// Check PRODUKSI BAKU terakhir (paling general)
 		if strings.Contains(cell, "PRODUKSI BAKU") {
 			return "PRODUKSI BAKU"
 		}
@@ -155,46 +152,38 @@ func detectTipeProduksi(row []string, baseIdx int) string {
 	return ""
 }
 
-// isTipeProduksiRow: PERBAIKAN - lebih robust dengan cek NIK dan TAHUN TANAM kosong
+// isTipeProduksiRow: lebih robust dengan cek NIK dan TAHUN TANAM kosong
 func isTipeProduksiRow(row []string, baseIdx int) bool {
-	// Cek apakah ada tipe produksi di row ini
 	tipe := detectTipeProduksi(row, baseIdx)
 	if tipe == "" {
 		return false
 	}
 
-	// PENTING: Baris kategori produksi biasanya NIK dan TAHUN TANAM nya KOSONG
-	// Cek kolom TAHUN TANAM (baseIdx)
 	tahunTanam := ""
 	if baseIdx >= 0 && baseIdx < len(row) {
 		tahunTanam = strings.TrimSpace(row[baseIdx])
 	}
 
-	// Cek kolom NIK (baseIdx+1)
 	nik := ""
 	if baseIdx+1 >= 0 && baseIdx+1 < len(row) {
 		nik = strings.TrimSpace(row[baseIdx+1])
 	}
 
-	// Jika TAHUN TANAM dan NIK kosong, kemungkinan besar ini baris kategori
 	if tahunTanam == "" && nik == "" {
 		return true
 	}
 
-	// Jika salah satu ada isi, cek apakah isinya bukan angka (false positive)
-	// Baris kategori tidak boleh punya tahun valid
 	if tahunTanam != "" {
 		if regexp.MustCompile(`^\d{4}$`).MatchString(tahunTanam) {
-			return false // Ini data row, bukan kategori
+			return false
 		}
 	}
 
 	return true
 }
 
-// isLikelySummaryRow: PERBAIKAN - tambah pengecekan untuk baris kategori produksi
+// isLikelySummaryRow: tambah pengecekan untuk baris kategori produksi
 func isLikelySummaryRow(row []string, baseIdx int) bool {
-	// PENTING: Jangan skip baris kategori produksi!
 	if isTipeProduksiRow(row, baseIdx) {
 		return false
 	}
@@ -205,7 +194,6 @@ func isLikelySummaryRow(row []string, baseIdx int) bool {
 	}
 	cell := strings.ToUpper(strings.TrimSpace(row[checkIdx]))
 
-	// Jika kolom NIK kosong, cek kolom TAHUN TANAM
 	if cell == "" {
 		c0 := strings.ToUpper(strings.TrimSpace(row[baseIdx]))
 		if strings.Contains(c0, "JUMLAH") || strings.Contains(c0, "SELISIH") ||
@@ -272,11 +260,8 @@ func isValidDataRow(row []string, baseIdx int) bool {
 	return true
 }
 
-// hasValidHKO: cek apakah HKO Hari Ini atau HKO Sampai Hari Ini ada nilainya (tidak kosong/0)
+// hasValidHKO: cek apakah HKO ada nilainya
 func hasValidHKO(row []string, baseIdx int) bool {
-	// HKO Hari Ini ada di kolom baseIdx + 3
-	// HKO Sampai Hari Ini ada di kolom baseIdx + 4
-
 	getInt := func(idx int) int {
 		if idx < 0 || idx >= len(row) {
 			return 0
@@ -301,7 +286,6 @@ func hasValidHKO(row []string, baseIdx int) bool {
 	hkoHariIni := getInt(baseIdx + 3)
 	hkoSampaiHariIni := getInt(baseIdx + 4)
 
-	// Skip jika KEDUA nilai HKO kosong/0
 	if hkoHariIni == 0 && hkoSampaiHariIni == 0 {
 		return false
 	}
@@ -310,34 +294,6 @@ func hasValidHKO(row []string, baseIdx int) bool {
 }
 
 // mapRowRelative: mapping urut sesuai struktur model Rekap
-// Urutan kolom dari CSV (setelah baseIdx):
-// 0: TAHUN TANAM
-// 1: NIK
-// 2: MANDOR
-// 3: HKO HR INI
-// 4: HKO S/D HR INI
-// 5: BASAH LATEK KEBUN (HR INI)
-// 6: BASAH LATEK PABRIK (HR INI)
-// 7: BASAH LATEK % (HR INI)
-// 8: BASAH LUMP KEBUN (HR INI)
-// 9: BASAH LUMP PABRIK (HR INI)
-// 10: BASAH LUMP % (HR INI)
-// 11: K3 SHEET (HR INI)
-// 12: KERING SHEET (HR INI)
-// 13: KERING BR.CR (HR INI)
-// 14: KERING JUMLAH (HR INI)
-// 15: BASAH LATEK KEBUN (S/D HR INI)
-// 16: BASAH LATEK PABRIK (S/D HR INI)
-// 17: BASAH LATEK % (S/D HR INI)
-// 18: BASAH LUMP KEBUN (S/D HR INI)
-// 19: BASAH LUMP PABRIK (S/D HR INI)
-// 20: BASAH LUMP % (S/D HR INI)
-// 21: K3 SHEET (S/D HR INI)
-// 22: KERING SHEET (S/D HR INI)
-// 23: KERING BR.CR (S/D HR INI)
-// 24: KERING JUMLAH (S/D HR INI)
-// 25: PRODUKSI PER TAPER HR INI
-// 26: PRODUKSI PER TAPER S/D HR INI
 func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi string, afdeling string, idMaster uint64) (*models.Rekap, error) {
 	rekap := &models.Rekap{}
 
@@ -379,80 +335,71 @@ func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi s
 		return 0
 	}
 
-	// Set tanggal dan tipe produksi
 	rekap.Tanggal = tanggal
 	rekap.TipeProduksi = tipeProduksi
-
-	// Data identitas (kolom 0-2 dari baseIdx)
 	rekap.TahunTanam = getStr(baseIdx + 0)
 	rekap.NIK = getStr(baseIdx + 1)
 	rekap.Mandor = getStr(baseIdx + 2)
-
-	// HKO (kolom 3-4)
 	rekap.HKOHariIni = getInt(baseIdx + 3)
 	rekap.HKOSampaiHariIni = getInt(baseIdx + 4)
-
-	// Produksi Hari Ini - Basah Latek (kolom 5-7)
 	rekap.HariIniBasahLatekKebun = getFloat(baseIdx + 5)
 	rekap.HariIniBasahLatekPabrik = getFloat(baseIdx + 6)
 	rekap.HariIniBasahLatekPersen = getFloat(baseIdx + 7)
-
-	// Produksi Hari Ini - Basah Lump (kolom 8-10)
 	rekap.HariIniBasahLumpKebun = getFloat(baseIdx + 8)
 	rekap.HariIniBasahLumpPabrik = getFloat(baseIdx + 9)
 	rekap.HariIniBasahLumpPersen = getFloat(baseIdx + 10)
-
-	// Produksi Hari Ini - Kering (kolom 11-14)
 	rekap.HariIniK3Sheet = getFloat(baseIdx + 11)
 	rekap.HariIniKeringSheet = getFloat(baseIdx + 12)
 	rekap.HariIniKeringBrCr = getFloat(baseIdx + 13)
 	rekap.HariIniKeringJumlah = getFloat(baseIdx + 14)
-
-	// Produksi Sampai Hari Ini - Basah Latek (kolom 15-17)
 	rekap.SampaiHariIniBasahLatekKebun = getFloat(baseIdx + 15)
 	rekap.SampaiHariIniBasahLatekPabrik = getFloat(baseIdx + 16)
 	rekap.SampaiHariIniBasahLatekPersen = getFloat(baseIdx + 17)
-
-	// Produksi Sampai Hari Ini - Basah Lump (kolom 18-20)
 	rekap.SampaiHariIniBasahLumpKebun = getFloat(baseIdx + 18)
 	rekap.SampaiHariIniBasahLumpPabrik = getFloat(baseIdx + 19)
 	rekap.SampaiHariIniBasahLumpPersen = getFloat(baseIdx + 20)
-
-	// Produksi Sampai Hari Ini - Kering (kolom 21-24)
 	rekap.SampaiHariIniK3Sheet = getFloat(baseIdx + 21)
 	rekap.SampaiHariIniKeringSheet = getFloat(baseIdx + 22)
 	rekap.SampaiHariIniKeringBrCr = getFloat(baseIdx + 23)
 	rekap.SampaiHariIniKeringJumlah = getFloat(baseIdx + 24)
-
-	// Produktivitas Per Taper (kolom 25-26)
 	rekap.ProduksiPerTaperHariIni = getFloat(baseIdx + 25)
 	rekap.ProduksiPerTaperSampaiHariIni = getFloat(baseIdx + 26)
-
 	rekap.Afdeling = afdeling
-
 	rekap.IdMaster = idMaster
 
 	return rekap, nil
 }
 
-// saveRekap: upsert-like save via GORM
-func saveRekap(db *gorm.DB, rekap *models.Rekap) error {
-	var existing models.Rekap
-	res := db.Where("tanggal = ? AND tipe_produksi = ? AND nik = ? AND mandor = ? AND tahun_tanam = ?",
-		rekap.Tanggal, rekap.TipeProduksi, rekap.NIK, rekap.Mandor, rekap.TahunTanam).First(&existing)
+// saveBatchRekap: save multiple rekap records in batch using upsert
+func saveBatchRekap(db *gorm.DB, rekaps []*models.Rekap) error {
+	if len(rekaps) == 0 {
+		return nil
+	}
 
-	if res.Error == nil {
-		rekap.ID = existing.ID
-		rekap.CreatedAt = existing.CreatedAt
-		return db.Save(rekap).Error
-	}
-	if res.Error != nil && res.Error != gorm.ErrRecordNotFound {
-		return res.Error
-	}
-	return db.Create(rekap).Error
+	// Use batch insert with ON CONFLICT clause for upsert behavior
+	return db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "tanggal"},
+			{Name: "tipe_produksi"},
+			{Name: "nik"},
+			{Name: "mandor"},
+			{Name: "tahun_tanam"},
+		},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"hko_hari_ini", "hko_sampai_hari_ini",
+			"hari_ini_basah_latek_kebun", "hari_ini_basah_latek_pabrik", "hari_ini_basah_latek_persen",
+			"hari_ini_basah_lump_kebun", "hari_ini_basah_lump_pabrik", "hari_ini_basah_lump_persen",
+			"hari_ini_k3_sheet", "hari_ini_kering_sheet", "hari_ini_kering_br_cr", "hari_ini_kering_jumlah",
+			"sampai_hari_ini_basah_latek_kebun", "sampai_hari_ini_basah_latek_pabrik", "sampai_hari_ini_basah_latek_persen",
+			"sampai_hari_ini_basah_lump_kebun", "sampai_hari_ini_basah_lump_pabrik", "sampai_hari_ini_basah_lump_persen",
+			"sampai_hari_ini_k3_sheet", "sampai_hari_ini_kering_sheet", "sampai_hari_ini_kering_br_cr", "sampai_hari_ini_kering_jumlah",
+			"produksi_per_taper_hari_ini", "produksi_per_taper_sampai_hari_ini",
+			"afdeling", "id_master", "updated_at",
+		}),
+	}).CreateInBatches(rekaps, 100).Error
 }
 
-// processCSVFileAutoBaseWithFilter: PERBAIKAN dengan debugging lebih detail
+// processCSVFileAutoBaseWithFilter: optimized with batch processing
 func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Time, afdeling string, idMaster uint64) (int, int, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -463,6 +410,7 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 	r := csv.NewReader(f)
 	r.FieldsPerRecord = -1
 	r.LazyQuotes = true
+	r.ReuseRecord = true // Reuse memory
 
 	rows, err := r.ReadAll()
 	if err != nil {
@@ -479,11 +427,14 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 
 	fmt.Printf("DEBUG: Header found at row %d, baseIdx %d\n", headerRow, baseIdx)
 
-	// Skip 3 baris setelah header utama
 	start := headerRow + 3
-
 	saved, failed := 0, 0
-	currentTipeProduksi := "PRODUKSI BAKU" // default tipe produksi
+	currentTipeProduksi := "PRODUKSI BAKU"
+
+	// Batch processing
+	const batchSize = 100
+	rekaps := make([]*models.Rekap, 0, batchSize)
+	var mu sync.Mutex
 
 	for i := start; i < len(rows); i++ {
 		row := rows[i]
@@ -500,50 +451,70 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 			continue
 		}
 
-		// PENTING: Deteksi tipe produksi SEBELUM cek summary row
 		if isTipeProduksiRow(row, baseIdx) {
 			newTipe := detectTipeProduksi(row, baseIdx)
 			if newTipe != "" {
+				// Save current batch before changing type
+				if len(rekaps) > 0 {
+					mu.Lock()
+					if err := saveBatchRekap(db, rekaps); err != nil {
+						fmt.Printf("DEBUG: Failed to save batch - %v\n", err)
+						failed += len(rekaps)
+					} else {
+						saved += len(rekaps)
+					}
+					rekaps = rekaps[:0]
+					mu.Unlock()
+				}
+
 				currentTipeProduksi = newTipe
 				fmt.Printf("DEBUG Row %d: Category changed to '%s'\n", i, currentTipeProduksi)
 			}
 			continue
 		}
 
-		// skip likely summary rows
 		if isLikelySummaryRow(row, baseIdx) {
-			fmt.Printf("DEBUG Row %d: Skipped as summary row\n", i)
 			continue
 		}
 
-		// validate minimal data pattern
 		if !isValidDataRow(row, baseIdx) {
-			fmt.Printf("DEBUG Row %d: Invalid data row\n", i)
 			continue
 		}
 
-		// VALIDASI: Skip jika tidak ada HKO dan tidak ada produksi
 		if !hasValidHKO(row, baseIdx) {
-			fmt.Printf("DEBUG Row %d: No HKO and no production data\n", i)
 			continue
 		}
 
 		rekap, err := mapRowRelative(row, baseIdx, tanggal, currentTipeProduksi, afdeling, idMaster)
 		if err != nil {
-			fmt.Printf("DEBUG Row %d: Failed to map - %v\n", i, err)
 			failed++
 			continue
 		}
 
-		if err := saveRekap(db, rekap); err != nil {
-			fmt.Printf("DEBUG Row %d: Failed to save - %v\n", i, err)
-			failed++
-			continue
-		}
+		rekaps = append(rekaps, rekap)
 
-		saved++
-		fmt.Printf("DEBUG Row %d: ✓ Saved - NIK: %s, Mandor: %s, Tipe: %s\n",
-			i, rekap.NIK, rekap.Mandor, rekap.TipeProduksi)
+		// Save batch when reaching batch size
+		if len(rekaps) >= batchSize {
+			mu.Lock()
+			if err := saveBatchRekap(db, rekaps); err != nil {
+				fmt.Printf("DEBUG: Failed to save batch - %v\n", err)
+				failed += len(rekaps)
+			} else {
+				saved += len(rekaps)
+			}
+			rekaps = rekaps[:0]
+			mu.Unlock()
+		}
+	}
+
+	// Save remaining records
+	if len(rekaps) > 0 {
+		if err := saveBatchRekap(db, rekaps); err != nil {
+			fmt.Printf("DEBUG: Failed to save final batch - %v\n", err)
+			failed += len(rekaps)
+		} else {
+			saved += len(rekaps)
+		}
 	}
 
 	fmt.Printf("\nSUMMARY: Saved=%d, Failed=%d, Total Processed=%d\n", saved, failed, saved+failed)
@@ -557,10 +528,8 @@ func ConvertCSVAutoBaseWithFilter(tanggal time.Time, afdeling string, idMaster u
 		return 0, 0, nil, fmt.Errorf("database belum dikonfigurasi (config.GetDB() == nil)")
 	}
 
-	// Hanya proses file REKAP.csv
 	path := filepath.Join("csv", "REKAP.csv")
 
-	// Cek apakah file ada
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return 0, 0, nil, fmt.Errorf("file REKAP.csv tidak ditemukan di folder csv/")
 	}

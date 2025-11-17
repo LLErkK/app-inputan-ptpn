@@ -105,6 +105,7 @@ func SearchPenyadap(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
+		tglAwal = tglAwal.AddDate(0, 0, -1)
 
 		if tanggalAkhir != "" {
 			tglAkhir, err := time.Parse("2006-01-02", tanggalAkhir)

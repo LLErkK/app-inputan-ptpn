@@ -88,6 +88,7 @@ func visualisasiProduksiPenyadap(nikPenyadap, tipeProduksi, tanggalAwal, tanggal
 	// Filter berdasarkan tanggal
 	startDate, _ := time.Parse("2006-01-02", tanggalAwal)
 	endDate, _ := time.Parse("2006-01-02", tanggalAkhir)
+	startDate = startDate.AddDate(0, 0, -1)
 	query = query.Where("tanggal BETWEEN ? AND ?", startDate, endDate)
 
 	// Filter NIK Penyadap

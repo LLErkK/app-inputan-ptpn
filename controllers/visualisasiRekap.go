@@ -130,6 +130,7 @@ func visualisasiTotal(tipeProduksi, tanggalAwal, tanggalAkhir, satuan string) (V
 
 	startDate, _ := time.Parse("2006-01-02", tanggalAwal)
 	endDate, _ := time.Parse("2006-01-02", tanggalAkhir)
+	startDate = startDate.AddDate(0, 0, -1)
 	query = query.Where("tanggal BETWEEN ? AND ?", startDate, endDate)
 
 	// FIX: Exclude tipe_produksi = REKAPITULASI
@@ -153,6 +154,7 @@ func visualisasiAfdeling(tipeProduksi, afdeling, tanggalAwal, tanggalAkhir, satu
 
 	startDate, _ := time.Parse("2006-01-02", tanggalAwal)
 	endDate, _ := time.Parse("2006-01-02", tanggalAkhir)
+	startDate = startDate.AddDate(0, 0, -1)
 	query = query.Where("tanggal BETWEEN ? AND ?", startDate, endDate)
 	query = query.Where("afdeling = ?", afdeling)
 
@@ -177,6 +179,7 @@ func visualisasiMandor(tipeProduksi, afdeling, nikMandor, tahunTanam, tanggalAwa
 
 	startDate, _ := time.Parse("2006-01-02", tanggalAwal)
 	endDate, _ := time.Parse("2006-01-02", tanggalAkhir)
+	startDate = startDate.AddDate(0, 0, -1)
 	query = query.Where("tanggal BETWEEN ? AND ?", startDate, endDate)
 
 	// Wajib filter berdasarkan NIK mandor

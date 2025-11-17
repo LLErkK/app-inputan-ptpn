@@ -3,6 +3,7 @@ package controllers
 import (
 	"app-inputan-ptpn/config"
 	"app-inputan-ptpn/models"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -26,8 +28,11 @@ func ServeUploadPage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "templates/html/upload.html")
 }
 
-// CreateUpload handles file upload and date submission
+// CreateUpload handles file upload and date submission with optimizations
 func CreateUpload(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
+	defer cancel()
+
 	// Parse multipart form with max memory
 	if err := r.ParseMultipartForm(MaxFileSize); err != nil {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
@@ -36,8 +41,17 @@ func CreateUpload(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	//Get afdeling from form
+
+	// Get afdeling from form
 	afdeling := r.FormValue("afdeling")
+	if afdeling == "" {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Afdeling wajib diisi",
+		})
+		return
+	}
+
 	// Get tanggal from form
 	tanggalStr := r.FormValue("tanggal")
 	if tanggalStr == "" {
@@ -78,6 +92,16 @@ func CreateUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate file extension
+	ext := filepath.Ext(header.Filename)
+	if ext != ".xlsx" && ext != ".xls" {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Format file tidak didukung. Hanya .xlsx dan .xls yang diizinkan",
+		})
+		return
+	}
+
 	// Ensure upload directory exists
 	if err := os.MkdirAll(UploadDir, 0755); err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
@@ -88,7 +112,6 @@ func CreateUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate unique filename
-	ext := filepath.Ext(header.Filename)
 	newFileName := fmt.Sprintf("%d_%s%s", time.Now().Unix(), generateRandomString(8), ext)
 	uploadPath := filepath.Join(UploadDir, newFileName)
 
@@ -101,17 +124,19 @@ func CreateUpload(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	defer dst.Close()
 
-	// Copy uploaded file to destination
-	if _, err := io.Copy(dst, file); err != nil {
-		os.Remove(uploadPath) // Cleanup on error
+	// Copy uploaded file to destination with buffered writing
+	buf := make([]byte, 32*1024) // 32KB buffer
+	if _, err := io.CopyBuffer(dst, file, buf); err != nil {
+		dst.Close()
+		os.Remove(uploadPath)
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
 			Message: "Gagal menyimpan file",
 		})
 		return
 	}
+	dst.Close()
 
 	// Create upload record in database
 	upload := models.Upload{
@@ -124,53 +149,107 @@ func CreateUpload(w http.ResponseWriter, r *http.Request) {
 
 	// Save to database
 	if err := config.DB.Create(&upload).Error; err != nil {
-		os.Remove(uploadPath) // Cleanup file if database save fails
+		os.Remove(uploadPath)
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
 			Message: "Gagal menyimpan data ke database: " + err.Error(),
 		})
 		return
 	}
-	//convert ke csv
-	// convert ke csv - kirim nama file asli
-	if err := excelToCSV(uploadPath, "csv", tanggal, afdeling, header.Filename); err != nil {
-		log.Fatal(err)
-	}
 
-	// Return success response with upload data
+	// Process Excel to CSV and database in background with context
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Panic recovered in background process: %v", r)
+			}
+		}()
+
+		// Check if context is still valid
+		select {
+		case <-ctx.Done():
+			log.Println("Context cancelled, stopping background process")
+			return
+		default:
+		}
+
+		log.Printf("Starting Excel to CSV conversion for: %s", header.Filename)
+
+		if err := excelToCSV(uploadPath, "csv", tanggal, afdeling, header.Filename); err != nil {
+			log.Printf("Error converting Excel to CSV: %v", err)
+			return
+		}
+
+		log.Println("Excel to CSV conversion completed successfully")
+
+		// Cleanup folders asynchronously
+		cleanupFolders()
+	}()
+
+	// Return success response immediately
 	responseData := map[string]interface{}{
 		"id":       upload.ID,
 		"tanggal":  upload.Tanggal.Format("2006-01-02"),
 		"fileName": upload.FileName,
 		"fileSize": upload.FileSize,
 		"filePath": "/uploads/" + newFileName,
-	}
-
-	if err := clearFolder("uploads"); err != nil {
-		fmt.Printf("⚠️  Gagal menghapus isi folder uploads: %v\n", err)
-	} else {
-		fmt.Println("🗑️  Folder 'uploads' telah dibersihkan.")
-	}
-
-	if err := clearFolder("csv"); err != nil {
-		fmt.Printf("⚠️  Gagal menghapus isi folder csv: %v\n", err)
-	} else {
-		fmt.Println("🗑️  Folder 'csv' telah dibersihkan.")
+		"message":  "File sedang diproses di background",
 	}
 
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
-		Message: "File berhasil diupload",
+		Message: "File berhasil diupload dan sedang diproses",
 		Data:    responseData,
 	})
 }
 
-// GetAllUploads retrieves all upload records
+// cleanupFolders cleans up upload and csv folders concurrently
+func cleanupFolders() {
+	var wg sync.WaitGroup
+
+	folders := []string{"uploads", "csv"}
+
+	for _, folder := range folders {
+		wg.Add(1)
+		go func(f string) {
+			defer wg.Done()
+			if err := clearFolder(f); err != nil {
+				log.Printf("⚠️  Gagal menghapus isi folder %s: %v\n", f, err)
+			} else {
+				log.Printf("🗑️  Folder '%s' telah dibersihkan.\n", f)
+			}
+		}(folder)
+	}
+
+	wg.Wait()
+}
+
+// GetAllUploads retrieves all upload records with pagination
 func GetAllUploads(w http.ResponseWriter, r *http.Request) {
 	var uploads []models.Upload
 
-	// Parse query parameters for filtering
+	// Parse query parameters for filtering and pagination
 	tanggalStr := r.URL.Query().Get("tanggal")
+	page := r.URL.Query().Get("page")
+	limit := r.URL.Query().Get("limit")
+
+	// Default pagination values
+	pageNum := 1
+	limitNum := 50
+
+	if page != "" {
+		if p, err := strconv.Atoi(page); err == nil && p > 0 {
+			pageNum = p
+		}
+	}
+
+	if limit != "" {
+		if l, err := strconv.Atoi(limit); err == nil && l > 0 && l <= 100 {
+			limitNum = l
+		}
+	}
+
+	offset := (pageNum - 1) * limitNum
 
 	query := config.DB.Order("created_at desc")
 
@@ -187,7 +266,18 @@ func GetAllUploads(w http.ResponseWriter, r *http.Request) {
 		query = query.Where("DATE(tanggal) = DATE(?)", tanggal)
 	}
 
-	if err := query.Find(&uploads).Error; err != nil {
+	// Get total count
+	var total int64
+	if err := query.Model(&models.Upload{}).Count(&total).Error; err != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Message: "Gagal menghitung total data: " + err.Error(),
+		})
+		return
+	}
+
+	// Get paginated data
+	if err := query.Limit(limitNum).Offset(offset).Find(&uploads).Error; err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
 			Message: "Gagal mengambil data: " + err.Error(),
@@ -195,10 +285,20 @@ func GetAllUploads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	response := map[string]interface{}{
+		"uploads": uploads,
+		"pagination": map[string]interface{}{
+			"page":       pageNum,
+			"limit":      limitNum,
+			"total":      total,
+			"totalPages": (total + int64(limitNum) - 1) / int64(limitNum),
+		},
+	}
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Message: "Data berhasil diambil",
-		Data:    uploads,
+		Data:    response,
 	})
 }
 
@@ -236,11 +336,12 @@ func DeleteUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delete file from filesystem
-	if err := os.Remove(upload.FilePath); err != nil {
-		// Log error but continue with database deletion
-		fmt.Printf("Warning: Failed to delete file %s: %v\n", upload.FilePath, err)
-	}
+	// Delete file from filesystem asynchronously
+	go func() {
+		if err := os.Remove(upload.FilePath); err != nil {
+			log.Printf("Warning: Failed to delete file %s: %v\n", upload.FilePath, err)
+		}
+	}()
 
 	// Delete from database
 	if err := config.DB.Delete(&upload).Error; err != nil {

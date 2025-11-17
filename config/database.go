@@ -2,11 +2,12 @@ package config
 
 import (
 	"app-inputan-ptpn/models"
+	"fmt"
 	"log"
 	"os"
 
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -23,58 +24,90 @@ func InitDB() {
 	}
 	JWTSecret = []byte(secret)
 
-	// Nama file database SQLite
-	dsn := "produksi.db"
+	// Konfigurasi MySQL dari environment variables atau default values
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		dbHost = "localhost"
+	}
+
+	dbPort := os.Getenv("DB_PORT")
+	if dbPort == "" {
+		dbPort = "3306"
+	}
+
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		dbUser = "root"
+	}
+
+	dbPassword := os.Getenv("DB_PASSWORD")
+	if dbPassword == "" {
+		dbPassword = ""
+	}
+
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "produksi_ptpn"
+	}
+
+	// MySQL DSN format
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		dbUser, dbPassword, dbHost, dbPort, dbName)
 
 	var err error
-	DB, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	// IMPORTANT: Disable foreign key constraint creation by GORM
+	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true, // KEY CHANGE
+	})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// PENTING: Aktifkan foreign key constraints untuk SQLite
+	// Get underlying sql.DB
 	sqlDB, err := DB.DB()
 	if err != nil {
 		log.Fatal("Failed to get database instance:", err)
 	}
 
-	// Enable foreign key constraints
-	if _, err := sqlDB.Exec("PRAGMA foreign_keys = ON;"); err != nil {
-		log.Fatal("Failed to enable foreign keys:", err)
+	// Set connection pool settings
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+
+	// Test connection
+	if err := sqlDB.Ping(); err != nil {
+		log.Fatal("Failed to ping database:", err)
 	}
 
-	// Verifikasi foreign key sudah aktif
-	var fkEnabled int
-	DB.Raw("PRAGMA foreign_keys").Scan(&fkEnabled)
-	if fkEnabled == 1 {
-		log.Println("✓ Foreign key constraints enabled")
-	} else {
-		log.Println("✗ WARNING: Foreign key constraints NOT enabled")
-	}
+	log.Println("✓ MySQL database connected successfully")
+	log.Printf("  Database: %s@%s:%s/%s", dbUser, dbHost, dbPort, dbName)
 
 	// Auto migrate tables
+	log.Println("🔄 Migrating database tables...")
 	err = DB.AutoMigrate(
+		// Independent tables (no foreign keys)
 		&models.User{},
-		&models.BakuPenyadap{},
-		&models.BakuMandor{},
-		&models.BakuDetail{},
 		&models.Upload{},
 		&models.Master{},
-		&models.Produksi{},
-		&models.Rekap{},
+		&models.Peta{},
 		&models.Penyadap{},
 		&models.Mandor{},
-		&models.Peta{},
+		// Tables with foreign keys
+		&models.Produksi{},
+		&models.Rekap{},
 	)
 
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
 
+	// Add foreign key constraints manually (jika diperlukan)
+	log.Println("🔄 Adding foreign key constraints...")
+	addForeignKeyConstraints()
+
 	// Create default admin user if not exists
 	createDefaultUser()
 
-	log.Println("SQLite database connected and migrated successfully")
+	log.Println("✓ MySQL database migrated successfully")
 }
 
 func GetDB() *gorm.DB {
@@ -85,7 +118,6 @@ func GetDB() *gorm.DB {
 func HashPassword(password string) string {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		// fallback (jarang terjadi)
 		log.Printf("bcrypt generate error: %v", err)
 		return password
 	}
@@ -113,7 +145,54 @@ func createDefaultUser() {
 		if result.Error != nil {
 			log.Printf("Failed to create default user: %v", result.Error)
 		} else {
-			log.Println("Default admin user created: username=admin, password=admin123")
+			log.Println("✓ Default admin user created: username=admin, password=admin123")
+		}
+	}
+}
+
+// addForeignKeyConstraints adds foreign key constraints manually with proper CASCADE
+func addForeignKeyConstraints() {
+	// Hanya untuk Produksi dan Rekap yang punya FK ke Master
+	constraints := []struct {
+		table      string
+		constraint string
+		sql        string
+	}{
+		{
+			table:      "produksis",
+			constraint: "fk_produksis_master",
+			sql: `ALTER TABLE produksis 
+				  ADD CONSTRAINT fk_produksis_master 
+				  FOREIGN KEY (id_master) REFERENCES masters(id) 
+				  ON DELETE CASCADE ON UPDATE CASCADE`,
+		},
+		{
+			table:      "rekaps",
+			constraint: "fk_rekaps_master",
+			sql: `ALTER TABLE rekaps 
+				  ADD CONSTRAINT fk_rekaps_master 
+				  FOREIGN KEY (id_master) REFERENCES masters(id) 
+				  ON DELETE CASCADE ON UPDATE CASCADE`,
+		},
+	}
+
+	for _, c := range constraints {
+		// Check if constraint exists
+		var count int64
+		DB.Raw(`SELECT COUNT(*) FROM information_schema.table_constraints 
+				WHERE constraint_schema = DATABASE() 
+				AND table_name = ? 
+				AND constraint_name = ?`, c.table, c.constraint).Scan(&count)
+
+		if count == 0 {
+			if err := DB.Exec(c.sql).Error; err != nil {
+				// Log warning but don't fail - mungkin kolom belum ada
+				log.Printf("  ⚠️  Could not add constraint %s: %v", c.constraint, err)
+			} else {
+				log.Printf("  ✓ Added constraint: %s", c.constraint)
+			}
+		} else {
+			log.Printf("  ✓ Constraint exists: %s", c.constraint)
 		}
 	}
 }

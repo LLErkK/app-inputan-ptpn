@@ -14,6 +14,10 @@ type Penyadap struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
-	// Relasi: Penyadap punya banyak BakuPenyadap
-	BakuPenyadaps []BakuPenyadap `gorm:"foreignKey:IdPenyadap;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
+	// FIXED: Hapus relasi ke BakuPenyadap karena tidak digunakan
+	// BakuPenyadap tidak ada dalam daftar models yang digunakan
+}
+
+func (Penyadap) TableName() string {
+	return "penyadaps"
 }

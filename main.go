@@ -10,9 +10,18 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load .env file (optional - akan skip jika tidak ada)
+	if err := godotenv.Load(); err != nil {
+		log.Println("⚠️  No .env file found, using environment variables or defaults")
+	} else {
+		log.Println("✓ .env file loaded successfully")
+	}
+
 	// Banner aplikasi
 	printBanner()
 
@@ -57,11 +66,13 @@ func main() {
 			log.Fatal("❌ Server error:", err)
 		}
 	}()
+
 	seed.SeedPetaData()
 
 	fmt.Println("\n===========================================")
 	fmt.Println("  SEEDING SELESAI")
 	fmt.Println("===========================================")
+
 	// Tunggu server benar-benar siap
 	<-serverReady
 	fmt.Println("\n⏳ Menunggu server siap menerima request...")
@@ -90,6 +101,7 @@ func printBanner() {
 ║                                                              ║
 ║              Sistem Input Data Produksi PTPN                 ║
 ║                      Version 1.0.0                           ║
+║                     (MySQL Database)                         ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 `
