@@ -50,24 +50,8 @@ func SetupRoutes() {
 	protected.HandleFunc("/dashboard", controllers.ServeDashboardPage).Methods("GET")
 	protected.HandleFunc("/api/dashboard", controllers.GetDashboardData).Methods("GET")
 
-	// ================== BAKU PAGE (HTML) ==================
-	protected.HandleFunc("/baku", controllers.ServeBakuPage).Methods("GET")
-
 	// ================== NEW: TIPE PRODUKSI API ==================
 	protected.HandleFunc("/api/tipe-produksi", controllers.GetTipeProduksiList).Methods("GET")
-
-	// ================== ENHANCED BAKU DETAIL API WITH DATE RANGE ==================
-	protected.HandleFunc("/api/baku/detail", controllers.GetAllBakuDetail).Methods("GET")
-	protected.HandleFunc("/api/baku/detail/range", controllers.GetBakuDetailByDateRange).Methods("GET")
-	protected.HandleFunc("/api/baku/detail/{tanggal}", controllers.GetBakuDetailByDate).Methods("GET")
-
-	// ================== ENHANCED BAKU PENYADAP CRUD WITH DATE RANGE ==================
-	protected.HandleFunc("/api/baku", controllers.GetAllBakuPenyadap).Methods("GET")
-	protected.HandleFunc("/api/baku", controllers.CreateBakuPenyadap).Methods("POST")
-	protected.HandleFunc("/api/baku/{id}", controllers.GetBakuPenyadapByID).Methods("GET")
-	protected.HandleFunc("/api/baku/{id}", controllers.UpdateBakuPenyadap).Methods("PUT")
-	protected.HandleFunc("/api/baku/{id}", controllers.DeleteBakuPenyadap).Methods("DELETE")
-	protected.HandleFunc("/api/baku/rekap/today", controllers.GetBakuPenyadapToday).Methods("GET")
 
 	// ================== MANDOR API (CRUD) ==================
 	protected.HandleFunc("/api/mandor/search", controllers.GetMandorByName).Methods("GET")
