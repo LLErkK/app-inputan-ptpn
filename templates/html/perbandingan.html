@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perbandingan Produksi</title>
+    <link rel="stylesheet" href="/css/perbandingan.css">
+</head>
+<body>
+    <!-- Popup Overlay -->
+    <div class="popup-overlay active" id="viewModePopup">
+        <div class="popup-container">
+            <div class="popup-header">
+                <h2>Pilih Mode Tampilan</h2>
+                <p>Silakan pilih cara Anda ingin melihat data perbandingan</p>
+            </div>
+            <div class="popup-options">
+                <div class="option-card penyadap" onclick="selectViewMode('penyadap')">
+                    <div class="option-icon">👤</div>
+                    <div class="option-title">Penyadap</div>
+                    <div class="option-desc">Lihat data berdasarkan penyadap</div>
+                </div>
+                <div class="option-card mandor" onclick="selectViewMode('mandor')">
+                    <div class="option-icon">👥</div>
+                    <div class="option-title">Mandor</div>
+                    <div class="option-desc">Lihat data berdasarkan mandor</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Page Wrapper - Container Utama -->
+    <div class="page-wrapper">
+        <!-- Header Section -->
+        <div class="page-header">
+            <h1>📊 PERBANDINGAN PRODUKSI</h1>
+            <div class="header-controls">
+                <span class="view-mode-badge" id="viewModeBadge">👤 Mode: Penyadap</span>
+                <button class="change-view-btn" onclick="changeViewMode()">🔄 Ganti Mode</button>
+            </div>
+        </div>
+
+        <!-- Content Section -->
+        <div class="page-content">
+            <!-- Comparison Cards Container -->
+            <div id="comparisonWrapper" class="comparison-wrapper cols-1"></div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="add-btn" onclick="addComparisonCard()">➕ Tambah Perbandingan</button>
+                <button class="compare-btn" onclick="compareData()">🔍 Bandingkan</button>
+                <button class="reset-btn" onclick="resetAll()">🔄 Reset Semua</button>
+            </div>
+
+            <!-- Comparison Result -->
+            <div id="comparisonResult" class="comparison-result">
+                <div class="result-header">
+                    <h2>📊 Hasil Perbandingan</h2>
+                    <p>Perbandingan data berdasarkan kriteria yang dipilih</p>
+                </div>
+                <div id="resultWrapper" class="result-wrapper cols-1"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/perbandingan.js"></script>
+</body>
+</html>

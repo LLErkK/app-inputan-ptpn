@@ -129,6 +129,9 @@ func SetupRoutes() {
 	protected.HandleFunc("/api/manajemen/change-username", controllers.ChangeUsername).Methods("POST")
 	protected.HandleFunc("/api/manajemen/change-password", controllers.ChangePassword).Methods("POST")
 
+	//endpoint perbandingan
+	protected.HandleFunc("/perbandingan", controllers.ServePerbandinganPage).Methods("GET")
+
 	//endpoint dev
 	protected.HandleFunc("/dev/rekap", dev.GetAllRekap).Methods("GET")
 	protected.HandleFunc("/dev/produksi", dev.GetAllProduksi).Methods("GET")
