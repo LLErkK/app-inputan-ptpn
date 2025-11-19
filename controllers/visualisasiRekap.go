@@ -2,12 +2,12 @@ package controllers
 
 import (
 	"app-inputan-ptpn/config"
+	"app-inputan-ptpn/models"
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
-
-	"app-inputan-ptpn/models"
 )
 
 type VisualisasiResponse struct {
@@ -243,13 +243,19 @@ func aggregateData(rekaps []models.Rekap, satuan string) VisualisasiResponse {
 		point.KeringJumlah += rekap.HariIniKeringJumlah
 	}
 
-	// Extract field yang diminta berdasarkan satuan
+	// Extract dan sort tanggal
 	var dates []string
-	var data []DataPoint
-
-	for date, point := range dataMap {
+	for date := range dataMap {
 		dates = append(dates, date)
+	}
 
+	// Sort tanggal secara ascending
+	sort.Strings(dates)
+
+	// Build data berdasarkan urutan tanggal
+	var data []DataPoint
+	for _, date := range dates {
+		point := dataMap[date]
 		var value float64
 
 		switch satuan {

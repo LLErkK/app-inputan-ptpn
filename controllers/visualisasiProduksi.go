@@ -4,6 +4,7 @@ import (
 	"app-inputan-ptpn/config"
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -125,15 +126,21 @@ func aggregateProduksiData(produksiList []models.Produksi, satuan string) Visual
 		}
 	}
 
-	// Convert map to slice
+	// Extract dan sort tanggal
 	var dates []string
-	var data []ProduksiDataPoint
-
-	for date, value := range dataMap {
+	for date := range dataMap {
 		dates = append(dates, date)
+	}
+
+	// Sort tanggal secara ascending
+	sort.Strings(dates)
+
+	// Build data berdasarkan urutan tanggal
+	var data []ProduksiDataPoint
+	for _, date := range dates {
 		data = append(data, ProduksiDataPoint{
 			Tanggal: date,
-			Value:   value,
+			Value:   dataMap[date],
 		})
 	}
 

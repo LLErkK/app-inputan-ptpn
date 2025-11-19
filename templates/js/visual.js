@@ -13,6 +13,53 @@ let currentConfig = {
     satuan: 'day'
 }
 
+// ========== HELPER FUNCTIONS ==========
+
+/**
+ * Generate array of all dates between start and end
+ */
+function generateDateRange(startDate, endDate) {
+    const dates = [];
+    const current = new Date(startDate);
+    const end = new Date(endDate);
+
+    while (current <= end) {
+        dates.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+    }
+
+    return dates;
+}
+
+/**
+ * Format date to match API format (YYYY-MM-DD)
+ */
+function formatDateForAPI(date) {
+    return date.toISOString().split('T')[0];
+}
+
+/**
+ * Format date for display based on satuan
+ */
+function formatDateForDisplay(date, satuanWaktu) {
+    if (satuanWaktu === 'day') {
+        return date.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+    } else if (satuanWaktu === 'week') {
+        const weekNum = Math.ceil(date.getDate() / 7);
+        return `Minggu ${weekNum} ${date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
+    } else if (satuanWaktu === 'month') {
+        return date.toLocaleDateString('id-ID', {
+            month: 'long',
+            year: 'numeric'
+        });
+    }
+    return formatDateForAPI(date);
+}
+
 // ========== HANDLER FUNCTIONS ==========
 
 function handleTipeDataChange() {
@@ -104,106 +151,100 @@ async function fetchVisualisasiData(params) {
     }
 }
 
-function transformDataForChart(apiData, fieldName, satuanWaktu) {
+function transformDataForChart(apiData, fieldName, satuanWaktu, startDate, endDate) {
+    // Generate all dates in range
+    const allDates = generateDateRange(new Date(startDate), new Date(endDate));
+    console.log('📅 Total dates in range:', allDates.length);
+
+    // Create map of API data by date
+    const apiDataMap = {};
+
     if (apiData.length > 0 && apiData[0].hasOwnProperty('value') && apiData[0].hasOwnProperty('tanggal')) {
         console.log('✅ Data already aggregated from API');
 
-        const grouped = {};
+        apiData.forEach(item => {
+            const dateKey = formatDateForAPI(new Date(item.tanggal));
+            if (!apiDataMap[dateKey]) {
+                apiDataMap[dateKey] = [];
+            }
+            apiDataMap[dateKey].push(parseFloat(item.value) || 0);
+        });
+    } else {
+        console.log('⚠️ Using fallback transformation');
+
+        const fieldMappingAPI = {
+            'hko': 'hko',
+            'basah_latek_kebun': 'basahLatexKebun',
+            'basah_latek_pabrik': 'basahLatexPabrik',
+            'basah_latek_persen': 'basahLatexPersen',
+            'basah_lump_kebun': 'basahLumpKebun',
+            'basah_lump_pabrik': 'basahLumpPabrik',
+            'basah_lump_persen': 'basahLumpPersen',
+            'k3_sheet': 'k3Sheet',
+            'kering_sheet': 'keringSheet',
+            'kering_br_cr': 'keringBrCr',
+            'kering_jumlah': 'keringJumlah',
+            'produksi_per_taper': 'produksiPerTaper'
+        };
+
+        const apiFieldName = fieldMappingAPI[fieldName] || fieldName;
 
         apiData.forEach(item => {
-            let key;
-            const date = new Date(item.tanggal);
+            const dateKey = formatDateForAPI(new Date(item.tanggal));
+            let value = item[apiFieldName] || item[fieldName] || 0;
 
-            if (satuanWaktu === 'day') {
-                key = date.toLocaleDateString('id-ID', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric'
-                });
-            } else if (satuanWaktu === 'week') {
-                const weekNum = Math.ceil(date.getDate() / 7);
-                key = `Minggu ${weekNum} ${date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
-            } else if (satuanWaktu === 'month') {
-                key = date.toLocaleDateString('id-ID', {
-                    month: 'long',
-                    year: 'numeric'
-                });
+            if (!apiDataMap[dateKey]) {
+                apiDataMap[dateKey] = [];
             }
-
-            if (!grouped[key]) {
-                grouped[key] = { total: 0, count: 0 };
-            }
-
-            grouped[key].total += parseFloat(item.value) || 0;
-            grouped[key].count += 1;
+            apiDataMap[dateKey].push(parseFloat(value) || 0);
         });
-
-        console.log('Grouped data:', grouped);
-
-        const result = Object.entries(grouped).map(([label, data]) => ({
-            label: label,
-            value: satuanWaktu === 'day' ? Math.round(data.total) : Math.round(data.total / data.count)
-        }));
-
-        return result;
     }
 
-    console.log('⚠️ Using fallback transformation');
+    // Build complete dataset with all dates
+    const result = [];
     const grouped = {};
 
-    const fieldMappingAPI = {
-        'hko': 'hko',
-        'basah_latek_kebun': 'basahLatexKebun',
-        'basah_latek_pabrik': 'basahLatexPabrik',
-        'basah_latek_persen': 'basahLatexPersen',
-        'basah_lump_kebun': 'basahLumpKebun',
-        'basah_lump_pabrik': 'basahLumpPabrik',
-        'basah_lump_persen': 'basahLumpPersen',
-        'k3_sheet': 'k3Sheet',
-        'kering_sheet': 'keringSheet',
-        'kering_br_cr': 'keringBrCr',
-        'kering_jumlah': 'keringJumlah',
-        'produksi_per_taper': 'produksiPerTaper'
-    };
+    allDates.forEach(date => {
+        const dateKey = formatDateForAPI(date);
+        const displayLabel = formatDateForDisplay(date, satuanWaktu);
 
-    const apiFieldName = fieldMappingAPI[fieldName] || fieldName;
+        // Get value for this date or default to 0
+        let value = 0;
+        if (apiDataMap[dateKey] && apiDataMap[dateKey].length > 0) {
+            // Sum all values for this date
+            value = apiDataMap[dateKey].reduce((sum, val) => sum + val, 0);
 
-    apiData.forEach(item => {
-        let key;
-        const date = new Date(item.tanggal);
+            // For non-day views, we'll average later
+            if (satuanWaktu !== 'day') {
+                if (!grouped[displayLabel]) {
+                    grouped[displayLabel] = { total: 0, count: 0 };
+                }
+                grouped[displayLabel].total += value;
+                grouped[displayLabel].count += 1;
+            }
+        }
 
         if (satuanWaktu === 'day') {
-            key = date.toLocaleDateString('id-ID', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric'
-            });
-        } else if (satuanWaktu === 'week') {
-            const weekNum = Math.ceil(date.getDate() / 7);
-            key = `Minggu ${weekNum} ${date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
-        } else if (satuanWaktu === 'month') {
-            key = date.toLocaleDateString('id-ID', {
-                month: 'long',
-                year: 'numeric'
+            result.push({
+                label: displayLabel,
+                value: value
             });
         }
-
-        if (!grouped[key]) {
-            grouped[key] = { total: 0, count: 0 };
-        }
-
-        let value = item[apiFieldName] || item[fieldName] || 0;
-
-        grouped[key].total += parseFloat(value) || 0;
-        grouped[key].count += 1;
     });
 
-    console.log('Grouped data:', grouped);
+    // For week/month aggregation
+    if (satuanWaktu !== 'day') {
+        const aggregated = Object.entries(grouped).map(([label, data]) => ({
+            label: label,
+            value: Math.round(data.total / data.count)
+        }));
+        console.log('📊 Aggregated data:', aggregated.length, 'points');
+        return aggregated;
+    }
 
-    const result = Object.entries(grouped).map(([label, data]) => ({
-        label: label,
-        value: satuanWaktu === 'day' ? Math.round(data.total) : Math.round(data.total / data.count)
-    }));
+    console.log('📊 Complete dataset:', result.length, 'days');
+    console.log('📊 Days with data:', Object.keys(apiDataMap).length);
+    console.log('📊 Days with zero:', result.filter(d => d.value === 0).length);
 
     return result;
 }
@@ -246,7 +287,10 @@ function drawBarChart() {
 
         let color = '#28a745';
 
-        if (value < threshold) {
+        // Color logic
+        if (value === 0) {
+            color = '#cccccc'; // Gray for zero values
+        } else if (value < threshold) {
             color = '#d43636';
         } else if (prevValue !== null && value < prevValue) {
             color = '#FFD700';
@@ -259,10 +303,13 @@ function drawBarChart() {
         ctx.lineWidth = 1;
         ctx.strokeRect(x, y, barWidth, barHeight);
 
-        ctx.fillStyle = '#333';
-        ctx.font = 'bold 12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(value, x + barWidth/2, y - 5);
+        // Only show value if > 0
+        if (value > 0) {
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(value, x + barWidth/2, y - 5);
+        }
 
         ctx.font = '10px Arial';
         const maxLabelWidth = barSpacing - 10;
@@ -286,7 +333,7 @@ function drawBarChart() {
         });
         ctx.fillText(line, x + barWidth/2, lineY);
 
-        if (showTrend && prevValue !== null) {
+        if (showTrend && prevValue !== null && value > 0) {
             const trendY = y - 20;
             ctx.font = '14px Arial';
             if (value > prevValue) {
@@ -364,19 +411,12 @@ async function handleUpdateGrafik() {
     ctx.textAlign = 'center';
     ctx.fillText('Memuat data...', canvas.width / 2, canvas.height / 2);
 
-    // ============================================
-    // MAPPING SATUAN BERDASARKAN TIPE VISUALISASI
-    // ============================================
-
     let satuan;
 
-    // Untuk PRODUKSI: field sudah langsung kategori (basah_latek, sheet, dll)
     if (tipeData === 'penyadap') {
-        satuan = field; // Langsung gunakan field sebagai satuan
+        satuan = field;
         console.log('📊 PRODUKSI mode - satuan = field:', satuan);
-    }
-    // Untuk REKAP: gunakan nama field lengkap
-    else {
+    } else {
         const rekapSatuanMap = {
             'hko': 'hko',
             'basah_latek_kebun': 'basah_latek_kebun',
@@ -402,10 +442,6 @@ async function handleUpdateGrafik() {
         console.log('📊 REKAP mode - satuan mapped:', satuan);
     }
 
-    // ============================================
-    // BUILD PARAMETERS
-    // ============================================
-
     let params = {};
 
     if (tipeData === 'penyadap') {
@@ -420,8 +456,7 @@ async function handleUpdateGrafik() {
         if (tipeProduksi) {
             params.tipeProduksi = tipeProduksi;
         }
-    }
-    else {
+    } else {
         params = {
             tipeData: tipeData,
             tanggalAwal: tanggalAwal,
@@ -443,77 +478,20 @@ async function handleUpdateGrafik() {
     console.log('Tipe Data:', tipeData);
     console.log('Field Selected:', field);
     console.log('Satuan Extracted:', satuan);
+    console.log('Date Range:', tanggalAwal, 'to', tanggalAkhir);
     console.log('Parameters:', params);
     console.log('URL:', `/api/visualisasi?${new URLSearchParams(params).toString()}`);
     console.log('===========================');
 
     const apiData = await fetchVisualisasiData(params);
 
-    if (apiData.length > 0) {
-        currentApiData = apiData;
-        currentData = transformDataForChart(apiData, field, satuanWaktu);
+    // Always transform with complete date range
+    currentApiData = apiData;
+    currentData = transformDataForChart(apiData, field, satuanWaktu, tanggalAwal, tanggalAkhir);
 
-        console.log('Transformed data:', currentData);
-
-        const fieldNames = {
-            // Field REKAP
-            'hko': 'HKO',
-            'basah_latek_kebun': 'Basah Latek Kebun',
-            'basah_latek_pabrik': 'Basah Latek Pabrik',
-            'basah_latek_persen': 'Basah Latek Persen',
-            'basah_lump_kebun': 'Basah Lump Kebun',
-            'basah_lump_pabrik': 'Basah Lump Pabrik',
-            'basah_lump_persen': 'Basah Lump Persen',
-            'k3_sheet': 'K3 Sheet',
-            'kering_sheet': 'Kering Sheet',
-            'kering_br_cr': 'Kering BR/CR',
-            'kering_jumlah': 'Kering Jumlah',
-            'produksi_per_taper': 'Produksi Per Taper',
-
-            // Field PRODUKSI (kategori utama)
-            'basah_latek': 'Basah Latek',
-            'sheet': 'Sheet',
-            'basah_lump': 'Basah Lump',
-            'br_cr': 'BR/CR'
-        };
-
-        let titleSuffix = '';
-        if (tipeData === 'afdeling') {
-            const selectedOption = document.getElementById('kodeAfdeling').selectedOptions[0];
-            titleSuffix = ` - Afdeling: ${selectedOption.textContent}`;
-        } else if (tipeData === 'mandor') {
-            const mandorName = document.getElementById('mandorSearch').value;
-            titleSuffix = ` - Mandor: ${mandorName}`;
-        } else if (tipeData === 'penyadap') {
-            const penyadapName = document.getElementById('penyadapSearch').value;
-            titleSuffix = ` - Penyadap: ${penyadapName}`;
-        } else {
-            titleSuffix = ' - Total';
-        }
-
-        currentConfig.title = `${fieldNames[field]}${titleSuffix}`;
-        document.getElementById('dynamicChartTitle').textContent = currentConfig.title;
-
-        drawBarChart();
-    } else {
-        currentData = [];
-        currentApiData = [];
-        drawBarChart();
-    }
-}
-
-function handleFieldChange() {
-    if (currentApiData.length === 0) {
-        alert('Silakan update grafik terlebih dahulu dengan klik tombol "Update Grafik"');
-        return;
-    }
-
-    const field = document.getElementById('fieldSelect').value;
-    currentConfig.field = field;
-    currentData = transformDataForChart(currentApiData, field, currentConfig.satuan);
+    console.log('Transformed data:', currentData);
 
     const fieldNames = {
-        // Field REKAP
         'hko': 'HKO',
         'basah_latek_kebun': 'Basah Latek Kebun',
         'basah_latek_pabrik': 'Basah Latek Pabrik',
@@ -526,8 +504,58 @@ function handleFieldChange() {
         'kering_br_cr': 'Kering BR/CR',
         'kering_jumlah': 'Kering Jumlah',
         'produksi_per_taper': 'Produksi Per Taper',
+        'basah_latek': 'Basah Latek',
+        'sheet': 'Sheet',
+        'basah_lump': 'Basah Lump',
+        'br_cr': 'BR/CR'
+    };
 
-        // Field PRODUKSI (kategori utama)
+    let titleSuffix = '';
+    if (tipeData === 'afdeling') {
+        const selectedOption = document.getElementById('kodeAfdeling').selectedOptions[0];
+        titleSuffix = ` - Afdeling: ${selectedOption.textContent}`;
+    } else if (tipeData === 'mandor') {
+        const mandorName = document.getElementById('mandorSearch').value;
+        titleSuffix = ` - Mandor: ${mandorName}`;
+    } else if (tipeData === 'penyadap') {
+        const penyadapName = document.getElementById('penyadapSearch').value;
+        titleSuffix = ` - Penyadap: ${penyadapName}`;
+    } else {
+        titleSuffix = ' - Total';
+    }
+
+    currentConfig.title = `${fieldNames[field]}${titleSuffix}`;
+    document.getElementById('dynamicChartTitle').textContent = currentConfig.title;
+
+    drawBarChart();
+}
+
+function handleFieldChange() {
+    if (currentApiData.length === 0) {
+        alert('Silakan update grafik terlebih dahulu dengan klik tombol "Update Grafik"');
+        return;
+    }
+
+    const field = document.getElementById('fieldSelect').value;
+    const tanggalAwal = document.getElementById('tanggalAwal').value;
+    const tanggalAkhir = document.getElementById('tanggalAkhir').value;
+
+    currentConfig.field = field;
+    currentData = transformDataForChart(currentApiData, field, currentConfig.satuan, tanggalAwal, tanggalAkhir);
+
+    const fieldNames = {
+        'hko': 'HKO',
+        'basah_latek_kebun': 'Basah Latek Kebun',
+        'basah_latek_pabrik': 'Basah Latek Pabrik',
+        'basah_latek_persen': 'Basah Latek Persen',
+        'basah_lump_kebun': 'Basah Lump Kebun',
+        'basah_lump_pabrik': 'Basah Lump Pabrik',
+        'basah_lump_persen': 'Basah Lump Persen',
+        'k3_sheet': 'K3 Sheet',
+        'kering_sheet': 'Kering Sheet',
+        'kering_br_cr': 'Kering BR/CR',
+        'kering_jumlah': 'Kering Jumlah',
+        'produksi_per_taper': 'Produksi Per Taper',
         'basah_latek': 'Basah Latek',
         'sheet': 'Sheet',
         'basah_lump': 'Basah Lump',
@@ -572,7 +600,9 @@ function setVisualRange(range) {
     currentConfig.satuan = range;
 
     if (currentApiData.length > 0) {
-        currentData = transformDataForChart(currentApiData, currentConfig.field, range);
+        const tanggalAwal = document.getElementById('tanggalAwal').value;
+        const tanggalAkhir = document.getElementById('tanggalAkhir').value;
+        currentData = transformDataForChart(currentApiData, currentConfig.field, range, tanggalAwal, tanggalAkhir);
         drawBarChart();
     }
 }
@@ -627,17 +657,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
 window.onload = async function() {
     const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const today = now.toISOString().split('T')[0];
 
-    document.getElementById('tanggalAwal').value = firstDay.toISOString().split('T')[0];
-    document.getElementById('tanggalAkhir').value = lastDay.toISOString().split('T')[0];
+    document.getElementById('tanggalAwal').value = today;
+    document.getElementById('tanggalAkhir').value = today;
 
     await populateMandorDropdown();
     await populatePenyadapDropdown();
 
     showModal();
-};;
+};
+
 
 // ========== POPUP MODAL FUNCTIONS ==========
 
@@ -675,18 +705,14 @@ function updateFieldOptions() {
     const fieldSelect = document.getElementById('fieldSelect');
 
     if (selectedVisualisationType === 'produksi') {
-        // Field untuk PRODUKSI (kategori utama saja)
         fieldSelect.innerHTML = `
-            
             <option value="basah_latek">Basah Latek</option>
             <option value="sheet">Sheet</option>
             <option value="basah_lump">Basah Lump</option>
             <option value="br_cr">BR/CR</option>
-            
         `;
         console.log('✅ Field options set to PRODUKSI mode');
     } else {
-        // Field untuk REKAP (detail lengkap)
         fieldSelect.innerHTML = `
             <option value="hko">HKO</option>
             <option value="basah_latek_kebun">Basah Latek Kebun</option>
@@ -1001,4 +1027,5 @@ function setupPenyadapAutocomplete() {
                 firstItem.click();
             }
         }
-    });}
+    });
+}

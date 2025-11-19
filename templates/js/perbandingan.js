@@ -278,7 +278,6 @@ function setupAutocomplete(cardId) {
     });
 }
 
-// Handle Autocomplete Input
 function handleAutocomplete(cardId, type) {
     const input = document.getElementById(`${cardId}-nama`);
     const dropdown = document.getElementById(`${cardId}-dropdown`);
@@ -303,7 +302,7 @@ function handleAutocomplete(cardId, type) {
     }
 
     const list = type === 'penyadap' ? penyadapList : mandorList;
-    
+
     if (list.length === 0) {
         dropdown.innerHTML = '<div class="autocomplete-item" style="color: #e74c3c;">⚠️ Data tidak tersedia</div>';
         dropdown.style.display = 'block';
@@ -311,38 +310,47 @@ function handleAutocomplete(cardId, type) {
     }
 
     // Determine field names dynamically
-    let nameField, nikField, idField;
-    
+    let nameField, nikField, idField, tahunTanamField;
+
     if (type === 'penyadap') {
         nameField = 'nama_penyadap';
         nikField = 'nik';
         idField = 'id';
     } else {
         const firstItem = mandorList[0];
+
         nameField = Object.keys(firstItem).find(key => {
             const lowerKey = key.toLowerCase();
-            return lowerKey === 'mandor' || 
-                   lowerKey === 'nama_mandor' || 
-                   lowerKey === 'namamandor' ||
-                   lowerKey === 'nama';
-        }) || 'mandor';
-        
+            return lowerKey === 'mandor' ||
+                lowerKey === 'nama_mandor' ||
+                lowerKey === 'namamandor' ||
+                lowerKey === 'nama';
+        }) || 'nama';
+
         nikField = Object.keys(firstItem).find(key => {
             const lowerKey = key.toLowerCase();
             return lowerKey === 'nik';
         }) || 'nik';
-        
+
         idField = Object.keys(firstItem).find(key => {
             const lowerKey = key.toLowerCase();
             return lowerKey === 'id';
         }) || 'id';
+
+        tahunTanamField = Object.keys(firstItem).find(key => {
+            const lowerKey = key.toLowerCase();
+            return lowerKey === 'tahun_tanam' ||
+                lowerKey === 'tahuntanam' ||
+                lowerKey === 'tahun';
+        }) || 'tahun_tanam';
     }
 
     // Filter list based on search value
     const filtered = list.filter(item => {
         const name = item[nameField] ? String(item[nameField]).toLowerCase() : '';
         const nik = item[nikField] ? String(item[nikField]) : '';
-        return name.includes(value) || nik.includes(value);
+        const tahun = type === 'mandor' && item[tahunTanamField] ? String(item[tahunTanamField]) : '';
+        return name.includes(value) || nik.includes(value) || tahun.includes(value);
     });
 
     if (filtered.length === 0) {
@@ -352,36 +360,70 @@ function handleAutocomplete(cardId, type) {
     }
 
     // Build dropdown HTML
-    dropdown.innerHTML = filtered.map(item => {
-        const name = item[nameField] || 'N/A';
-        const nik = item[nikField] || 'N/A';
-        const id = item[idField] || 0;
-        
-        const escapedName = String(name).replace(/'/g, "\\'");
-        const escapedNik = String(nik).replace(/'/g, "\\'");
-        
-        return `
-            <div class="autocomplete-item" onclick="selectItem('${cardId}', ${id}, '${escapedName}', '${escapedNik}')">
-                <strong>${name}</strong><br>
-                <small>NIK: ${nik}</small>
-            </div>
-        `;
-    }).join('');
+    if (type === 'penyadap') {
+        dropdown.innerHTML = filtered.map(item => {
+            const name = item[nameField] || 'N/A';
+            const nik = item[nikField] || 'N/A';
+            const id = item[idField] || 0;
+
+            const escapedName = String(name).replace(/'/g, "\\'");
+            const escapedNik = String(nik).replace(/'/g, "\\'");
+
+            return `
+                <div class="autocomplete-item" onclick="selectItem('${cardId}', ${id}, '${escapedName}', '${escapedNik}')">
+                    <strong>${name}</strong><br>
+                    <small>NIK: ${nik}</small>
+                </div>
+            `;
+        }).join('');
+    } else {
+        // Mandor mode - include tahun tanam
+        dropdown.innerHTML = filtered.map(item => {
+            const name = item[nameField] || 'N/A';
+            const nik = item[nikField] || 'N/A';
+            const id = item[idField] || 0;
+            const tahunTanam = item[tahunTanamField] || 'N/A';
+
+            const escapedName = String(name).replace(/'/g, "\\'");
+            const escapedNik = String(nik).replace(/'/g, "\\'");
+            const escapedTahun = String(tahunTanam).replace(/'/g, "\\'");
+
+            return `
+                <div class="autocomplete-item" onclick="selectMandorItem('${cardId}', ${id}, '${escapedName}', '${escapedNik}', '${escapedTahun}')">
+                    <strong>${name}</strong>
+                    <span style="float: right; background: #3498db; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold;">${tahunTanam}</span>
+                    <br>
+                    <small>NIK: ${nik}</small>
+                </div>
+            `;
+        }).join('');
+    }
 
     dropdown.style.display = 'block';
 }
+function selectMandorItem(cardId, id, nama, nik, tahunTanam) {
+    const input = document.getElementById(`${cardId}-nama`);
+    const dropdown = document.getElementById(`${cardId}-dropdown`);
+    const displayValue = `${nama} (${nik}) - ${tahunTanam}`;
 
+    input.value = displayValue;
+    input.setAttribute('data-id', id);
+    input.setAttribute('data-display-value', displayValue);
+    dropdown.style.display = 'none';
+
+    console.log(`Selected Mandor for ${cardId}:`, {id, nama, nik, tahunTanam});
+}
 // Select Item from Autocomplete
 function selectItem(cardId, id, nama, nik) {
     const input = document.getElementById(`${cardId}-nama`);
     const dropdown = document.getElementById(`${cardId}-dropdown`);
     const displayValue = `${nama} (${nik})`;
-    
+
     input.value = displayValue;
     input.setAttribute('data-id', id);
     input.setAttribute('data-display-value', displayValue);
     dropdown.style.display = 'none';
-    
+
     console.log(`Selected for ${cardId}:`, {id, nama, nik});
 }
 

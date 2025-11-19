@@ -66,7 +66,7 @@ func main() {
 			log.Fatal("❌ Server error:", err)
 		}
 	}()
-
+	seed.SeedUsers()
 	seed.SeedPetaData()
 
 	fmt.Println("\n===========================================")

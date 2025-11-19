@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
@@ -131,14 +132,16 @@ func ComparePassword(hash string, password string) bool {
 }
 
 // createDefaultUser creates a default admin user
+// createDefaultUser creates a default admin user
 func createDefaultUser() {
 	var count int64
 	DB.Model(&models.User{}).Count(&count)
 
 	if count == 0 {
 		defaultUser := models.User{
-			Username: "admin",
-			Password: HashPassword("admin123"),
+			Username:  "admin",
+			Password:  HashPassword("admin123"),
+			LastLogin: time.Now(), // Add valid datetime value
 		}
 
 		result := DB.Create(&defaultUser)
