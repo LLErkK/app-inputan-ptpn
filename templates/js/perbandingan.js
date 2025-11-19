@@ -3,6 +3,7 @@ let penyadapList = [];
 let mandorList = [];
 let comparisonCount = 0;
 let comparisonData = {};
+let chartInstance = null; 
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -485,6 +486,111 @@ async function compareData() {
     }
 }
 
+// Create Pie Chart
+function createComparisonChart() {
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js not loaded');
+        return;
+    }
+
+    const canvas = document.getElementById('comparisonChart');
+    if (!canvas) {
+        console.error('Canvas element not found');
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
+
+    // Destroy existing chart if any
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+
+    const labels = [];
+    const data = [];
+    const backgroundColors = [
+        'rgba(102, 126, 234, 0.8)',
+        'rgba(245, 87, 108, 0.8)',
+        'rgba(79, 172, 254, 0.8)',
+        'rgba(240, 147, 251, 0.8)'
+    ];
+    const borderColors = [
+        'rgba(102, 126, 234, 1)',
+        'rgba(245, 87, 108, 1)',
+        'rgba(79, 172, 254, 1)',
+        'rgba(240, 147, 251, 1)'
+    ];
+
+    // Collect data based on mode
+    Object.values(comparisonData).forEach((item, index) => {
+        labels.push(item.nama);
+        
+        if (currentViewMode === 'penyadap') {
+            const value = item.summary.total_basah_latek || item.summary.TotalLatek || 0;
+            data.push(value);
+        } else {
+            const value = item.summary.total_hko || item.summary.TotalHKO || 0;
+            data.push(value);
+        }
+    });
+
+    try {
+        chartInstance = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: currentViewMode === 'penyadap' ? 'Basah Latek' : 'Total HKO',
+                    data: data,
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 12,
+                                family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += context.parsed.toLocaleString();
+                                
+                                // Calculate percentage
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(2);
+                                label += ` (${percentage}%)`;
+                                
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        console.log('Chart created successfully');
+    } catch (error) {
+        console.error('Error creating chart:', error);
+    }
+}
+
+
 // Display Comparison Result
 function displayComparisonResult() {
     const resultDiv = document.getElementById('comparisonResult');
@@ -622,6 +728,12 @@ function displayComparisonResult() {
 
     updateResultColumns();
     resultDiv.style.display = 'block';
+    
+    // Create pie chart with slight delay to ensure DOM is ready
+    setTimeout(() => {
+        createComparisonChart();
+    }, 100);
+    
     resultDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
     
     console.log('Comparison result displayed');
