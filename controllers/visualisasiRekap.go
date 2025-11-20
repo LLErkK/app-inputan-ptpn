@@ -2,12 +2,12 @@ package controllers
 
 import (
 	"app-inputan-ptpn/config"
+	"app-inputan-ptpn/models"
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
-
-	"app-inputan-ptpn/models"
 )
 
 type VisualisasiResponse struct {
@@ -68,6 +68,7 @@ func GetVisualisasiRekap(w http.ResponseWriter, r *http.Request) {
 		"kering_br_cr":       true,
 		"kering_jumlah":      true,
 		"produksi_per_taper": true,
+		"total_produksi":     true,
 	}
 
 	if !validSatuan[satuan] {
@@ -143,6 +144,12 @@ func visualisasiTotal(tipeProduksi, tanggalAwal, tanggalAkhir, satuan string) (V
 	if err := query.Order("tanggal ASC").Find(&rekaps).Error; err != nil {
 		return VisualisasiResponse{}, err
 	}
+	if len(rekaps) == 0 {
+		return VisualisasiResponse{
+			Labels: []string{},
+			Data:   []DataPoint{},
+		}, nil
+	}
 
 	return aggregateData(rekaps, satuan), nil
 }
@@ -168,7 +175,12 @@ func visualisasiAfdeling(tipeProduksi, afdeling, tanggalAwal, tanggalAkhir, satu
 	if err := query.Order("tanggal ASC").Find(&rekaps).Error; err != nil {
 		return VisualisasiResponse{}, err
 	}
-
+	if len(rekaps) == 0 {
+		return VisualisasiResponse{
+			Labels: []string{},
+			Data:   []DataPoint{},
+		}, nil
+	}
 	return aggregateData(rekaps, satuan), nil
 }
 
@@ -203,6 +215,12 @@ func visualisasiMandor(tipeProduksi, afdeling, nikMandor, tahunTanam, tanggalAwa
 
 	if err := query.Order("tanggal ASC").Find(&rekaps).Error; err != nil {
 		return VisualisasiResponse{}, err
+	}
+	if len(rekaps) == 0 {
+		return VisualisasiResponse{
+			Labels: []string{},
+			Data:   []DataPoint{},
+		}, nil
 	}
 
 	return aggregateData(rekaps, satuan), nil
@@ -243,13 +261,19 @@ func aggregateData(rekaps []models.Rekap, satuan string) VisualisasiResponse {
 		point.KeringJumlah += rekap.HariIniKeringJumlah
 	}
 
-	// Extract field yang diminta berdasarkan satuan
+	// Extract dan sort tanggal
 	var dates []string
-	var data []DataPoint
-
-	for date, point := range dataMap {
+	for date := range dataMap {
 		dates = append(dates, date)
+	}
 
+	// Sort tanggal secara ascending
+	sort.Strings(dates)
+
+	// Build data berdasarkan urutan tanggal
+	var data []DataPoint
+	for _, date := range dates {
+		point := dataMap[date]
 		var value float64
 
 		switch satuan {
@@ -260,7 +284,6 @@ func aggregateData(rekaps []models.Rekap, satuan string) VisualisasiResponse {
 		case "basah_latek_pabrik":
 			value = point.BasahLatekPabrik
 		case "basah_latek_persen":
-			// Rumus: (Kebun - Pabrik) / Kebun * 100
 			if point.BasahLatekKebun > 0 {
 				value = ((point.BasahLatekKebun - point.BasahLatekPabrik) / point.BasahLatekKebun) * 100
 			}
@@ -269,12 +292,10 @@ func aggregateData(rekaps []models.Rekap, satuan string) VisualisasiResponse {
 		case "basah_lump_pabrik":
 			value = point.BasahLumpPabrik
 		case "basah_lump_persen":
-			// Rumus: (Kebun - Pabrik) / Kebun * 100
 			if point.BasahLumpKebun > 0 {
 				value = ((point.BasahLumpKebun - point.BasahLumpPabrik) / point.BasahLumpKebun) * 100
 			}
 		case "k3_sheet":
-			// Rumus: Kering Sheet / Basah Latek Pabrik * 100
 			if point.BasahLatekPabrik > 0 {
 				value = (point.KeringSheet / point.BasahLatekPabrik) * 100
 			}
@@ -285,12 +306,13 @@ func aggregateData(rekaps []models.Rekap, satuan string) VisualisasiResponse {
 		case "kering_jumlah":
 			value = point.KeringJumlah
 		case "produksi_per_taper":
-			// Rumus: Kering Jumlah / HKO
 			if point.HKO > 0 {
 				value = point.KeringJumlah / float64(point.HKO)
 			}
+		case "total_produksi":
+			// Total produksi = basah latek kebun + basah lump kebun
+			value = point.BasahLumpPabrik + point.KeringSheet
 		}
-
 		data = append(data, DataPoint{
 			Tanggal: date,
 			Value:   value,

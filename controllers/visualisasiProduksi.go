@@ -4,6 +4,7 @@ import (
 	"app-inputan-ptpn/config"
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -59,10 +60,11 @@ func GetVisualisasiProduksi(w http.ResponseWriter, r *http.Request) {
 
 	// Validasi satuan - field yang tersedia di model Produksi
 	validSatuan := map[string]bool{
-		"basah_latek": true,
-		"sheet":       true,
-		"basah_lump":  true,
-		"br_cr":       true,
+		"basah_latek":    true,
+		"sheet":          true,
+		"basah_lump":     true,
+		"br_cr":          true,
+		"total_produksi": true,
 	}
 
 	if !validSatuan[satuan] {
@@ -102,6 +104,12 @@ func visualisasiProduksiPenyadap(nikPenyadap, tipeProduksi, tanggalAwal, tanggal
 	if err := query.Order("tanggal ASC").Find(&produksiList).Error; err != nil {
 		return VisualisasiProduksiResponse{}, err
 	}
+	if len(produksiList) == 0 {
+		return VisualisasiProduksiResponse{
+			Labels: []string{},
+			Data:   []ProduksiDataPoint{},
+		}, nil
+	}
 
 	return aggregateProduksiData(produksiList, satuan), nil
 }
@@ -122,18 +130,26 @@ func aggregateProduksiData(produksiList []models.Produksi, satuan string) Visual
 			dataMap[dateStr] += produksi.BasahLump
 		case "br_cr":
 			dataMap[dateStr] += produksi.BrCr
+		case "total_produksi":
+			dataMap[dateStr] += produksi.TotalProduksi
 		}
 	}
 
-	// Convert map to slice
+	// Extract dan sort tanggal
 	var dates []string
-	var data []ProduksiDataPoint
-
-	for date, value := range dataMap {
+	for date := range dataMap {
 		dates = append(dates, date)
+	}
+
+	// Sort tanggal secara ascending
+	sort.Strings(dates)
+
+	// Build data berdasarkan urutan tanggal
+	var data []ProduksiDataPoint
+	for _, date := range dates {
 		data = append(data, ProduksiDataPoint{
 			Tanggal: date,
-			Value:   value,
+			Value:   dataMap[date],
 		})
 	}
 

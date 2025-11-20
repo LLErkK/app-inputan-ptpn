@@ -16,6 +16,7 @@ type Produksi struct {
 	BrCr         float64   `gorm:"not null;default:0" json:"br_cr"`
 	Afdeling     string    `gorm:"type:varchar(100);not null" json:"afdeling"`
 
+	TotalProduksi float64 `gorm:"type:decimal(10,2);default:0" json:"total_produksi"`
 	// Foreign key - CASCADE sudah benar
 	IdMaster uint64 `gorm:"not null;index" json:"id_master"`
 	Master   Master `gorm:"foreignKey:IdMaster;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`

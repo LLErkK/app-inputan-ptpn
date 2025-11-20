@@ -19,11 +19,12 @@ type SearchResponse struct {
 }
 
 type SummaryData struct {
-	TotalRecords int     `json:"total_records"`
-	TotalLatek   float64 `json:"total_basah_latek"`
-	TotalSheet   float64 `json:"total_sheet"`
-	TotalLump    float64 `json:"total_basah_lump"`
-	TotalBrCr    float64 `json:"total_br_cr"`
+	TotalRecords  int     `json:"total_records"`
+	TotalLatek    float64 `json:"total_basah_latek"`
+	TotalSheet    float64 `json:"total_sheet"`
+	TotalLump     float64 `json:"total_basah_lump"`
+	TotalBrCr     float64 `json:"total_br_cr"`
+	TotalProduksi float64 `json:"total_produksi"`
 }
 
 // SearchPenyadap mencari data rekap produksi berdasarkan parameter
@@ -117,8 +118,6 @@ func SearchPenyadap(w http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
-			// TAMBAHKAN 1 HARI untuk include semua data di tanggal akhir
-			tglAkhir = tglAkhir.AddDate(0, 0, 1)
 
 			query = query.Where("tanggal BETWEEN ? AND ?", tglAwal, tglAkhir)
 		} else {
@@ -170,6 +169,7 @@ func calculateSummary(data []models.Produksi) *SummaryData {
 		summary.TotalSheet += p.Sheet
 		summary.TotalLump += p.BasahLump
 		summary.TotalBrCr += p.BrCr
+		summary.TotalProduksi += p.TotalProduksi
 	}
 
 	return summary
