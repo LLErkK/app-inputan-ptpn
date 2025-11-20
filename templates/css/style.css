@@ -226,6 +226,13 @@ body {
   text-decoration: underline;
 }
 
+.sidebar .menu a.active {
+    background-color: #ffffff;
+    color: rgb(0, 0, 0);
+    font-weight: bold;
+}
+
+
 /* Responsif login */
 @media (max-width: 880px) {
   .container { flex-direction: column; }

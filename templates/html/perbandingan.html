@@ -29,7 +29,7 @@
         </div>
     </div>
 
-    <!-- Main Page Wrapper - Container Utama -->
+    <!-- Main Page Wrapper -->
     <div class="page-wrapper">
         <!-- Header Section -->
         <div class="page-header">
@@ -58,11 +58,21 @@
                     <h2>📊 Hasil Perbandingan</h2>
                     <p>Perbandingan data berdasarkan kriteria yang dipilih</p>
                 </div>
+                
+                <!-- Chart Section -->
+                <div class="chart-section">
+                    <div class="chart-container">
+                        <h3 class="chart-title">Perbandingan Visual</h3>
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                </div>
+                
                 <div id="resultWrapper" class="result-wrapper cols-1"></div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="/js/perbandingan.js"></script>
 </body>
 </html>

@@ -538,6 +538,35 @@ body {
     color: rgba(255, 255, 255, 0.9);
     font-size: 0.9rem;
 }
+/* Chart Section */
+.chart-section {
+    margin-bottom: 40px;
+    padding: 30px;
+    background: #f8f9fa;
+    border-radius: 20px;
+    border: 2px solid #e9ecef;
+}
+
+.chart-container {
+    max-width: 600px;
+    margin: 0 auto;
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.chart-title {
+    text-align: center;
+    color: #667eea;
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+#comparisonChart {
+    max-height: 400px;
+}
 
 /* Responsive */
 @media (max-width: 1200px) {

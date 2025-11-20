@@ -1,3 +1,8 @@
+// monitoring.js - Full JS for Penyadap/Mandor monitoring
+// Default end date set to today (input[type="date"] expects YYYY-MM-DD)
+
+'use strict';
+
 let currentViewMode = 'penyadap';
 let penyadapList = [];
 let mandorList = [];
@@ -6,7 +11,10 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM Content Loaded');
     loadPenyadapList();
     loadMandorList();
-    
+
+    // set default end date to today for both forms
+    setDefaultEndDates();
+
     const form = document.getElementById('monitoringForm');
     if (form) {
         form.addEventListener('submit', function(e) {
@@ -18,22 +26,50 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.error('ERROR: Form element not found!');
     }
-    
+
     addAutocompleteStyles();
 });
+
+// Helper: return today's date as YYYY-MM-DD (for input[type=date])
+function getTodayISO() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function setDefaultEndDates() {
+    try {
+        const endDate = getTodayISO();
+        const searchTanggalAkhir = document.getElementById('searchTanggalAkhir');
+        const searchTanggalAkhirMandor = document.getElementById('searchTanggalAkhirMandor');
+
+        if (searchTanggalAkhir && !searchTanggalAkhir.value) {
+            searchTanggalAkhir.value = endDate;
+            console.log('Default searchTanggalAkhir set to', endDate);
+        }
+        if (searchTanggalAkhirMandor && !searchTanggalAkhirMandor.value) {
+            searchTanggalAkhirMandor.value = endDate;
+            console.log('Default searchTanggalAkhirMandor set to', endDate);
+        }
+    } catch (err) {
+        console.error('Error setting default end dates:', err);
+    }
+}
 
 async function loadPenyadapList() {
     try {
         console.log('🔄 Fetching penyadap data from /api/penyadap...');
         const response = await fetch('/api/penyadap');
-        
+
         if (!response.ok) {
             console.error('❌ Penyadap API error:', response.status);
             return;
         }
-        
+
         const json = await response.json();
-        
+
         if (json && Array.isArray(json)) {
             penyadapList = json;
         } else if (json && Array.isArray(json.data)) {
@@ -41,7 +77,7 @@ async function loadPenyadapList() {
         } else {
             penyadapList = [];
         }
-        
+
         console.log('✅ Penyadap list loaded:', penyadapList.length);
     } catch (error) {
         console.error('💥 Error loading penyadap list:', error);
@@ -70,11 +106,13 @@ async function loadMandorList() {
             return;
         }
 
-        // ✅ Ambil data yang sesuai dengan format API kamu
         if (json && Array.isArray(json.data)) {
             mandorList = json.data;
             console.log('✅ Mandor list loaded:', mandorList.length);
             console.log('👤 Sample:', mandorList[0]);
+        } else if (Array.isArray(json)) {
+            mandorList = json;
+            console.log('✅ Mandor list loaded (array root):', mandorList.length);
         } else {
             console.warn('⚠️ Unexpected response format:', json);
             mandorList = [];
@@ -85,12 +123,11 @@ async function loadMandorList() {
     }
 }
 
-
 // FIX: Perbaiki handlePenyadapInput - jangan hapus data-id saat user sudah select
 function handlePenyadapInput(input) {
     const value = input.value.toLowerCase();
     const dropdown = document.getElementById('penyadapDropdown');
-    
+
     // FIX: Hanya clear attributes jika user benar-benar mengubah text
     const storedDisplayValue = input.getAttribute('data-display-value');
     if (storedDisplayValue && input.value === storedDisplayValue) {
@@ -98,7 +135,7 @@ function handlePenyadapInput(input) {
         dropdown.style.display = 'none';
         return;
     }
-    
+
     // Jika user mengubah text, clear data attributes
     if (storedDisplayValue && input.value !== storedDisplayValue) {
         input.removeAttribute('data-id');
@@ -106,33 +143,33 @@ function handlePenyadapInput(input) {
         input.removeAttribute('data-nik');
         input.removeAttribute('data-display-value');
     }
-    
+
     if (value.length < 2) {
         dropdown.style.display = 'none';
         return;
     }
-    
+
     if (penyadapList.length === 0) {
         dropdown.innerHTML = '<div class="autocomplete-item" style="color: #e74c3c; cursor: default;">⚠️ Data penyadap kosong</div>';
         dropdown.style.display = 'block';
         return;
     }
-    
+
     const filtered = penyadapList.filter(p => 
         p.nama_penyadap.toLowerCase().includes(value) ||
         p.nik.toString().includes(value)
     );
-    
+
     if (filtered.length === 0) {
         dropdown.innerHTML = '<div class="autocomplete-item" style="color: #999; cursor: default;">Tidak ada hasil ditemukan</div>';
         dropdown.style.display = 'block';
         return;
     }
-    
+
     dropdown.innerHTML = filtered.map(p => {
         const escapedName = p.nama_penyadap.replace(/'/g, "\\'");
         const escapedNik = p.nik.toString().replace(/'/g, "\\'");
-        
+
         return `
             <div class="autocomplete-item" onclick="selectPenyadap(${p.id}, '${escapedName}', '${escapedNik}')">
                 <strong>${p.nama_penyadap}</strong><br>
@@ -140,18 +177,18 @@ function handlePenyadapInput(input) {
             </div>
         `;
     }).join('');
-    
+
     dropdown.style.display = 'block';
 }
 
-// FIX: Perbaiki handleMandorInput - jangan hapus data-id saat user sudah select
+// FIX: Perbaiki handleMandorInput - tampilkan setiap kombinasi mandor + tahun tanam tanpa duplikat
 function handleMandorInput(input) {
     const value = input.value.toLowerCase();
     const dropdown = document.getElementById('mandorDropdown');
-    
+
     console.log('🔍 handleMandorInput called with:', value);
     console.log('📊 mandorList length:', mandorList.length);
-    
+
     // FIX: Hanya clear attributes jika user benar-benar mengubah text
     const storedDisplayValue = input.getAttribute('data-display-value');
     if (storedDisplayValue && input.value === storedDisplayValue) {
@@ -159,33 +196,34 @@ function handleMandorInput(input) {
         dropdown.style.display = 'none';
         return;
     }
-    
+
     // Jika user mengubah text, clear data attributes
     if (storedDisplayValue && input.value !== storedDisplayValue) {
         input.removeAttribute('data-id');
         input.removeAttribute('data-nama');
         input.removeAttribute('data-nik');
+        input.removeAttribute('data-tahun-tanam');
         input.removeAttribute('data-display-value');
     }
-    
+
     if (value.length < 2) {
         dropdown.style.display = 'none';
         return;
     }
-    
+
     if (mandorList.length === 0) {
         dropdown.innerHTML = '<div class="autocomplete-item" style="color: #e74c3c; cursor: default;">⚠️ Data mandor kosong. Cek endpoint /api/mandor</div>';
         dropdown.style.display = 'block';
         return;
     }
-    
+
     if (mandorList.length > 0) {
         console.log('🔑 First mandor object keys:', Object.keys(mandorList[0]));
         console.log('👤 First mandor full object:', mandorList[0]);
     }
-    
+
     const firstItem = mandorList[0];
-    
+
     const nameField = Object.keys(firstItem).find(key => {
         const lowerKey = key.toLowerCase();
         return lowerKey === 'mandor' || 
@@ -193,42 +231,80 @@ function handleMandorInput(input) {
                lowerKey === 'namamandor' ||
                lowerKey === 'nama';
     }) || 'mandor';
-    
+
     const nikField = Object.keys(firstItem).find(key => {
         const lowerKey = key.toLowerCase();
         return lowerKey === 'nik';
     }) || 'nik';
-    
+
     const idField = Object.keys(firstItem).find(key => {
         const lowerKey = key.toLowerCase();
         return lowerKey === 'id';
     }) || 'id';
+    
     const tahunTanam = Object.keys(firstItem).find(key => {
         const lowerKey = key.toLowerCase();
         return lowerKey === 'tahun_tanam' || lowerKey === 'tahuntanam';
     }) || 'tahun_tanam';
-    
-    console.log('🎯 Detected fields:', {nameField, nikField, idField});
+
+    console.log('🎯 Detected fields:', {nameField, nikField, idField, tahunTanam});
     console.log('📝 Sample values:', {
         name: firstItem[nameField],
         nik: firstItem[nikField],
         id: firstItem[idField],
         tahunTanam: firstItem[tahunTanam]
-            });
-    
+    });
+
     const filtered = mandorList.filter(m => {
         const mandorName = m[nameField] ? String(m[nameField]) : '';
         const nikValue = m[nikField] ? String(m[nikField]) : '';
-        
+
         const nameMatch = mandorName.toLowerCase().includes(value);
         const nikMatch = nikValue.includes(value);
-        
+
         return nameMatch || nikMatch;
     });
+
+    console.log('✅ Filtered results before deduplication:', filtered.length);
+
+    // Remove exact duplicates based on NIK + Tahun Tanam combination
+    const uniqueMap = new Map();
+    filtered.forEach(m => {
+        const mandorName = m[nameField] || 'N/A';
+        const nikValue = m[nikField] || 'N/A';
+        const idValue = m[idField] || 0;
+        const tahunTanamValue = m[tahunTanam] || 'N/A';
+
+        // Create unique key: NIK + Tahun Tanam
+        const uniqueKey = `${nikValue}_${tahunTanamValue}`;
+        
+        // Only add if not already exists
+        if (!uniqueMap.has(uniqueKey)) {
+            uniqueMap.set(uniqueKey, {
+                name: mandorName,
+                nik: nikValue,
+                id: idValue,
+                tahunTanam: tahunTanamValue
+            });
+        }
+    });
+
+    const uniqueResults = Array.from(uniqueMap.values());
     
-    console.log('✅ Filtered results:', filtered.length);
-    
-    if (filtered.length === 0) {
+    // Sort by name, then by tahun tanam (descending)
+    uniqueResults.sort((a, b) => {
+        if (a.name !== b.name) {
+            return a.name.localeCompare(b.name);
+        }
+        // Same name, sort by tahun tanam descending
+        if (a.tahunTanam === 'N/A') return 1;
+        if (b.tahunTanam === 'N/A') return -1;
+        return b.tahunTanam - a.tahunTanam;
+    });
+
+    console.log('✅ Unique results after deduplication:', uniqueResults.length);
+
+    if (uniqueResults.length === 0) {
         dropdown.innerHTML = `<div class="autocomplete-item" style="color: #999; cursor: default;">
             Tidak ada hasil ditemukan<br>
             <small>Total data: ${mandorList.length} | Mencari: "${value}"</small>
@@ -236,77 +312,81 @@ function handleMandorInput(input) {
         dropdown.style.display = 'block';
         return;
     }
-    
-    dropdown.innerHTML = filtered.map(m => {
-        const mandorName = m[nameField] || 'N/A';
-        const nikValue = m[nikField] || 'N/A';
-        const idValue = m[idField] || 0;
-        const tahunTanamValue = m[tahunTanam] || 'N/A';
-        
-        const escapedName = String(mandorName).replace(/'/g, "\\'");
-        const escapedNik = String(nikValue).replace(/'/g, "\\'");
-        
+
+    dropdown.innerHTML = uniqueResults.map(m => {
+        const escapedName = String(m.name).replace(/'/g, "\\'");
+        const escapedNik = String(m.nik).replace(/'/g, "\\'");
+
         return `
-            <div class="autocomplete-item" onclick="selectMandor(${idValue}, '${escapedName}', '${escapedNik}')">
-                <strong>${mandorName}</strong><br>
-                <small>NIK: ${nikValue}</small>
-                <strong><br>Tahun Tanam: ${tahunTanamValue}</strong>
+            <div class="autocomplete-item" onclick="selectMandor(${m.id}, '${escapedName}', '${escapedNik}', '${m.tahunTanam}')">
+                <strong>${m.name}</strong><br>
+                <small>NIK: ${m.nik}</small><br>
+                <small style="color: #0093E9; font-weight: 600;">📅 Tahun Tanam: ${m.tahunTanam}</small>
             </div>
         `;
     }).join('');
-    
+
     dropdown.style.display = 'block';
 }
 
 function selectPenyadap(id, nama, nik) {
     const input = document.getElementById('namaPenyadap');
     const displayValue = `${nama} (${nik})`;
-    
+
     input.setAttribute('data-id', id);
     input.setAttribute('data-nama', nama);
     input.setAttribute('data-nik', nik);
     input.setAttribute('data-display-value', displayValue);
     input.value = displayValue;
-    
+
     document.getElementById('penyadapDropdown').style.display = 'none';
     console.log('Penyadap selected:', {id, nama, nik});
 }
 
-function selectMandor(id, nama, nik) {
+function selectMandor(id, nama, nik, tahunTanam) {
     const input = document.getElementById('namaMandor');
-    const displayValue = `${nama} (${nik})`;
-    
+    const displayValue = tahunTanam && tahunTanam !== 'N/A' 
+        ? `${nama} (${nik}) - ${tahunTanam}`
+        : `${nama} (${nik})`;
+
     input.setAttribute('data-id', id);
     input.setAttribute('data-nama', nama);
     input.setAttribute('data-nik', nik);
+    input.setAttribute('data-tahun-tanam', tahunTanam || '');
     input.setAttribute('data-display-value', displayValue);
     input.value = displayValue;
-    
+
     document.getElementById('mandorDropdown').style.display = 'none';
-    console.log('Mandor selected:', {id, nama, nik});
+    console.log('Mandor selected:', {id, nama, nik, tahunTanam});
 }
 
 document.addEventListener('click', function(e) {
     if (!e.target.matches('#namaPenyadap')) {
-        document.getElementById('penyadapDropdown').style.display = 'none';
+        const dd = document.getElementById('penyadapDropdown');
+        if (dd) dd.style.display = 'none';
     }
     if (!e.target.matches('#namaMandor')) {
-        document.getElementById('mandorDropdown').style.display = 'none';
+        const dd2 = document.getElementById('mandorDropdown');
+        if (dd2) dd2.style.display = 'none';
     }
 });
 
 function selectViewMode(mode) {
     currentViewMode = mode;
-    document.getElementById('viewModePopup').classList.remove('active');
-    document.getElementById('monitoringContainer').classList.add('active');
+    const vmp = document.getElementById('viewModePopup');
+    const mc = document.getElementById('monitoringContainer');
+    if (vmp) vmp.classList.remove('active');
+    if (mc) mc.classList.add('active');
     updateViewModeBadge();
     toggleFormFields();
     console.log('View mode selected:', mode);
 }
 
 function changeViewMode() {
-    document.getElementById('monitoringContainer').classList.remove('active');
-    document.getElementById('viewModePopup').classList.add('active');
+    const mc = document.getElementById('monitoringContainer');
+    const vmp = document.getElementById('viewModePopup');
+    if (mc) mc.classList.remove('active');
+    if (vmp) vmp.classList.add('active');
     clearAll();
 }
 
@@ -317,7 +397,9 @@ function toggleFormFields() {
     const tableMandor = document.getElementById('tableMandor');
     const summaryPenyadap = document.getElementById('summaryPenyadap');
     const summaryMandor = document.getElementById('summaryMandor');
-    
+
+    if (!formPenyadap || !formMandor || !tablePenyadap || !tableMandor || !summaryPenyadap || !summaryMandor) return;
+
     if (currentViewMode === 'mandor') {
         formPenyadap.style.display = 'none';
         formMandor.style.display = 'grid';
@@ -337,6 +419,7 @@ function toggleFormFields() {
 
 function updateViewModeBadge() {
     const badge = document.getElementById('viewModeBadge');
+    if (!badge) return;
     if (currentViewMode === 'mandor') {
         badge.textContent = '👥 Mode: Mandor';
         badge.classList.add('mandor');
@@ -349,6 +432,7 @@ function updateViewModeBadge() {
 function formatDate(isoDate) {
     if (!isoDate) return '-';
     const date = new Date(isoDate);
+    if (isNaN(date)) return isoDate;
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
@@ -359,7 +443,7 @@ function calculateSummary(data, summary) {
     if (summary) {
         return summary;
     }
-    
+
     const calculated = {
         total_records: data.length
     };
@@ -387,15 +471,17 @@ function renderTable(data, summary) {
     
     if (!data || data.length === 0) {
         if (currentViewMode === 'mandor') {
-            document.getElementById('mandorTableBody').innerHTML = '<tr><td colspan="15" style="text-align:center; color: #999;">Tidak ada data ditemukan</td></tr>';
+            const el = document.getElementById('mandorTableBody');
+            if (el) el.innerHTML = '<tr><td colspan="15" style="text-align:center; color: #999;">Tidak ada data ditemukan</td></tr>';
         } else {
-            document.getElementById('bakuTableBody').innerHTML = '<tr><td colspan="11" style="text-align:center; color: #999;">Tidak ada data ditemukan</td></tr>';
+            const el = document.getElementById('bakuTableBody');
+            if (el) el.innerHTML = '<tr><td colspan="11" style="text-align:center; color: #999;">Tidak ada data ditemukan</td></tr>';
         }
-        summarySection.style.display = 'none';
+        if (summarySection) summarySection.style.display = 'none';
         return;
     }
 
-    summarySection.style.display = 'block';
+    if (summarySection) summarySection.style.display = 'block';
 
     const summaryData = calculateSummary(data, summary);
 
@@ -408,8 +494,10 @@ function renderTable(data, summary) {
 
 function renderPenyadapTable(data, summary) {
     const tableBody = document.getElementById('bakuTableBody');
+    if (!tableBody) return;
     
-    document.getElementById('summaryTotalRecords').textContent = summary.total_records || summary.TotalRecords || 0;
+    const totalRecords = summary.total_records || summary.TotalRecords || 0;
+    document.getElementById('summaryTotalRecords').textContent = totalRecords;
     document.getElementById('summaryBasahLatek').textContent = summary.total_basah_latek || summary.TotalLatek || 0;
     document.getElementById('summarySheet').textContent = (summary.total_sheet || summary.TotalSheet || 0).toFixed(2);
     document.getElementById('summaryBasahLump').textContent = summary.total_basah_lump || summary.TotalLump || 0;
@@ -437,6 +525,7 @@ function renderPenyadapTable(data, summary) {
 
 function renderMandorTable(data, summary) {
     const tableBody = document.getElementById('mandorTableBody');
+    if (!tableBody) return;
     
     document.getElementById('summaryTotalRecordsMandor').textContent = summary.total_records || summary.TotalRecords || 0;
     document.getElementById('summaryHKO').textContent = summary.total_hko || summary.TotalHKO || 0;
@@ -475,30 +564,30 @@ async function fetchData(params) {
         document.getElementById('bakuTableBody');
     const colspan = currentViewMode === 'mandor' ? '15' : '11';
     
-    tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;"><i>⏳ Memuat data...</i></td></tr>`;
+    if (tableBody) tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;"><i>⏳ Memuat data...</i></td></tr>`;
 
     try {
         const queryParams = new URLSearchParams();
         
         if (!params.tanggalAwal || !params.tanggalAkhir) {
-            tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; color: #ff9800;">⚠️ Silakan pilih tanggal awal dan akhir terlebih dahulu</td></tr>`;
+            if (tableBody) tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; color: #ff9800;">⚠️ Silakan pilih tanggal awal dan akhir terlebih dahulu</td></tr>`;
             return;
         }
-        
+
         if (currentViewMode === 'mandor') {
             if (!params.idMandor) {
-                tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; color: #ff9800;">⚠️ Silakan pilih mandor terlebih dahulu</td></tr>`;
+                if (tableBody) tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; color: #ff9800;">⚠️ Silakan pilih mandor terlebih dahulu</td></tr>`;
                 return;
             }
             queryParams.append('idMandor', params.idMandor);
         } else {
             if (!params.idPenyadap) {
-                tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; color: #ff9800;">⚠️ Silakan pilih penyadap terlebih dahulu</td></tr>`;
+                if (tableBody) tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; color: #ff9800;">⚠️ Silakan pilih penyadap terlebih dahulu</td></tr>`;
                 return;
             }
             queryParams.append('idPenyadap', params.idPenyadap);
         }
-        
+
         queryParams.append('tanggalAwal', params.tanggalAwal);
         queryParams.append('tanggalAkhir', params.tanggalAkhir);
 
@@ -525,7 +614,7 @@ async function fetchData(params) {
         console.log('API Response:', result);
         
         if (result.success === false) {
-            tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; color: #e74c3c;">❌ ${result.message || 'Gagal memuat data'}</td></tr>`;
+            if (tableBody) tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; color: #e74c3c;">❌ ${result.message || 'Gagal memuat data'}</td></tr>`;
             return;
         }
         
@@ -536,7 +625,7 @@ async function fetchData(params) {
         
     } catch (error) {
         console.error('Error fetching data:', error);
-        tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; color: #e74c3c;">❌ Terjadi kesalahan: ${error.message}</td></tr>`;
+        if (tableBody) tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; color: #e74c3c;">❌ Terjadi kesalahan: ${error.message}</td></tr>`;
     }
 }
 
@@ -546,7 +635,7 @@ function searchData() {
     
     if (currentViewMode === 'mandor') {
         const inputMandor = document.getElementById('namaMandor');
-        const idMandor = inputMandor.getAttribute('data-id') || '';
+        const idMandor = inputMandor ? inputMandor.getAttribute('data-id') || '' : '';
         const afdeling = document.getElementById('afdelingMandor').value;
         const tanggalAwal = document.getElementById('searchTanggalAwalMandor').value;
         const tanggalAkhir = document.getElementById('searchTanggalAkhirMandor').value;
@@ -554,16 +643,18 @@ function searchData() {
 
         if (!idMandor) {
             alert('❌ Silakan pilih mandor dari daftar yang tersedia!');
-            inputMandor.focus();
+            if (inputMandor) inputMandor.focus();
             return;
         }
         
         if (!/^\d+$/.test(idMandor)) {
             alert('❌ ID Mandor tidak valid. Silakan pilih dari daftar!');
-            inputMandor.value = '';
-            inputMandor.removeAttribute('data-id');
-            inputMandor.removeAttribute('data-display-value');
-            inputMandor.focus();
+            if (inputMandor) {
+                inputMandor.value = '';
+                inputMandor.removeAttribute('data-id');
+                inputMandor.removeAttribute('data-display-value');
+                inputMandor.focus();
+            }
             return;
         }
 
@@ -579,7 +670,7 @@ function searchData() {
         if (tipeProduksi && tipeProduksi.trim() !== '') params.tipeProduksi = tipeProduksi;
     } else {
         const inputPenyadap = document.getElementById('namaPenyadap');
-        const idPenyadap = inputPenyadap.getAttribute('data-id') || '';
+        const idPenyadap = inputPenyadap ? inputPenyadap.getAttribute('data-id') || '' : '';
         const afdeling = document.getElementById('afdelingPenyadap').value;
         const tanggalAwal = document.getElementById('searchTanggalAwal').value;
         const tanggalAkhir = document.getElementById('searchTanggalAkhir').value;
@@ -587,16 +678,18 @@ function searchData() {
 
         if (!idPenyadap) {
             alert('❌ Silakan pilih penyadap dari daftar yang tersedia!');
-            inputPenyadap.focus();
+            if (inputPenyadap) inputPenyadap.focus();
             return;
         }
         
         if (!/^\d+$/.test(idPenyadap)) {
             alert('❌ NIK/ID Penyadap tidak valid. Silakan pilih dari daftar!');
-            inputPenyadap.value = '';
-            inputPenyadap.removeAttribute('data-id');
-            inputPenyadap.removeAttribute('data-display-value');
-            inputPenyadap.focus();
+            if (inputPenyadap) {
+                inputPenyadap.value = '';
+                inputPenyadap.removeAttribute('data-id');
+                inputPenyadap.removeAttribute('data-display-value');
+                inputPenyadap.focus();
+            }
             return;
         }
 
@@ -619,35 +712,51 @@ function searchData() {
 function clearAll() {
     // Clear Penyadap form
     const inputPenyadap = document.getElementById('namaPenyadap');
-    inputPenyadap.value = '';
-    inputPenyadap.removeAttribute('data-id');
-    inputPenyadap.removeAttribute('data-nama');
-    inputPenyadap.removeAttribute('data-nik');
-    inputPenyadap.removeAttribute('data-display-value');
-    document.getElementById('afdelingPenyadap').value = '';
-    document.getElementById('searchTanggalAwal').value = '';
-    document.getElementById('searchTanggalAkhir').value = '';
-    document.getElementById('filterJenis').value = '';
+    if (inputPenyadap) {
+        inputPenyadap.value = '';
+        inputPenyadap.removeAttribute('data-id');
+        inputPenyadap.removeAttribute('data-nama');
+        inputPenyadap.removeAttribute('data-nik');
+        inputPenyadap.removeAttribute('data-display-value');
+    }
+    const afdelingPenyadap = document.getElementById('afdelingPenyadap');
+    if (afdelingPenyadap) afdelingPenyadap.value = '';
+    const searchTanggalAwal = document.getElementById('searchTanggalAwal');
+    if (searchTanggalAwal) searchTanggalAwal.value = '';
+    const searchTanggalAkhir = document.getElementById('searchTanggalAkhir');
+    if (searchTanggalAkhir) searchTanggalAkhir.value = getTodayISO(); // set back to today
+    const filterJenis = document.getElementById('filterJenis');
+    if (filterJenis) filterJenis.value = '';
     
     // Clear Mandor form
     const inputMandor = document.getElementById('namaMandor');
-    inputMandor.value = '';
-    inputMandor.removeAttribute('data-id');
-    inputMandor.removeAttribute('data-nama');
-    inputMandor.removeAttribute('data-nik');
-    inputMandor.removeAttribute('data-display-value');
-    document.getElementById('afdelingMandor').value = '';
-    document.getElementById('searchTanggalAwalMandor').value = '';
-    document.getElementById('searchTanggalAkhirMandor').value = '';
-    document.getElementById('filterJenisMandor').value = '';
+    if (inputMandor) {
+        inputMandor.value = '';
+        inputMandor.removeAttribute('data-id');
+        inputMandor.removeAttribute('data-nama');
+        inputMandor.removeAttribute('data-nik');
+        inputMandor.removeAttribute('data-tahun-tanam');
+        inputMandor.removeAttribute('data-display-value');
+    }
+    const afdelingMandor = document.getElementById('afdelingMandor');
+    if (afdelingMandor) afdelingMandor.value = '';
+    const searchTanggalAwalMandor = document.getElementById('searchTanggalAwalMandor');
+    if (searchTanggalAwalMandor) searchTanggalAwalMandor.value = '';
+    const searchTanggalAkhirMandor = document.getElementById('searchTanggalAkhirMandor');
+    if (searchTanggalAkhirMandor) searchTanggalAkhirMandor.value = getTodayISO(); // set back to today
+    const filterJenisMandor = document.getElementById('filterJenisMandor');
+    if (filterJenisMandor) filterJenisMandor.value = '';
     
     // Hide summary and reset tables
-    document.getElementById('summarySection').style.display = 'none';
+    const summarySection = document.getElementById('summarySection');
+    if (summarySection) summarySection.style.display = 'none';
     
     if (currentViewMode === 'mandor') {
-        document.getElementById('mandorTableBody').innerHTML = '<tr><td colspan="15" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>';
+        const mandorTableBody = document.getElementById('mandorTableBody');
+        if (mandorTableBody) mandorTableBody.innerHTML = '<tr><td colspan="15" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>';
     } else {
-        document.getElementById('bakuTableBody').innerHTML = '<tr><td colspan="11" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>';
+        const bakuTableBody = document.getElementById('bakuTableBody');
+        if (bakuTableBody) bakuTableBody.innerHTML = '<tr><td colspan="11" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>';
     }
     
     console.log('All filters cleared');

@@ -33,16 +33,42 @@
     </div>
 </div>
 
-<script src="/js/script.js"></script>
-<script src="/js/baku.js"></script>
+<!-- <script src="/js/script.js"></script> -->
+<!-- <script src="/js/baku.js"></script> -->
 
 <script>
-    // Script untuk menentukan halaman awal berdasarkan query ?tab=
+    // Fungsi untuk set menu active
+    function setActiveMenu(path) {
+        const links = document.querySelectorAll(".menu a");
+
+        links.forEach(link => {
+            link.classList.remove("active");
+            const target = link.getAttribute("href").replace("/", "");
+
+            if (target === path) {
+                link.classList.add("active");
+            }
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         const params = new URLSearchParams(window.location.search);
-        const tab = params.get("tab") || "rekap"; // default: /rekap
+        const tab = params.get("tab") || "rekap";
         const frame = document.getElementById("mainFrame");
+
+        // Load halaman saat pertama kali
         frame.src = "/" + tab;
+
+        // Set menu active saat pertama kali
+        setActiveMenu(tab);
+
+        // Set menu active ketika menu di-klik
+        document.querySelectorAll(".menu a").forEach(link => {
+            link.addEventListener("click", () => {
+                const path = link.getAttribute("href").replace("/", "");
+                setActiveMenu(path);
+            });
+        });
     });
 
     // Tombol logout

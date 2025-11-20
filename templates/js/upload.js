@@ -208,14 +208,28 @@ async function loadMasterList() {
     }
 }
 
-// Format Date Helper
+// Format Date Helper - FIXED VERSION
 function formatDate(d) {
     if (!d) return '-';
+    
     try {
+        // If it's already in YYYY-MM-DD format, return as is
+        if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+            return d;
+        }
+        
+        // Parse the date
         const dt = new Date(d);
         if (isNaN(dt)) return d;
-        return dt.toISOString().slice(0, 10);
+        
+        // Use local timezone instead of UTC to avoid -1 day issue
+        const year = dt.getFullYear();
+        const month = String(dt.getMonth() + 1).padStart(2, '0');
+        const day = String(dt.getDate()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}`;
     } catch (e) {
+        console.error('Error formatting date:', e);
         return d;
     }
 }
