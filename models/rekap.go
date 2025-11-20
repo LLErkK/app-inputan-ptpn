@@ -37,7 +37,8 @@ type Rekap struct {
 	ProduksiPerTaperHariIni       float64 `gorm:"type:decimal(10,2);default:0" json:"produksi_per_taper_hari_ini"`
 	ProduksiPerTaperSampaiHariIni float64 `gorm:"type:decimal(10,2);default:0" json:"produksi_per_taper_sampai_hari_ini"`
 
-	TotalProduksi float64 `gorm:"type:decimal(10,2);default:0" json:"total_produksi"`
+	TotalProduksiHariIni       float64 `gorm:"type:decimal(10,2);default:0" json:"total_produksi_hari_ini"`
+	TotalProduksiSampaiHariIni float64 `gorm:"type:decimal(10,2);default:0" json:"total_produksi_sampai_hari_ini"`
 
 	Afdeling string `gorm:"type:varchar(100);not null;index" json:"afdeling"`
 

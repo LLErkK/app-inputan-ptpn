@@ -61,6 +61,9 @@ type dashboardDataResponse struct {
 	// Produksi Per Taper
 	TotalProduksiPerTaperHariIni       float64 `json:"totalProduksiPerTaperHariIni"`       // KeringJumlah / HKO
 	TotalProduksiPerTaperSampaiHariIni float64 `json:"totalProduksiPerTaperSampaiHariIni"` // KeringJumlah / HKO
+
+	TotalProduksiHariIni       float64 `json:"totalProduksiHariIni"`
+	TotalProduksiSampaiHariIni float64 `json:"totalProduksiSampaiHariIni"`
 }
 
 // GetDashboardData mengambil data dashboard berdasarkan afdeling untuk tanggal hari ini
@@ -96,6 +99,7 @@ func GetDashboardData(w http.ResponseWriter, r *http.Request) {
 		TotalHariIniKeringSheet            float64
 		TotalHariIniKeringBrCr             float64
 		TotalHariIniKeringJumlah           float64
+		TotalProduksiHariIni               float64
 		TotalSampaiHariIniBasahLatekKebun  float64
 		TotalSampaiHariIniBasahLatekPabrik float64
 		TotalSampaiHariIniBasahLumpKebun   float64
@@ -104,6 +108,7 @@ func GetDashboardData(w http.ResponseWriter, r *http.Request) {
 		TotalSampaiHariIniKeringSheet      float64
 		TotalSampaiHariIniKeringBrCr       float64
 		TotalSampaiHariIniKeringJumlah     float64
+		TotalProduksiSampaiHariIni         float64
 	}
 
 	var result AggregateResult
@@ -128,7 +133,9 @@ func GetDashboardData(w http.ResponseWriter, r *http.Request) {
 			COALESCE(SUM(sampai_hari_ini_k3_sheet), 0) as total_sampai_hari_ini_k3_sheet,
 			COALESCE(SUM(sampai_hari_ini_kering_sheet), 0) as total_sampai_hari_ini_kering_sheet,
 			COALESCE(SUM(sampai_hari_ini_kering_br_cr), 0) as total_sampai_hari_ini_kering_br_cr,
-			COALESCE(SUM(sampai_hari_ini_kering_jumlah), 0) as total_sampai_hari_ini_kering_jumlah
+			COALESCE(SUM(sampai_hari_ini_kering_jumlah), 0) as total_sampai_hari_ini_kering_jumlah,
+			COALESCE(SUM(total_produksi_hari_ini),0) as total_produksi_hari_ini,
+			COALESCE(SUM(total_produksi_sampai_hari_ini),0) as total_produksi_sampai_hari_ini
 		`).
 		Where("DATE(tanggal) = DATE(?) AND LOWER(afdeling) = LOWER(?) AND tipe_produksi != ?", today, afdeling, "REKAPITULASI").
 		Scan(&result).Error
@@ -162,6 +169,10 @@ func GetDashboardData(w http.ResponseWriter, r *http.Request) {
 	response.TotalSampaiHariIniKeringSheet = result.TotalSampaiHariIniKeringSheet
 	response.TotalSampaiHariIniKeringBrCr = result.TotalSampaiHariIniKeringBrCr
 	response.TotalSampaiHariIniKeringJumlah = result.TotalSampaiHariIniKeringJumlah
+
+	// ✅ TAMBAHKAN 2 BARIS INI
+	response.TotalProduksiHariIni = result.TotalProduksiHariIni
+	response.TotalProduksiSampaiHariIni = result.TotalProduksiSampaiHariIni
 
 	// === HITUNG PERSENTASE HARI INI ===
 

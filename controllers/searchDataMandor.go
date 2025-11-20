@@ -33,6 +33,7 @@ type SummaryMandor struct {
 	TotalKeringBrCr          float64 `json:"total_kering_br_cr"`
 	TotalKeringJumlah        float64 `json:"total_kering_jumlah"`
 	RataRataProduksiPerTaper float64 `json:"rata_rata_produksi_per_taper"`
+	TotalProduksi            float64 `json:"total_produksi"`
 }
 
 // SearchMandor mencari data rekap produksi berdasarkan parameter mandor
@@ -184,7 +185,7 @@ func calculateMandorSummary(data []models.Rekap) *SummaryMandor {
 		summary.TotalKeringSheet += r.HariIniKeringSheet
 		summary.TotalKeringBrCr += r.HariIniKeringBrCr
 		summary.TotalKeringJumlah += r.HariIniKeringJumlah
-
+		summary.TotalProduksi += r.TotalProduksiHariIni
 		// Hitung rata-rata produksi per taper
 		if r.ProduksiPerTaperHariIni > 0 {
 			totalProduksiPerTaper += r.ProduksiPerTaperHariIni

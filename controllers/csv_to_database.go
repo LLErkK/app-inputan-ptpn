@@ -96,6 +96,7 @@ func findHeaderRowAndBaseIndex(rows [][]string, maxScan int) (int, int) {
 	if len(rows) < limit {
 		limit = len(rows)
 	}
+
 	for i := 0; i < limit; i++ {
 		row := rows[i]
 		for j, cell := range row {
@@ -192,8 +193,8 @@ func isLikelySummaryRow(row []string, baseIdx int) bool {
 	if checkIdx < 0 || checkIdx >= len(row) {
 		return false
 	}
-	cell := strings.ToUpper(strings.TrimSpace(row[checkIdx]))
 
+	cell := strings.ToUpper(strings.TrimSpace(row[checkIdx]))
 	if cell == "" {
 		c0 := strings.ToUpper(strings.TrimSpace(row[baseIdx]))
 		if strings.Contains(c0, "JUMLAH") || strings.Contains(c0, "SELISIH") ||
@@ -204,9 +205,8 @@ func isLikelySummaryRow(row []string, baseIdx int) bool {
 		return false
 	}
 
-	summaryKeys := []string{"JUMLAH", "SELISIH", "TOTAL", "K3", "%",
-		"JUMLAH PABRIK", "JUMLAH KEBUN", "RATA",
-		"RATA-RATA", "REKAPITULASI", "OW", "PROD. OW"}
+	summaryKeys := []string{"JUMLAH", "SELISIH", "TOTAL", "K3", "%", "JUMLAH PABRIK",
+		"JUMLAH KEBUN", "RATA", "RATA-RATA", "REKAPITULASI", "OW", "PROD. OW"}
 	for _, k := range summaryKeys {
 		if strings.Contains(cell, k) {
 			return true
@@ -217,6 +217,7 @@ func isLikelySummaryRow(row []string, baseIdx int) bool {
 		!regexp.MustCompile(`[0-9]`).MatchString(cell) {
 		return true
 	}
+
 	return false
 }
 
@@ -226,14 +227,17 @@ func isValidDataRow(row []string, baseIdx int) bool {
 	if tyIdx < 0 || tyIdx >= len(row) {
 		return false
 	}
+
 	ty := strings.TrimSpace(row[tyIdx])
 	if ty == "" {
 		return false
 	}
+
 	tyDigits := regexp.MustCompile(`\d{4}`)
 	if !tyDigits.MatchString(ty) {
 		return false
 	}
+
 	yearStr := tyDigits.FindString(ty)
 	if y, err := strconv.Atoi(yearStr); err != nil || y < 1900 || y > 2100 {
 		return false
@@ -243,15 +247,18 @@ func isValidDataRow(row []string, baseIdx int) bool {
 	if nikIdx < 0 || nikIdx >= len(row) {
 		return false
 	}
+
 	nik := strings.TrimSpace(row[nikIdx])
 	if nik == "" {
 		return false
 	}
+
 	nikClean := strings.ReplaceAll(nik, ".", "")
 	nikClean = strings.ReplaceAll(nikClean, " ", "")
 	if !regexp.MustCompile(`\d`).MatchString(nikClean) {
 		return false
 	}
+
 	digits := regexp.MustCompile(`\d+`).FindString(nikClean)
 	if len(digits) < 4 {
 		return false
@@ -270,7 +277,6 @@ func hasValidHKO(row []string, baseIdx int) bool {
 		v = strings.ReplaceAll(v, "-", "")
 		v = strings.ReplaceAll(v, "—", "")
 		v = strings.TrimSpace(v)
-
 		if v == "" {
 			return 0
 		}
@@ -342,6 +348,7 @@ func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi s
 	rekap.Mandor = getStr(baseIdx + 2)
 	rekap.HKOHariIni = getInt(baseIdx + 3)
 	rekap.HKOSampaiHariIni = getInt(baseIdx + 4)
+
 	rekap.HariIniBasahLatekKebun = getFloat(baseIdx + 5)
 	rekap.HariIniBasahLatekPabrik = getFloat(baseIdx + 6)
 	rekap.HariIniBasahLatekPersen = getFloat(baseIdx + 7)
@@ -352,6 +359,7 @@ func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi s
 	rekap.HariIniKeringSheet = getFloat(baseIdx + 12)
 	rekap.HariIniKeringBrCr = getFloat(baseIdx + 13)
 	rekap.HariIniKeringJumlah = getFloat(baseIdx + 14)
+
 	rekap.SampaiHariIniBasahLatekKebun = getFloat(baseIdx + 15)
 	rekap.SampaiHariIniBasahLatekPabrik = getFloat(baseIdx + 16)
 	rekap.SampaiHariIniBasahLatekPersen = getFloat(baseIdx + 17)
@@ -362,11 +370,23 @@ func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi s
 	rekap.SampaiHariIniKeringSheet = getFloat(baseIdx + 22)
 	rekap.SampaiHariIniKeringBrCr = getFloat(baseIdx + 23)
 	rekap.SampaiHariIniKeringJumlah = getFloat(baseIdx + 24)
+
 	rekap.ProduksiPerTaperHariIni = getFloat(baseIdx + 25)
 	rekap.ProduksiPerTaperSampaiHariIni = getFloat(baseIdx + 26)
+
 	rekap.Afdeling = afdeling
 	rekap.IdMaster = idMaster
-	rekap.TotalProduksi = rekap.HariIniKeringSheet + rekap.HariIniBasahLumpPabrik
+
+	// PERHITUNGAN TOTAL - DIPINDAHKAN KE SINI (setelah semua field terisi)
+	rekap.TotalProduksiHariIni = rekap.HariIniKeringSheet + rekap.HariIniBasahLumpPabrik
+	rekap.TotalProduksiSampaiHariIni = rekap.SampaiHariIniKeringSheet + rekap.SampaiHariIniBasahLumpPabrik
+
+	// Debug log untuk memastikan perhitungan benar
+	fmt.Printf("DEBUG mapRowRelative: NIK=%s, TotalHariIni=%.2f (Sheet=%.2f + Lump=%.2f), TotalSampaiHariIni=%.2f (Sheet=%.2f + Lump=%.2f)\n",
+		rekap.NIK,
+		rekap.TotalProduksiHariIni, rekap.HariIniKeringSheet, rekap.HariIniBasahLumpPabrik,
+		rekap.TotalProduksiSampaiHariIni, rekap.SampaiHariIniKeringSheet, rekap.SampaiHariIniBasahLumpPabrik,
+	)
 
 	return rekap, nil
 }
@@ -387,15 +407,35 @@ func saveBatchRekap(db *gorm.DB, rekaps []*models.Rekap) error {
 			{Name: "tahun_tanam"},
 		},
 		DoUpdates: clause.AssignmentColumns([]string{
-			"hko_hari_ini", "hko_sampai_hari_ini",
-			"hari_ini_basah_latek_kebun", "hari_ini_basah_latek_pabrik", "hari_ini_basah_latek_persen",
-			"hari_ini_basah_lump_kebun", "hari_ini_basah_lump_pabrik", "hari_ini_basah_lump_persen",
-			"hari_ini_k3_sheet", "hari_ini_kering_sheet", "hari_ini_kering_br_cr", "hari_ini_kering_jumlah",
-			"sampai_hari_ini_basah_latek_kebun", "sampai_hari_ini_basah_latek_pabrik", "sampai_hari_ini_basah_latek_persen",
-			"sampai_hari_ini_basah_lump_kebun", "sampai_hari_ini_basah_lump_pabrik", "sampai_hari_ini_basah_lump_persen",
-			"sampai_hari_ini_k3_sheet", "sampai_hari_ini_kering_sheet", "sampai_hari_ini_kering_br_cr", "sampai_hari_ini_kering_jumlah",
-			"produksi_per_taper_hari_ini", "produksi_per_taper_sampai_hari_ini",
-			"afdeling", "id_master", "updated_at",
+			"hko_hari_ini",
+			"hko_sampai_hari_ini",
+			"hari_ini_basah_latek_kebun",
+			"hari_ini_basah_latek_pabrik",
+			"hari_ini_basah_latek_persen",
+			"hari_ini_basah_lump_kebun",
+			"hari_ini_basah_lump_pabrik",
+			"hari_ini_basah_lump_persen",
+			"hari_ini_k3_sheet",
+			"hari_ini_kering_sheet",
+			"hari_ini_kering_br_cr",
+			"hari_ini_kering_jumlah",
+			"sampai_hari_ini_basah_latek_kebun",
+			"sampai_hari_ini_basah_latek_pabrik",
+			"sampai_hari_ini_basah_latek_persen",
+			"sampai_hari_ini_basah_lump_kebun",
+			"sampai_hari_ini_basah_lump_pabrik",
+			"sampai_hari_ini_basah_lump_persen",
+			"sampai_hari_ini_k3_sheet",
+			"sampai_hari_ini_kering_sheet",
+			"sampai_hari_ini_kering_br_cr",
+			"sampai_hari_ini_kering_jumlah",
+			"produksi_per_taper_hari_ini",
+			"produksi_per_taper_sampai_hari_ini",
+			"total_produksi_hari_ini",
+			"total_produksi_sampai_hari_ini",
+			"afdeling",
+			"id_master",
+			"updated_at",
 		}),
 	}).CreateInBatches(rekaps, 100).Error
 }
@@ -417,6 +457,7 @@ func processCSVFileAutoBaseWithFilter(db *gorm.DB, path string, tanggal time.Tim
 	if err != nil {
 		return 0, 0, fmt.Errorf("gagal baca csv %s: %w", path, err)
 	}
+
 	if len(rows) == 0 {
 		return 0, 0, fmt.Errorf("file kosong: %s", path)
 	}
@@ -530,7 +571,6 @@ func ConvertCSVAutoBaseWithFilter(tanggal time.Time, afdeling string, idMaster u
 	}
 
 	path := filepath.Join("csv", "REKAP.csv")
-
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return 0, 0, nil, fmt.Errorf("file REKAP.csv tidak ditemukan di folder csv/")
 	}
