@@ -66,6 +66,9 @@ async function loadMandorList() {
             mandorList = json.data;
             console.log('✅ Mandor list loaded:', mandorList.length);
             console.log('👤 Sample:', mandorList[0]);
+        } else if (Array.isArray(json)) {
+            mandorList = json;
+            console.log('✅ Mandor list loaded (array root):', mandorList.length);
         } else {
             console.warn('⚠️ Unexpected response format:', json);
             mandorList = [];
@@ -209,7 +212,7 @@ function createPenyadapCard(cardId, number) {
                         <option value="BORONG_EXTERNAL">Borong Eksternal</option>
                         <option value="BORONG_INTERNAL">Borong Internal</option>
                         <option value="BORONG_MINGGU">Borong Minggu</option>
-                        <option value="TETES_LANJUT">Tetes
+                        <option value="TETES">Tetes</option>
                         <option value="TETES_LANJUT">Tetes Lanjut</option>
                     </select>
                 </div>
@@ -279,11 +282,13 @@ function setupAutocomplete(cardId) {
     });
 }
 
-// Handle Autocomplete Input
+// Handle Autocomplete Input - FIXED VERSION
 function handleAutocomplete(cardId, type) {
     const input = document.getElementById(`${cardId}-nama`);
     const dropdown = document.getElementById(`${cardId}-dropdown`);
     const value = input.value.toLowerCase();
+
+    console.log('🔍 handleAutocomplete called:', {cardId, type, value});
 
     // Check if value matches stored display value
     const storedValue = input.getAttribute('data-display-value');
@@ -295,6 +300,9 @@ function handleAutocomplete(cardId, type) {
     // Reset data attributes if value changed
     if (storedValue && input.value !== storedValue) {
         input.removeAttribute('data-id');
+        input.removeAttribute('data-nama');
+        input.removeAttribute('data-nik');
+        input.removeAttribute('data-tahun-tanam');
         input.removeAttribute('data-display-value');
     }
 
@@ -312,7 +320,7 @@ function handleAutocomplete(cardId, type) {
     }
 
     // Determine field names dynamically
-    let nameField, nikField, idField;
+    let nameField, nikField, idField, tahunTanamField;
     
     if (type === 'penyadap') {
         nameField = 'nama_penyadap';
@@ -320,6 +328,7 @@ function handleAutocomplete(cardId, type) {
         idField = 'id';
     } else {
         const firstItem = mandorList[0];
+        
         nameField = Object.keys(firstItem).find(key => {
             const lowerKey = key.toLowerCase();
             return lowerKey === 'mandor' || 
@@ -337,6 +346,13 @@ function handleAutocomplete(cardId, type) {
             const lowerKey = key.toLowerCase();
             return lowerKey === 'id';
         }) || 'id';
+        
+        tahunTanamField = Object.keys(firstItem).find(key => {
+            const lowerKey = key.toLowerCase();
+            return lowerKey === 'tahun_tanam' || lowerKey === 'tahuntanam';
+        }) || 'tahun_tanam';
+        
+        console.log('🎯 Detected fields:', {nameField, nikField, idField, tahunTanamField});
     }
 
     // Filter list based on search value
@@ -346,44 +362,115 @@ function handleAutocomplete(cardId, type) {
         return name.includes(value) || nik.includes(value);
     });
 
-    if (filtered.length === 0) {
-        dropdown.innerHTML = '<div class="autocomplete-item" style="color: #999;">Tidak ada hasil</div>';
-        dropdown.style.display = 'block';
-        return;
-    }
+    console.log('✅ Filtered results before deduplication:', filtered.length);
 
-    // Build dropdown HTML
-    dropdown.innerHTML = filtered.map(item => {
-        const name = item[nameField] || 'N/A';
-        const nik = item[nikField] || 'N/A';
-        const id = item[idField] || 0;
+    if (type === 'mandor') {
+        // Remove exact duplicates based on NIK + Tahun Tanam combination
+        const uniqueMap = new Map();
+        filtered.forEach(item => {
+            const name = item[nameField] || 'N/A';
+            const nik = item[nikField] || 'N/A';
+            const id = item[idField] || 0;
+            const tahunTanam = item[tahunTanamField] || 'N/A';
+
+            // Create unique key: NIK + Tahun Tanam
+            const uniqueKey = `${nik}_${tahunTanam}`;
+            
+            // Only add if not already exists
+            if (!uniqueMap.has(uniqueKey)) {
+                uniqueMap.set(uniqueKey, {
+                    name: name,
+                    nik: nik,
+                    id: id,
+                    tahunTanam: tahunTanam
+                });
+            }
+        });
+
+        const uniqueResults = Array.from(uniqueMap.values());
         
-        const escapedName = String(name).replace(/'/g, "\\'");
-        const escapedNik = String(nik).replace(/'/g, "\\'");
-        
-        return `
-            <div class="autocomplete-item" onclick="selectItem('${cardId}', ${id}, '${escapedName}', '${escapedNik}')">
-                <strong>${name}</strong><br>
-                <small>NIK: ${nik}</small>
-            </div>
-        `;
-    }).join('');
+        // Sort by name, then by tahun tanam (descending)
+        uniqueResults.sort((a, b) => {
+            if (a.name !== b.name) {
+                return a.name.localeCompare(b.name);
+            }
+            // Same name, sort by tahun tanam descending
+            if (a.tahunTanam === 'N/A') return 1;
+            if (b.tahunTanam === 'N/A') return -1;
+            return b.tahunTanam - a.tahunTanam;
+        });
+
+        console.log('✅ Unique results after deduplication:', uniqueResults.length);
+
+        if (uniqueResults.length === 0) {
+            dropdown.innerHTML = '<div class="autocomplete-item" style="color: #999;">Tidak ada hasil</div>';
+            dropdown.style.display = 'block';
+            return;
+        }
+
+        // Build dropdown HTML for Mandor
+        dropdown.innerHTML = uniqueResults.map(item => {
+            const escapedName = String(item.name).replace(/'/g, "\\'");
+            const escapedNik = String(item.nik).replace(/'/g, "\\'");
+            
+            return `
+                <div class="autocomplete-item" onclick="selectItem('${cardId}', ${item.id}, '${escapedName}', '${escapedNik}', '${item.tahunTanam}')">
+                    <strong>${item.name}</strong><br>
+                    <small>NIK: ${item.nik}</small><br>
+                    <small style="color: #0093E9; font-weight: 600;">📅 Tahun Tanam: ${item.tahunTanam}</small>
+                </div>
+            `;
+        }).join('');
+
+    } else {
+        // Penyadap - no deduplication needed
+        if (filtered.length === 0) {
+            dropdown.innerHTML = '<div class="autocomplete-item" style="color: #999;">Tidak ada hasil</div>';
+            dropdown.style.display = 'block';
+            return;
+        }
+
+        // Build dropdown HTML for Penyadap
+        dropdown.innerHTML = filtered.map(item => {
+            const name = item[nameField] || 'N/A';
+            const nik = item[nikField] || 'N/A';
+            const id = item[idField] || 0;
+            
+            const escapedName = String(name).replace(/'/g, "\\'");
+            const escapedNik = String(nik).replace(/'/g, "\\'");
+            
+            return `
+                <div class="autocomplete-item" onclick="selectItem('${cardId}', ${id}, '${escapedName}', '${escapedNik}')">
+                    <strong>${name}</strong><br>
+                    <small>NIK: ${nik}</small>
+                </div>
+            `;
+        }).join('');
+    }
 
     dropdown.style.display = 'block';
 }
 
-// Select Item from Autocomplete
-function selectItem(cardId, id, nama, nik) {
+// Select Item from Autocomplete - UPDATED
+function selectItem(cardId, id, nama, nik, tahunTanam) {
     const input = document.getElementById(`${cardId}-nama`);
     const dropdown = document.getElementById(`${cardId}-dropdown`);
-    const displayValue = `${nama} (${nik})`;
+    
+    const displayValue = tahunTanam && tahunTanam !== 'undefined' && tahunTanam !== 'N/A'
+        ? `${nama} (${nik}) - ${tahunTanam}`
+        : `${nama} (${nik})`;
     
     input.value = displayValue;
     input.setAttribute('data-id', id);
+    input.setAttribute('data-nama', nama);
+    input.setAttribute('data-nik', nik);
+    if (tahunTanam && tahunTanam !== 'undefined') {
+        input.setAttribute('data-tahun-tanam', tahunTanam);
+    }
     input.setAttribute('data-display-value', displayValue);
     dropdown.style.display = 'none';
     
-    console.log(`Selected for ${cardId}:`, {id, nama, nik});
+    console.log(`Selected for ${cardId}:`, {id, nama, nik, tahunTanam});
 }
 
 // Remove Card
