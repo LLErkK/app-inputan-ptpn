@@ -60,10 +60,11 @@ func GetVisualisasiProduksi(w http.ResponseWriter, r *http.Request) {
 
 	// Validasi satuan - field yang tersedia di model Produksi
 	validSatuan := map[string]bool{
-		"basah_latek": true,
-		"sheet":       true,
-		"basah_lump":  true,
-		"br_cr":       true,
+		"basah_latek":    true,
+		"sheet":          true,
+		"basah_lump":     true,
+		"br_cr":          true,
+		"total_produksi": true,
 	}
 
 	if !validSatuan[satuan] {
@@ -129,6 +130,8 @@ func aggregateProduksiData(produksiList []models.Produksi, satuan string) Visual
 			dataMap[dateStr] += produksi.BasahLump
 		case "br_cr":
 			dataMap[dateStr] += produksi.BrCr
+		case "total_produksi":
+			dataMap[dateStr] += produksi.TotalProduksi
 		}
 	}
 
