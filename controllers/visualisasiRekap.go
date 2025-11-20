@@ -143,6 +143,12 @@ func visualisasiTotal(tipeProduksi, tanggalAwal, tanggalAkhir, satuan string) (V
 	if err := query.Order("tanggal ASC").Find(&rekaps).Error; err != nil {
 		return VisualisasiResponse{}, err
 	}
+	if len(rekaps) == 0 {
+		return VisualisasiResponse{
+			Labels: []string{},
+			Data:   []DataPoint{},
+		}, nil
+	}
 
 	return aggregateData(rekaps, satuan), nil
 }
@@ -168,7 +174,12 @@ func visualisasiAfdeling(tipeProduksi, afdeling, tanggalAwal, tanggalAkhir, satu
 	if err := query.Order("tanggal ASC").Find(&rekaps).Error; err != nil {
 		return VisualisasiResponse{}, err
 	}
-
+	if len(rekaps) == 0 {
+		return VisualisasiResponse{
+			Labels: []string{},
+			Data:   []DataPoint{},
+		}, nil
+	}
 	return aggregateData(rekaps, satuan), nil
 }
 
@@ -203,6 +214,12 @@ func visualisasiMandor(tipeProduksi, afdeling, nikMandor, tahunTanam, tanggalAwa
 
 	if err := query.Order("tanggal ASC").Find(&rekaps).Error; err != nil {
 		return VisualisasiResponse{}, err
+	}
+	if len(rekaps) == 0 {
+		return VisualisasiResponse{
+			Labels: []string{},
+			Data:   []DataPoint{},
+		}, nil
 	}
 
 	return aggregateData(rekaps, satuan), nil

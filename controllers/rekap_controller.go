@@ -65,7 +65,8 @@ func GetBakuDetailToday(w http.ResponseWriter, r *http.Request) {
 			baku_details.selisih_basah_lump,
 			baku_details.persentase_selisih_basah_lump,
 			baku_details.jumlah_br_cr,
-			baku_details.k3_br_cr
+			baku_details.k3_br_cr,
+			baku_details.total_produksi,
 		`).
 		Joins("LEFT JOIN baku_mandors ON baku_mandors.id = baku_details.id_baku_mandor").
 		Where("DATE(baku_details.tanggal) = DATE(?)", today).

@@ -125,7 +125,6 @@ func SearchMandor(w http.ResponseWriter, r *http.Request) {
 				})
 				return
 
-				tglAkhir = tglAkhir.AddDate(0, 0, 1)
 			}
 			query = query.Where("tanggal BETWEEN ? AND ?", tglAwal, tglAkhir)
 		} else {

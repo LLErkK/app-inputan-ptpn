@@ -180,8 +180,7 @@ func parseNumberNoRekap(s string) (float64, error) {
 		// if only comma present, assume comma is decimal separator
 		orig = strings.ReplaceAll(orig, ",", ".")
 	} else {
-		// only dots or neither: remove any thousands grouping if ambiguous (e.g., "1.000" might be 1000)
-		// leave dot as decimal if it's the only separator and appears after last three digits? Simpler: keep as is.
+		//
 	}
 
 	// Remove any remaining spaces
@@ -242,6 +241,8 @@ func mapRowTanggalFormat(row []string, baseColIndices map[string]int, firstColId
 		produksi.BasahLump = getFloat(firstColIdx + 2)  // Basah Lump
 		produksi.BrCr = getFloat(firstColIdx + 3)       // Br.Cr
 	}
+	produksi.TotalProduksi = produksi.Sheet + produksi.BasahLump
+
 	produksi.Afdeling = afdeling
 	produksi.IdMaster = idMaster
 

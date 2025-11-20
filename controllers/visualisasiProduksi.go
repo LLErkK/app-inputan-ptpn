@@ -103,6 +103,12 @@ func visualisasiProduksiPenyadap(nikPenyadap, tipeProduksi, tanggalAwal, tanggal
 	if err := query.Order("tanggal ASC").Find(&produksiList).Error; err != nil {
 		return VisualisasiProduksiResponse{}, err
 	}
+	if len(produksiList) == 0 {
+		return VisualisasiProduksiResponse{
+			Labels: []string{},
+			Data:   []ProduksiDataPoint{},
+		}, nil
+	}
 
 	return aggregateProduksiData(produksiList, satuan), nil
 }

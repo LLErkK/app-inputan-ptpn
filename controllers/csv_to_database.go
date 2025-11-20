@@ -366,6 +366,7 @@ func mapRowRelative(row []string, baseIdx int, tanggal time.Time, tipeProduksi s
 	rekap.ProduksiPerTaperSampaiHariIni = getFloat(baseIdx + 26)
 	rekap.Afdeling = afdeling
 	rekap.IdMaster = idMaster
+	rekap.TotalProduksi = rekap.HariIniKeringSheet + rekap.HariIniBasahLumpPabrik
 
 	return rekap, nil
 }

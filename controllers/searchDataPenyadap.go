@@ -117,8 +117,6 @@ func SearchPenyadap(w http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
-			// TAMBAHKAN 1 HARI untuk include semua data di tanggal akhir
-			tglAkhir = tglAkhir.AddDate(0, 0, 1)
 
 			query = query.Where("tanggal BETWEEN ? AND ?", tglAwal, tglAkhir)
 		} else {
