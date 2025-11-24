@@ -280,6 +280,7 @@
                     <label for="fieldSelect">Satuan</label>
                     <select id="fieldSelect" name="fieldSelect" style="width:100%;">
                         <option value="hko">HKO</option>
+                        <option value="total_produksi">Total Produksi</option>
                         <option value="basah_latek_kebun">Basah Latek Kebun</option>
                         <option value="basah_latek_Pabrik">Basah Latek Pabrik</option>
                         <option value="basah_latek_persen">Basah Latek Persen</option>
@@ -291,6 +292,7 @@
                         <option value="kering_br_cr">Kering Br.Cr</option>
                         <option value="kering_jumlah">Kering Jumlah</option>
                         <option value="produksi_per_taper">Produksi Pertaper</option>
+                        
                     </select>
                 </div>
                 
@@ -331,6 +333,10 @@
               <button type="button" class="time-btn" data-range="month">
                   <span class="ico">📈</span>
                   <span class="label">Bulanan</span>
+              </button>
+              <button type="button" class="time-btn" data-range="years">
+                  <span class="ico">📈</span>
+                  <span class="label">Tahunan</span>
               </button>
           </div>
           <div class="chart-subtitle" id="dynamicChartSubtitle">Ringkasan produksi berdasarkan satuan waktu</div>

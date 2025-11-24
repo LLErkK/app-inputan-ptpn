@@ -440,30 +440,16 @@ function formatDate(isoDate) {
 }
 
 function calculateSummary(data, summary) {
+    // Semua perhitungan sudah dilakukan di backend
+    // Jika summary dari backend tersedia, gunakan langsung
     if (summary) {
         return summary;
     }
 
-    const calculated = {
+    // Fallback jika backend tidak mengirim summary (seharusnya tidak terjadi)
+    return {
         total_records: data.length
     };
-
-    if (currentViewMode === 'mandor') {
-        calculated.total_hko = data.reduce((sum, item) => sum + (item.hko_hari_ini || 0), 0);
-        calculated.total_basah_latek_kebun = data.reduce((sum, item) => sum + (item.hari_ini_basah_latek_kebun || 0), 0);
-        calculated.total_basah_latek_pabrik = data.reduce((sum, item) => sum + (item.hari_ini_basah_latek_pabrik || 0), 0);
-        calculated.total_kering_sheet = data.reduce((sum, item) => sum + (item.hari_ini_kering_sheet || 0), 0);
-        calculated.rata_rata_produksi_per_taper = calculated.total_hko > 0 
-            ? (calculated.total_basah_latek_kebun + calculated.total_kering_sheet) / calculated.total_hko 
-            : 0;
-    } else {
-        calculated.total_basah_latek = data.reduce((sum, item) => sum + (item.BasahLatek || item.basah_latek || 0), 0);
-        calculated.total_sheet = data.reduce((sum, item) => sum + (item.Sheet || item.sheet || 0), 0);
-        calculated.total_basah_lump = data.reduce((sum, item) => sum + (item.BasahLump || item.basah_lump || 0), 0);
-        calculated.total_br_cr = data.reduce((sum, item) => sum + (item.BrCr || item.br_cr || 0), 0);
-    }
-
-    return calculated;
 }
 
 function renderTable(data, summary) {
@@ -472,10 +458,10 @@ function renderTable(data, summary) {
     if (!data || data.length === 0) {
         if (currentViewMode === 'mandor') {
             const el = document.getElementById('mandorTableBody');
-            if (el) el.innerHTML = '<tr><td colspan="15" style="text-align:center; color: #999;">Tidak ada data ditemukan</td></tr>';
+            if (el) el.innerHTML = '<tr><td colspan="16" style="text-align:center; color: #999;">Tidak ada data ditemukan</td></tr>';
         } else {
             const el = document.getElementById('bakuTableBody');
-            if (el) el.innerHTML = '<tr><td colspan="11" style="text-align:center; color: #999;">Tidak ada data ditemukan</td></tr>';
+            if (el) el.innerHTML = '<tr><td colspan="12" style="text-align:center; color: #999;">Tidak ada data ditemukan</td></tr>';
         }
         if (summarySection) summarySection.style.display = 'none';
         return;
@@ -497,14 +483,39 @@ function renderPenyadapTable(data, summary) {
     if (!tableBody) return;
     
     const totalRecords = summary.total_records || summary.TotalRecords || 0;
-    document.getElementById('summaryTotalRecords').textContent = totalRecords;
-    document.getElementById('summaryBasahLatek').textContent = summary.total_basah_latek || summary.TotalLatek || 0;
-    document.getElementById('summarySheet').textContent = (summary.total_sheet || summary.TotalSheet || 0).toFixed(2);
-    document.getElementById('summaryBasahLump').textContent = summary.total_basah_lump || summary.TotalLump || 0;
-    document.getElementById('summaryBrCr').textContent = (summary.total_br_cr || summary.TotalBrCr || 0).toFixed(2);
+    const totalBasahLatek = summary.total_basah_latek || summary.TotalLatek || 0;
+    const totalSheet = summary.total_sheet || summary.TotalSheet || 0;
+    const totalBasahLump = summary.total_basah_lump || summary.TotalLump || 0;
+    const totalBrCr = summary.total_br_cr || summary.TotalBrCr || 0;
+    const totalProduksi = summary.total_produksi || summary.TotalProduksi || 0;
+    
+    // Safely update summary elements with null checks
+    const elTotalRecords = document.getElementById('summaryTotalRecords');
+    if (elTotalRecords) elTotalRecords.textContent = totalRecords;
+    
+    const elBasahLatek = document.getElementById('summaryBasahLatek');
+    if (elBasahLatek) elBasahLatek.textContent = totalBasahLatek;
+    
+    const elSheet = document.getElementById('summarySheet');
+    if (elSheet) elSheet.textContent = totalSheet.toFixed(2);
+    
+    const elBasahLump = document.getElementById('summaryBasahLump');
+    if (elBasahLump) elBasahLump.textContent = totalBasahLump;
+    
+    const elBrCr = document.getElementById('summaryBrCr');
+    if (elBrCr) elBrCr.textContent = totalBrCr.toFixed(2);
+    
+    const elTotalProduksi = document.getElementById('summaryTotalProduksi');
+    if (elTotalProduksi) elTotalProduksi.textContent = totalProduksi.toFixed(2);
 
     tableBody.innerHTML = '';
     data.forEach((item) => {
+        const basahLatek = item.BasahLatek || item.basah_latek || 0;
+        const sheet = item.Sheet || item.sheet || 0;
+        const basahLump = item.BasahLump || item.basah_lump || 0;
+        const brCr = item.BrCr || item.br_cr || 0;
+        const totalProduksi = item.TotalProduksi || item.total_produksi || 0;
+        
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${formatDate(item.Tanggal || item.tanggal)}</td>
@@ -514,10 +525,11 @@ function renderPenyadapTable(data, summary) {
             <td>${item.Afdeling || item.afdeling || '-'}</td>
             <td>${item.NIK || item.nik || '-'}</td>
             <td style="text-align: left;">${item.NamaPenyadap || item.nama_penyadap || '-'}</td>
-            <td style="font-weight: 600; color: #0093E9;">${item.BasahLatek || item.basah_latek || 0}</td>
-            <td style="font-weight: 600; color: #0093E9;">${(item.Sheet || item.sheet || 0).toFixed(2)}</td>
-            <td style="font-weight: 600; color: #0093E9;">${item.BasahLump || item.basah_lump || 0}</td>
-            <td style="font-weight: 600; color: #0093E9;">${(item.BrCr || item.br_cr || 0).toFixed(2)}</td>
+            <td style="font-weight: 600; color: #0093E9;">${basahLatek}</td>
+            <td style="font-weight: 600; color: #0093E9;">${sheet.toFixed(2)}</td>
+            <td style="font-weight: 600; color: #0093E9;">${basahLump}</td>
+            <td style="font-weight: 600; color: #0093E9;">${brCr.toFixed(2)}</td>
+            <td style="font-weight: 700; color: #27ae60; background-color: rgba(39, 174, 96, 0.1);">${totalProduksi.toFixed(2)}</td>
         `;
         tableBody.appendChild(row);
     });
@@ -527,15 +539,44 @@ function renderMandorTable(data, summary) {
     const tableBody = document.getElementById('mandorTableBody');
     if (!tableBody) return;
     
-    document.getElementById('summaryTotalRecordsMandor').textContent = summary.total_records || summary.TotalRecords || 0;
-    document.getElementById('summaryHKO').textContent = summary.total_hko || summary.TotalHKO || 0;
-    document.getElementById('summaryLatekKebun').textContent = summary.total_basah_latek_kebun || summary.TotalBasahLatekKebun || 0;
-    document.getElementById('summaryLatekPabrik').textContent = summary.total_basah_latek_pabrik || summary.TotalBasahLatekPabrik || 0;
-    document.getElementById('summarySheetKering').textContent = summary.total_kering_sheet || summary.TotalKeringSheet || 0;
-    document.getElementById('summaryRataPerTaper').textContent = (summary.rata_rata_produksi_per_taper || summary.RataRataProduksiPerTaper || 0).toFixed(2);
+    const totalHKO = summary.total_hko || summary.TotalHKO || 0;
+    const totalLatekKebun = summary.total_basah_latek_kebun || summary.TotalBasahLatekKebun || 0;
+    const totalLatekPabrik = summary.total_basah_latek_pabrik || summary.TotalBasahLatekPabrik || 0;
+    const totalSheetKering = summary.total_kering_sheet || summary.TotalKeringSheet || 0;
+    const totalLumpKebun = summary.total_basah_lump_kebun || summary.TotalBasahLumpKebun || 0;
+    const totalBrCr = summary.total_kering_br_cr || summary.TotalKeringBrCr || 0;
+    const totalProduksi = summary.total_produksi || summary.TotalProduksi || 0;
+    
+    // Safely update summary elements with null checks
+    const elTotalRecords = document.getElementById('summaryTotalRecordsMandor');
+    if (elTotalRecords) elTotalRecords.textContent = summary.total_records || summary.TotalRecords || 0;
+    
+    const elHKO = document.getElementById('summaryHKO');
+    if (elHKO) elHKO.textContent = totalHKO;
+    
+    const elLatekKebun = document.getElementById('summaryLatekKebun');
+    if (elLatekKebun) elLatekKebun.textContent = totalLatekKebun;
+    
+    const elLatekPabrik = document.getElementById('summaryLatekPabrik');
+    if (elLatekPabrik) elLatekPabrik.textContent = totalLatekPabrik;
+    
+    const elSheetKering = document.getElementById('summarySheetKering');
+    if (elSheetKering) elSheetKering.textContent = totalSheetKering;
+    
+    const elRataPerTaper = document.getElementById('summaryRataPerTaper');
+    if (elRataPerTaper) elRataPerTaper.textContent = (summary.rata_rata_produksi_per_taper || summary.RataRataProduksiPerTaper || 0).toFixed(2);
+    
+    const elTotalProduksi = document.getElementById('summaryTotalProduksiMandor');
+    if (elTotalProduksi) elTotalProduksi.textContent = totalProduksi.toFixed(2);
 
     tableBody.innerHTML = '';
     data.forEach((item) => {
+        const basahLatekKebun = item.hari_ini_basah_latek_kebun || 0;
+        const keringSheet = item.hari_ini_kering_sheet || 0;
+        const basahLumpKebun = item.hari_ini_basah_lump_kebun || 0;
+        const keringBrCr = item.hari_ini_kering_br_cr || 0;
+        const totalProduksi = item.total_produksi_hari_ini ||0;
+        
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${formatDate(item.tanggal)}</td>
@@ -544,15 +585,16 @@ function renderMandorTable(data, summary) {
             <td>${item.tahun_tanam || '-'}</td>
             <td>${item.afdeling || '-'}</td>
             <td style="font-weight: 600; color: #667eea;">${item.hko_hari_ini || 0}</td>
-            <td style="font-weight: 600; color: #0093E9;">${item.hari_ini_basah_latek_kebun || 0}</td>
+            <td style="font-weight: 600; color: #0093E9;">${basahLatekKebun}</td>
             <td style="font-weight: 600; color: #0093E9;">${item.hari_ini_basah_latek_pabrik || 0}</td>
             <td style="font-weight: 600; color: ${item.hari_ini_basah_latek_persen > 5 ? '#e74c3c' : '#27ae60'};">${(item.hari_ini_basah_latek_persen || 0).toFixed(2)}%</td>
-            <td style="font-weight: 600; color: #0093E9;">${item.hari_ini_basah_lump_kebun || 0}</td>
+            <td style="font-weight: 600; color: #0093E9;">${basahLumpKebun}</td>
             <td style="font-weight: 600; color: #0093E9;">${item.hari_ini_basah_lump_pabrik || 0}</td>
             <td style="font-weight: 600; color: ${item.hari_ini_basah_lump_persen > 5 ? '#e74c3c' : '#27ae60'};">${(item.hari_ini_basah_lump_persen || 0).toFixed(2)}%</td>
-            <td style="font-weight: 600; color: #0093E9;">${item.hari_ini_kering_sheet || 0}</td>
-            <td style="font-weight: 600; color: #0093E9;">${item.hari_ini_kering_br_cr || 0}</td>
+            <td style="font-weight: 600; color: #0093E9;">${keringSheet}</td>
+            <td style="font-weight: 600; color: #0093E9;">${keringBrCr}</td>
             <td style="font-weight: 600; color: #9b59b6;">${(item.produksi_per_taper_hari_ini || 0).toFixed(2)}</td>
+            <td style="font-weight: 700; color: #27ae60; background-color: rgba(39, 174, 96, 0.1);">${totalProduksi.toFixed(2)}</td>
         `;
         tableBody.appendChild(row);
     });
@@ -562,7 +604,7 @@ async function fetchData(params) {
     const tableBody = currentViewMode === 'mandor' ? 
         document.getElementById('mandorTableBody') : 
         document.getElementById('bakuTableBody');
-    const colspan = currentViewMode === 'mandor' ? '15' : '11';
+    const colspan = currentViewMode === 'mandor' ? '16' : '12';
     
     if (tableBody) tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;"><i>⏳ Memuat data...</i></td></tr>`;
 
@@ -753,10 +795,10 @@ function clearAll() {
     
     if (currentViewMode === 'mandor') {
         const mandorTableBody = document.getElementById('mandorTableBody');
-        if (mandorTableBody) mandorTableBody.innerHTML = '<tr><td colspan="15" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>';
+        if (mandorTableBody) mandorTableBody.innerHTML = '<tr><td colspan="16" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>';
     } else {
         const bakuTableBody = document.getElementById('bakuTableBody');
-        if (bakuTableBody) bakuTableBody.innerHTML = '<tr><td colspan="11" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>';
+        if (bakuTableBody) bakuTableBody.innerHTML = '<tr><td colspan="12" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>';
     }
     
     console.log('All filters cleared');

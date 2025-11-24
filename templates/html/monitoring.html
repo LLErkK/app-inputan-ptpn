@@ -142,6 +142,8 @@
             <!-- Summary Section -->
             <div id="summarySection" style="display: none; margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
                 <h3 style="margin-bottom: 15px; font-size: 1.2rem;">📊 Ringkasan Data</h3>
+                
+                <!-- Summary Penyadap -->
                 <div id="summaryPenyadap" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
                     <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
                         <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Total Records</div>
@@ -163,8 +165,13 @@
                         <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Br.Cr</div>
                         <div style="font-size: 1.5rem; font-weight: 700;" id="summaryBrCr">0</div>
                     </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">🎯 Total Produksi</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summaryTotalProduksi">0</div>
+                    </div>
                 </div>
                 
+                <!-- Summary Mandor -->
                 <div id="summaryMandor" style="display: none; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
                     <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
                         <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Total Records</div>
@@ -190,6 +197,10 @@
                         <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">Rata² Per Taper</div>
                         <div style="font-size: 1.5rem; font-weight: 700;" id="summaryRataPerTaper">0</div>
                     </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.85rem; margin-bottom: 5px; opacity: 0.9;">🎯 Total Produksi</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;" id="summaryTotalProduksiMandor">0</div>
+                    </div>
                 </div>
             </div>
 
@@ -208,10 +219,11 @@
                         <th>Sheet</th>
                         <th>Basah Lump</th>
                         <th>Br.Cr</th>
+                        <th>Total Produksi</th>
                     </tr>
                 </thead>
                 <tbody id="bakuTableBody">
-                    <tr><td colspan="11" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>
+                    <tr><td colspan="12" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>
                 </tbody>
             </table>
 
@@ -229,6 +241,7 @@
                         <th colspan="3">Basah Lump</th>
                         <th colspan="2">Kering</th>
                         <th rowspan="2">Prod/Taper</th>
+                        <th rowspan="2">Total Produksi</th>
                     </tr>
                     <tr>
                         <th>Kebun</th>
@@ -242,7 +255,7 @@
                     </tr>
                 </thead>
                 <tbody id="mandorTableBody">
-                    <tr><td colspan="15" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>
+                    <tr><td colspan="16" style="text-align:center; color: #666; font-style: italic;">Silakan pilih filter dan klik tombol untuk menampilkan data</td></tr>
                 </tbody>
             </table>
         </div>

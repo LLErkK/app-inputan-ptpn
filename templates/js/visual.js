@@ -429,7 +429,8 @@ async function handleUpdateGrafik() {
             'kering_sheet': 'kering_sheet',
             'kering_br_cr': 'kering_br_cr',
             'kering_jumlah': 'kering_jumlah',
-            'produksi_per_taper': 'produksi_per_taper'
+            'produksi_per_taper': 'produksi_per_taper',
+            'total_produksi': 'total_produksi'
         };
 
         satuan = rekapSatuanMap[field];
@@ -507,7 +508,8 @@ async function handleUpdateGrafik() {
         'basah_latek': 'Basah Latek',
         'sheet': 'Sheet',
         'basah_lump': 'Basah Lump',
-        'br_cr': 'BR/CR'
+        'br_cr': 'BR/CR',
+        'total_produksi': 'total_produksi'
     };
 
     let titleSuffix = '';
@@ -559,7 +561,8 @@ function handleFieldChange() {
         'basah_latek': 'Basah Latek',
         'sheet': 'Sheet',
         'basah_lump': 'Basah Lump',
-        'br_cr': 'BR/CR'
+        'br_cr': 'BR/CR',
+        'total_produksi': 'total_produksi'
     };
 
     const tipeData = document.getElementById('tipeData').value;
@@ -726,6 +729,7 @@ function updateFieldOptions() {
             <option value="kering_br_cr">Kering BR/CR</option>
             <option value="kering_jumlah">Kering Jumlah</option>
             <option value="produksi_per_taper">Produksi Per Taper</option>
+            <option value="total_produksi">Total Produksi</option>
         `;
         console.log('✅ Field options set to REKAP mode');
     }
