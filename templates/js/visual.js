@@ -713,6 +713,7 @@ function updateFieldOptions() {
             <option value="sheet">Sheet</option>
             <option value="basah_lump">Basah Lump</option>
             <option value="br_cr">BR/CR</option>
+            <option value="total_produksi">Total Produksi</option>
         `;
         console.log('✅ Field options set to PRODUKSI mode');
     } else {
@@ -842,12 +843,14 @@ function setupMandorAutocomplete() {
             item.innerHTML = `
                 <strong>${mandor.nama}</strong><br>
                 <small>NIK: ${mandor.nik}</small>
+                <small>Tahun Tanam: ${mandor.tahunTanam}</small>
             `;
 
             item.onclick = function() {
-                const displayValue = `${mandor.nama} (${mandor.nik})`;
+                const displayValue = `${mandor.nama} (${mandor.nik})(${mandor.tahunTanam})`;
                 searchInput.setAttribute('data-nik', mandor.nik);
                 searchInput.setAttribute('data-nama', mandor.nama);
+                searchInput.setAttribute('tahun-tanam',mandor.tahunTanam);
                 searchInput.setAttribute('data-display-value', displayValue);
                 searchInput.value = displayValue;
                 hiddenInput.value = mandor.id;

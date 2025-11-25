@@ -106,7 +106,8 @@ function transformApiData(apiData) {
         basahLumpKebun: formatNumber(getData('totalHariIniBasahLumpKebun') || getData('totalhariiinibasahlumpkebun') || 0),
         basahLumpPabrik: formatNumber(getData('totalHariIniBasahLumpPabrik') || getData('totalhariinibasahlumppabrik') || 0),
         k3Sheet: formatNumber(getData('totalHariIniK3Sheet') || getData('totalhariinik3sheet') || 0),
-        jumlahKering: formatNumber(getData('totalHariIniKeringJumlah') || getData('totalhariinikeringjumlah') || 0)
+        jumlahKering: formatNumber(getData('totalHariIniKeringJumlah') || getData('totalhariinikeringjumlah') || 0),
+        totalProduksi: formatNumber(getData('totalProduksiHariIni')||getData('totalproduksihariini')||0)
     };
 
     console.log('✅ Transformed data:', transformed);
@@ -258,6 +259,7 @@ function updateUIWithData(data) {
     updateValue('basah-lump-pabrik', data.basahLumpPabrik);
     updateValue('k3-sheet', data.k3Sheet);
     updateValue('jumlah-kering', data.jumlahKering);
+    updateValue('total-produksi', data.totalProduksi);
 }
 
 // Set semua info box ke 0 (default) — gunakan saat load awal
@@ -268,6 +270,7 @@ function setAllInfoToZero() {
     updateValue('basah-lump-pabrik', '0');
     updateValue('k3-sheet', '0');
     updateValue('jumlah-kering', '0');
+    updateValue('total-produkso','0')
 }
 
 function updateValue(id, text) {
