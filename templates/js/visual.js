@@ -200,55 +200,152 @@ function transformDataForChart(apiData, fieldName, satuanWaktu, startDate, endDa
         });
     }
 
-    // Build complete dataset with all dates
-    const result = [];
-    const grouped = {};
-
-    allDates.forEach(date => {
+    // Build complete daily dataset
+    const dailyData = allDates.map(date => {
         const dateKey = formatDateForAPI(date);
-        const displayLabel = formatDateForDisplay(date, satuanWaktu);
-
-        // Get value for this date or default to 0
         let value = 0;
         if (apiDataMap[dateKey] && apiDataMap[dateKey].length > 0) {
-            // Sum all values for this date
             value = apiDataMap[dateKey].reduce((sum, val) => sum + val, 0);
-
-            // For non-day views, we'll average later
-            if (satuanWaktu !== 'day') {
-                if (!grouped[displayLabel]) {
-                    grouped[displayLabel] = { total: 0, count: 0 };
-                }
-                grouped[displayLabel].total += value;
-                grouped[displayLabel].count += 1;
-            }
         }
-
-        if (satuanWaktu === 'day') {
-            result.push({
-                label: displayLabel,
-                value: value
-            });
-        }
+        return { date: new Date(date), value: value };
     });
 
-    // For week/month aggregation
-    if (satuanWaktu !== 'day') {
-        const aggregated = Object.entries(grouped).map(([label, data]) => ({
-            label: label,
-            value: Math.round(data.total / data.count)
+    // Return daily data if satuan is 'day'
+    if (satuanWaktu === 'day') {
+        const result = dailyData.map(d => ({
+            label: formatDateForDisplay(d.date, 'day'),
+            value: d.value
         }));
-        console.log('📊 Aggregated data:', aggregated.length, 'points');
-        return aggregated;
+        console.log('📊 Daily dataset:', result.length, 'days');
+        return result;
     }
 
-    console.log('📊 Complete dataset:', result.length, 'days');
-    console.log('📊 Days with data:', Object.keys(apiDataMap).length);
-    console.log('📊 Days with zero:', result.filter(d => d.value === 0).length);
+    // Aggregate by week/month/year
+    const result = [];
 
+    if (satuanWaktu === 'week') {
+        if (dailyData.length === 0) return result;
+
+        let currentWeekStart = new Date(dailyData[0].date);
+        let weekTotal = 0;
+
+        dailyData.forEach((item, index) => {
+            weekTotal += item.value;
+
+            // Cek apakah ini hari terakhir dalam data ATAU hari Minggu (0)
+            const isLastDay = (index === dailyData.length - 1);
+            const isSunday = item.date.getDay() === 0;
+
+            if (isSunday || isLastDay) {
+                // Tutup minggu ini
+                const weekEnd = new Date(item.date);
+                const label = `${currentWeekStart.getDate()} ${currentWeekStart.toLocaleDateString('id-ID', { month: 'short' })} - ${weekEnd.getDate()} ${weekEnd.toLocaleDateString('id-ID', { month: 'short' })}`;
+
+                result.push({
+                    label: label,
+                    value: Math.round(weekTotal)
+                });
+
+                // Reset untuk minggu berikutnya (jika bukan hari terakhir)
+                if (!isLastDay) {
+                    currentWeekStart = new Date(dailyData[index + 1].date);
+                    weekTotal = 0;
+                }
+            }
+        });
+
+        console.log('📊 Weekly aggregation:', result.length, 'weeks');
+        return result;
+    }
+
+    if (satuanWaktu === 'month') {
+        if (dailyData.length === 0) return result;
+
+        let currentMonthStart = new Date(dailyData[0].date);
+        let currentMonth = currentMonthStart.getMonth();
+        let currentYear = currentMonthStart.getFullYear();
+        let monthTotal = 0;
+
+        dailyData.forEach((item, index) => {
+            const itemMonth = item.date.getMonth();
+            const itemYear = item.date.getFullYear();
+
+            monthTotal += item.value;
+
+            // Cek apakah ini hari terakhir ATAU bulan berubah di data berikutnya
+            const isLastDay = (index === dailyData.length - 1);
+            const isMonthEnd = !isLastDay && (
+                dailyData[index + 1].date.getMonth() !== currentMonth ||
+                dailyData[index + 1].date.getFullYear() !== currentYear
+            );
+
+            if (isLastDay || isMonthEnd) {
+                // Tutup bulan ini
+                const monthEnd = new Date(item.date);
+                const label = `${currentMonthStart.getDate()} - ${monthEnd.getDate()} ${monthEnd.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
+
+                result.push({
+                    label: label,
+                    value: Math.round(monthTotal)
+                });
+
+                // Reset untuk bulan berikutnya (jika bukan hari terakhir)
+                if (!isLastDay) {
+                    const nextDate = dailyData[index + 1].date;
+                    currentMonthStart = new Date(nextDate);
+                    currentMonth = nextDate.getMonth();
+                    currentYear = nextDate.getFullYear();
+                    monthTotal = 0;
+                }
+            }
+        });
+
+        console.log('📊 Monthly aggregation:', result.length, 'months');
+        return result;
+    }
+
+    if (satuanWaktu === 'year' || satuanWaktu === 'years') {
+        if (dailyData.length === 0) return result;
+
+        let currentYearStart = new Date(dailyData[0].date);
+        let currentYear = currentYearStart.getFullYear();
+        let yearTotal = 0;
+
+        dailyData.forEach((item, index) => {
+            const itemYear = item.date.getFullYear();
+
+            yearTotal += item.value;
+
+            // Cek apakah ini hari terakhir ATAU tahun berubah di data berikutnya
+            const isLastDay = (index === dailyData.length - 1);
+            const isYearEnd = !isLastDay && (dailyData[index + 1].date.getFullYear() !== currentYear);
+
+            if (isLastDay || isYearEnd) {
+                // Tutup tahun ini
+                const yearEnd = new Date(item.date);
+                const label = `${currentYearStart.getDate()} ${currentYearStart.toLocaleDateString('id-ID', { month: 'short' })} ${currentYearStart.getFullYear()} - ${yearEnd.getDate()} ${yearEnd.toLocaleDateString('id-ID', { month: 'short' })} ${yearEnd.getFullYear()}`;
+
+                result.push({
+                    label: label,
+                    value: Math.round(yearTotal)
+                });
+
+                // Reset untuk tahun berikutnya (jika bukan hari terakhir)
+                if (!isLastDay) {
+                    currentYearStart = new Date(dailyData[index + 1].date);
+                    currentYear = dailyData[index + 1].date.getFullYear();
+                    yearTotal = 0;
+                }
+            }
+        });
+
+        console.log('📊 Yearly aggregation:', result.length, 'years');
+        return result;
+    }
+
+    console.log('📊 Complete dataset:', result.length, 'points');
     return result;
 }
-
 function drawBarChart() {
     const canvas = document.getElementById('barChart');
     const ctx = canvas.getContext('2d');
@@ -810,6 +907,7 @@ function setupMandorAutocomplete() {
         if (storedDisplayValue && searchInput.value !== storedDisplayValue) {
             searchInput.removeAttribute('data-nik');
             searchInput.removeAttribute('data-nama');
+            searchInput.removeAttribute('data-tahun-tanam');
             searchInput.removeAttribute('data-display-value');
             hiddenInput.value = '';
         }
@@ -827,7 +925,8 @@ function setupMandorAutocomplete() {
 
         const filtered = mandorList.filter(m =>
             m.nama.toLowerCase().includes(value) ||
-            (m.nik && m.nik.toLowerCase().includes(value))
+            (m.nik && m.nik.toLowerCase().includes(value)) ||
+            (m.tahunTanam && m.tahunTanam.toString().includes(value))
         );
 
         if (filtered.length === 0) {
@@ -842,20 +941,25 @@ function setupMandorAutocomplete() {
             item.className = 'autocomplete-item';
             item.innerHTML = `
                 <strong>${mandor.nama}</strong><br>
-                <small>NIK: ${mandor.nik}</small>
-                <small>Tahun Tanam: ${mandor.tahunTanam}</small>
+                <small>NIK: ${mandor.nik || 'N/A'}</small> | 
+                <small>Tahun Tanam: ${mandor.tahunTanam || 'N/A'}</small>
             `;
 
             item.onclick = function() {
-                const displayValue = `${mandor.nama} (${mandor.nik})(${mandor.tahunTanam})`;
+                const displayValue = `${mandor.nama} (${mandor.nik}) - ${mandor.tahunTanam}`;
                 searchInput.setAttribute('data-nik', mandor.nik);
                 searchInput.setAttribute('data-nama', mandor.nama);
-                searchInput.setAttribute('tahun-tanam',mandor.tahunTanam);
+                searchInput.setAttribute('data-tahun-tanam', mandor.tahunTanam);
                 searchInput.setAttribute('data-display-value', displayValue);
                 searchInput.value = displayValue;
                 hiddenInput.value = mandor.id;
                 dropdown.style.display = 'none';
-                console.log('Mandor selected:', {nik: mandor.nik, nama: mandor.nama});
+                console.log('Mandor selected:', {
+                    id: mandor.id,
+                    nik: mandor.nik,
+                    nama: mandor.nama,
+                    tahunTanam: mandor.tahunTanam
+                });
             };
 
             dropdown.appendChild(item);

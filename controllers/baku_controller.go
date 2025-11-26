@@ -1525,7 +1525,9 @@ func getMandorSummariesByDateRange(tanggalMulai, tanggalSelesai, tipeFilter stri
 
 	return summaries, nil
 }
+func testsaja() {
 
+}
 func buildDateRangeQuery(query *gorm.DB, startDate, endDate time.Time) *gorm.DB {
 	if !startDate.IsZero() && !endDate.IsZero() {
 		return query.Where("DATE(tanggal) BETWEEN DATE(?) AND DATE(?)", startDate, endDate)
